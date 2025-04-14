@@ -43,6 +43,31 @@ SokoClick will utilize a modern web architecture leveraging the following techno
   * Navigation and user profile components
   * Filter and sort controls
 
+**The section component includes:**
+**Navigation Bar:**
+Logo with the SokoClick branding
+Navigation links: "How It Works," "Get Help," and "Start Selling"
+Login and Sign Up buttons
+Language toggle (EN/FR)
+User menu icon
+
+**Dynamic Hero Slider:**
+Three rotating slides with compelling messaging:
+
+"Discover Exclusive Sales" - Highlights the marketplace value
+"Turn Products Into Profit" - Appeals to potential sellers
+
+**"Direct Connection, Real Deals"** - Emphasizes the WhatsApp integration
+Interactive navigation with dots and arrow controls
+Auto-advancing slides (every 5 seconds)
+Clear call-to-action buttons on each slide
+
+**Benefits Section:**
+Three key value propositions with icons
+Focuses on exclusive products, seller verification, and direct communication
+Clean, visual presentation that complements the auction listings below
+
+
 * **Auction Slot Component:**
   * Fetches and displays current product assigned to its permanent link
   * Renders product details in user's preferred language
