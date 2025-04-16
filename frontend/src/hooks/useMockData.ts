@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AuctionSlot } from '../types/supabase';
+import { AuctionSlot, Product } from '../types/supabase';
 import { 
   mockAuctionService, 
   MOCK_PRODUCTS, 
@@ -7,36 +7,41 @@ import {
   AUCTION_STATES,
   AuctionState
 } from '../services/mockData';
+import { generateMockAuctionSlots, getMockAuctionSlotById, getMockFeaturedSlots } from '../services/mockData';
 
-export const useMockAuctionSlots = (limit: number = 25, offset: number = 0, category?: string) => {
+export const useMockAuctionSlots = (limit: number = 25, offset: number = 0) => {
   const [slots, setSlots] = useState<AuctionSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false); // Always 25 slots, so no more pagination
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const data = await mockAuctionService.getAuctionSlots(limit, offset);
-        
-        // Filter by category if provided
-        let filteredData = data;
-        if (category && category !== 'all') {
-          filteredData = data.filter(slot => {
-            if (!slot.product) return false;
-            return slot.product.category === category;
-          });
-        }
+        // Always get exactly 25 slots
+        const data = await mockAuctionService.getAuctionSlots(25, 0);
         
         // Only show active and scheduled slots in the main listing
-        const activeSlots = filteredData.filter(slot => 
+        const activeSlots = data.filter(slot => 
           slot.auction_state === AUCTION_STATES.ACTIVE || 
           slot.auction_state === AUCTION_STATES.SCHEDULED
         );
         
-        setSlots(activeSlots);
-        setHasMore(activeSlots.length === limit);
+        // If we don't have 25 active slots, get some from other states to fill up
+        let slotsToDisplay = activeSlots;
+        if (activeSlots.length < 25) {
+          const remainingSlots = data.filter(slot =>
+            slot.auction_state !== AUCTION_STATES.ACTIVE && 
+            slot.auction_state !== AUCTION_STATES.SCHEDULED
+          ).slice(0, 25 - activeSlots.length);
+          
+          slotsToDisplay = [...activeSlots, ...remainingSlots];
+        }
+        
+        // Ensure we always return exactly 25 slots or all available if less
+        setSlots(slotsToDisplay.slice(0, 25));
+        setHasMore(false); // No pagination needed
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('An unknown error occurred'));
@@ -46,7 +51,7 @@ export const useMockAuctionSlots = (limit: number = 25, offset: number = 0, cate
     };
 
     fetchData();
-  }, [limit, offset, category]);
+  }, []);
 
   return { slots, loading, error, hasMore };
 };
@@ -270,4 +275,82 @@ export const useAdminMockSlotActions = () => {
     error, 
     success 
   };
+};
+
+// Add export to mockAuctionService type definition to include getMockProducts
+export type MockAuctionService = {
+  getAuctionSlots: (
+    limit?: number,
+    offset?: number,
+    filterFn?: (slot: AuctionSlot) => boolean
+  ) => Promise<AuctionSlot[]>;
+  getAuctionSlotById: (id: string) => Promise<AuctionSlot | null>;
+  getMockFeaturedSlots: (limit?: number) => Promise<AuctionSlot[]>;
+  getMockProducts: () => Promise<any[]>;
+};
+
+/**
+ * Hook for sellers to get their products
+ * @param sellerId ID of the seller to filter products by
+ */
+export const useSellerMockProducts = (sellerId: string = '1') => {
+  const [products, setProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchSellerProducts = async () => {
+      try {
+        setIsLoading(true);
+        // Get all products
+        const allProducts = await mockAuctionService.getMockProducts();
+        // Filter for seller's products
+        const sellerProducts = allProducts.filter(product => product.seller?.id === sellerId);
+        setProducts(sellerProducts);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to fetch seller products'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSellerProducts();
+  }, [sellerId]);
+
+  return { products, isLoading, error };
+};
+
+/**
+ * Hook for sellers to get their auction slots
+ * @param sellerId ID of the seller to filter auctions by
+ */
+export const useSellerMockAuctions = (sellerId: string = '1') => {
+  const [auctions, setAuctions] = useState<AuctionSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchSellerAuctions = async () => {
+      try {
+        setIsLoading(true);
+        // Get all auction slots with details (no limit)
+        const allAuctions = await mockAuctionService.getAuctionSlots(100, 0);
+        // Filter for seller's auctions
+        const sellerAuctions = allAuctions.filter(
+          (auction: AuctionSlot) => auction.product?.seller?.id === sellerId
+        );
+        setAuctions(sellerAuctions);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to fetch seller auctions'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSellerAuctions();
+  }, [sellerId]);
+
+  return { auctions, isLoading, error };
 }; 

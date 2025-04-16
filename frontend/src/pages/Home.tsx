@@ -7,15 +7,15 @@ import AuctionCard from '../components/AuctionCard';
 import AuctionSkeletonCard from '../components/AuctionSkeletonCard';
 import ErrorBoundary from '../components/ErrorBoundary';
 import useInfiniteScroll from '../hooks/useInfiniteScroll';
-import CategoryFilter, { CATEGORIES } from '../components/CategoryFilter';
-import { useMockAuctionSlots } from '../hooks/useMockData';
+import { useMockAuctionSlots, useMockFeaturedSlots } from '../hooks/useMockData';
+import { Link } from 'react-router-dom';
+import Button from '../components/ui/Button';
 
 const Home = () => {
   const { t } = useTranslation();
-  const [filteredSlots, setFilteredSlots] = useState<AuctionSlot[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [debugMode, setDebugMode] = useState(false);
   
-  const SLOTS_PER_PAGE = 15;
+  const SLOTS_PER_PAGE = 25; // Always show 25 slots on the home page
   
   const {
     page,
@@ -27,96 +27,60 @@ const Home = () => {
   } = useInfiniteScroll();
 
   // Use the mock data hook instead of direct Supabase call
-  const { slots, loading: initialLoading, error } = useMockAuctionSlots(SLOTS_PER_PAGE, (page - 1) * SLOTS_PER_PAGE);
+  const { slots, loading: initialLoading, error } = useMockAuctionSlots(SLOTS_PER_PAGE, 0);
+  
+  // Featured slots for showcasing on empty results
+  const { featuredSlots } = useMockFeaturedSlots(3);
   
   // Update hasMore based on received data length
   useEffect(() => {
-    if (slots.length < SLOTS_PER_PAGE) {
-      setHasMore(false);
-    }
+    // No more slots to load - we always display exactly 25
+    setHasMore(false);
   }, [slots, setHasMore]);
-  
-  // Filter slots based on selected category
-  useEffect(() => {
-    if (selectedCategory === 'all') {
-      setFilteredSlots(slots);
-    } else {
-      // Filter based on category
-      const filtered = slots.filter(slot => {
-        if (!slot.product) return false;
-        
-        // For demonstration purposes only:
-        // We're checking if the product name or description contains the category
-        const nameEn = slot.product.name_en?.toLowerCase() || '';
-        const descEn = slot.product.description_en?.toLowerCase() || '';
-        return (
-          nameEn.includes(selectedCategory.toLowerCase()) || 
-          descEn.includes(selectedCategory.toLowerCase())
-        );
-      });
-      
-      setFilteredSlots(filtered);
-    }
-  }, [selectedCategory, slots]);
-
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       
       <main className="flex-grow">
-        <section className="hero-section">
-          <div className="max-container text-center relative">
-            {/* Decorative elements */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10">
-              <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full bg-white"></div>
-              <div className="absolute top-32 -right-16 w-40 h-40 rounded-full bg-white"></div>
+        {/* Modern Hero Section with Gradient Background */}
+        <section className="bg-gradient-to-r from-blue-600 to-orange-500 text-white py-16 md:py-20">
+          <div className="max-container relative overflow-hidden px-4">
+            <div className="absolute top-0 left-0 w-full h-full opacity-20">
+              <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white blur-2xl"></div>
+              <div className="absolute top-32 -right-16 w-64 h-64 rounded-full bg-white blur-xl"></div>
             </div>
             
-            <div className="relative">
-              <h1 className="hero-title">
-                {t('heroTitle')}
+            <div className="relative z-10 max-w-3xl mx-auto text-center">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 md:mb-6">
+                {t('heroTitle', 'Exclusive Auctions, Limited Slots')}
               </h1>
-              <p className="hero-subtitle">
-                {t('heroSubtitle')}
+              <p className="text-lg md:text-xl lg:text-2xl mb-8 md:mb-10 text-white/90">
+                {t('heroSubtitle', 'Discover our curated selection of 25 exclusive products available for auction right now.')}
               </p>
-              <div className="mt-10">
-                <a
-                  href="#auction-slots"
-                  className="btn btn-primary bg-white text-primary-600 hover:bg-gray-100 px-8 py-4 text-lg shadow-lg hover:shadow-xl transform transition hover:-translate-y-1"
-                >
-                  {t('viewAuctions')}
-                </a>
-              </div>
+              <Link to="#auction-slots" className="inline-block px-6 py-3 md:px-8 md:py-4 bg-white text-primary-600 rounded-lg font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-100 transition transform hover:-translate-y-1">
+                {t('viewAuctions', 'View Auctions')}
+              </Link>
             </div>
           </div>
         </section>
         
-        <section id="auction-slots" className="py-16 bg-gray-50">
-          <div className="max-container">
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-10 text-center">
+        <section id="auction-slots" className="py-12 md:py-16 bg-gray-50">
+          <div className="max-container px-4">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-8 md:mb-10 text-center">
               {t('currentAuctions')}
             </h2>
             
-            {/* Add category filter */}
-            <CategoryFilter 
-              selectedCategory={selectedCategory}
-              onCategoryChange={handleCategoryChange}
-            />
-            
             <ErrorBoundary>
               {initialLoading ? (
-                <div className="auction-grid">
+                <div className="auction-grid mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   {Array.from({ length: 10 }).map((_, index) => (
                     <AuctionSkeletonCard key={index} />
                   ))}
                 </div>
               ) : error ? (
-                <div className="text-center py-16 bg-white rounded-lg shadow-sm">
-                  <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <div className="text-center py-10 md:py-16 bg-white rounded-lg shadow-sm">
+                  <svg className="w-12 h-12 md:w-16 md:h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <h3 className="text-xl font-medium text-gray-900 mb-2">{t('errorOccurred')}</h3>
@@ -127,87 +91,103 @@ const Home = () => {
                   >
                     {t('tryAgain')}
                   </button>
+                  
+                  {/* Debug button */}
+                  <button
+                    onClick={() => setDebugMode(!debugMode)}
+                    className="ml-4 mt-2 text-xs text-gray-500 underline"
+                  >
+                    {debugMode ? 'Hide Debug Info' : 'Show Debug Info'}
+                  </button>
+                  
+                  {debugMode && (
+                    <div className="mt-4 text-left p-4 bg-gray-100 rounded overflow-auto max-h-64 text-xs">
+                      <pre>Slots count: {slots.length}</pre>
+                      <pre>Error: {error.toString()}</pre>
+                    </div>
+                  )}
                 </div>
-              ) : filteredSlots.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-lg shadow-sm">
-                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              ) : slots.length === 0 ? (
+                <div className="text-center py-10 md:py-12 bg-white rounded-lg shadow-sm">
+                  <svg className="w-12 h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
                   </svg>
                   <h3 className="text-xl font-medium text-gray-900 mb-2">
-                    {selectedCategory === 'all' 
-                      ? t('noAuctionsAvailable') 
-                      : t('noAuctionsInCategory')}
+                    {t('noAuctionsAvailable')}
                   </h3>
-                  {selectedCategory !== 'all' && (
-                    <button 
-                      onClick={() => setSelectedCategory('all')}
-                      className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-                    >
-                      {t('showAllCategories')}
-                    </button>
+                  
+                  <p className="text-gray-600 mt-2">
+                    {t('checkBackLater', 'Check back later for new auctions or try refreshing the page.')}
+                  </p>
+                  
+                  {/* Debugging button for development */}
+                  <button
+                    onClick={() => setDebugMode(!debugMode)}
+                    className="block mx-auto mt-4 text-xs text-gray-500 underline"
+                  >
+                    {debugMode ? 'Hide Debug Info' : 'Show Debug Info'}
+                  </button>
+                  
+                  {debugMode && (
+                    <div className="mt-4 text-left p-4 bg-gray-100 rounded overflow-auto max-h-64 text-xs">
+                      <pre>Raw slots: {JSON.stringify(slots, null, 2)}</pre>
+                    </div>
+                  )}
+                  
+                  {/* If no slots but we have featured slots, show them */}
+                  {featuredSlots.length > 0 && (
+                    <div className="mt-12">
+                      <h3 className="text-xl font-medium text-gray-900 mb-6">
+                        {t('featuredItems', 'Featured Items You Might Like')}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {featuredSlots.map((slot) => (
+                          <Suspense key={slot.id} fallback={<AuctionSkeletonCard />}>
+                            <AuctionCard slot={slot} />
+                          </Suspense>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               ) : (
                 <>
-                  <div className="auction-grid">
-                    {filteredSlots.map((slot) => (
+                  <div className="auction-grid mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
+                    {slots.map((slot) => (
                       <Suspense key={slot.id} fallback={<AuctionSkeletonCard />}>
                         <AuctionCard slot={slot} />
                       </Suspense>
                     ))}
                   </div>
-                  
-                  {/* Loader for infinite scrolling */}
-                  {hasMore && selectedCategory === 'all' && (
-                    <div 
-                      ref={observerRef} 
-                      className="flex justify-center mt-10"
-                    >
-                      {isLoading && (
-                        <div className="auction-grid w-full">
-                          {Array.from({ length: 5 }).map((_, index) => (
-                            <AuctionSkeletonCard key={index} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* No more items message */}
-                  {!hasMore && filteredSlots.length > 0 && (
-                    <div className="text-center py-8 text-gray-500 italic">
-                      {t('noMoreAuctions')}
-                    </div>
-                  )}
                 </>
               )}
             </ErrorBoundary>
           </div>
         </section>
         
-        <section className="py-16 bg-white">
-          <div className="max-container text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-12">
+        <section className="py-12 md:py-16 bg-white">
+          <div className="max-container text-center px-4">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-8 md:mb-12">
               {t('howItWorks')}
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
               <div className="p-6 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 text-primary-600 text-3xl font-bold mb-6">1</div>
-                <h3 className="text-xl font-medium text-gray-900 mb-3">{t('step1Title')}</h3>
-                <p className="text-gray-600">{t('step1Description')}</p>
+                <h3 className="text-xl font-medium text-gray-900 mb-3">{t('step1Title', 'Browse Products')}</h3>
+                <p className="text-gray-600">{t('step1Description', 'Browse through our exclusive selection of 25 auction slots featuring premium products.')}</p>
               </div>
               
               <div className="p-6 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent-100 text-accent-600 text-3xl font-bold mb-6">2</div>
-                <h3 className="text-xl font-medium text-gray-900 mb-3">{t('step2Title')}</h3>
-                <p className="text-gray-600">{t('step2Description')}</p>
+                <h3 className="text-xl font-medium text-gray-900 mb-3">{t('step2Title', 'Contact Seller')}</h3>
+                <p className="text-gray-600">{t('step2Description', 'Contact the seller directly via WhatsApp to discuss the product and make an offer.')}</p>
               </div>
               
               <div className="p-6 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 text-3xl font-bold mb-6">3</div>
-                <h3 className="text-xl font-medium text-gray-900 mb-3">{t('step3Title')}</h3>
-                <p className="text-gray-600">{t('step3Description')}</p>
+                <h3 className="text-xl font-medium text-gray-900 mb-3">{t('step3Title', 'Secure Your Purchase')}</h3>
+                <p className="text-gray-600">{t('step3Description', 'Complete your transaction securely using regional payment methods.')}</p>
               </div>
             </div>
           </div>

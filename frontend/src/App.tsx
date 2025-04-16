@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import './utils/i18n'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './providers/ToastProvider'
+import { WhatsAppProvider } from './context/WhatsAppContext'
 
 function App() {
   return (
@@ -14,7 +15,9 @@ function App() {
     }>
       <AuthProvider>
         <ToastProvider>
-          <RouterProvider router={router} />
+          <WhatsAppProvider>
+            <RouterProvider router={router} />
+          </WhatsAppProvider>
         </ToastProvider>
       </AuthProvider>
     </Suspense>

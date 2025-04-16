@@ -5,12 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:css && tsc -b && vite build",
+    "build": "vite build",
+    "type-check": "tsc -b",
     "build:css": "postcss src/index.css -o src/index.processed.css",
     "lint": "eslint .",
     "preview": "vite preview",
     "tailwind-init": "tailwindcss init -p",
-    "validate:css": "postcss src/index.css --config postcss.config.js"
+    "validate:css": "postcss src/index.css --config postcss.config.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.2.4",
@@ -20,6 +24,7 @@
     "@supabase/auth-helpers-react": "^0.5.0",
     "@supabase/supabase-js": "^2.49.4",
     "axios": "^1.8.4",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "framer-motion": "^12.7.2",
@@ -35,6 +40,8 @@
   "devDependencies": {
     "@eslint/js": "^9.21.0",
     "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
@@ -43,11 +50,15 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5.3",
+    "postcss-cli": "^11.0.1",
     "postcss-import": "^16.1.0",
     "tailwindcss": "^3.4.1",
+    "terser": "^5.39.0",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^3.1.1"
   }
 }

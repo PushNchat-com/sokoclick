@@ -104,6 +104,12 @@ export type AuctionSlot = {
   view_count: number;
   product: Product | null;
   auction_state?: string;
+  bid_count?: number;
+  current_price?: number;
+  seller_id?: string;
+  buyer_id?: string | null;
+  seller?: Profile;
+  buyer?: Profile | null;
 };
 
 export type Product = {
@@ -134,6 +140,7 @@ export type Profile = {
   bio?: string;
   profile_image?: string;
   verified?: boolean;
+  role?: 'admin' | 'seller' | 'buyer';
 };
 
 export type SupabaseClientWithTypes = SupabaseDatabase<Database>; 

@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
@@ -10,6 +10,9 @@ import Container from '../components/ui/Container';
 import { H1, H2, Text } from '../components/ui/Typography';
 import Button from '../components/ui/Button';
 import { useMockAuctionSlotById } from '../hooks/useMockData';
+import { useWhatsApp } from '../context/WhatsAppContext';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../providers/ToastProvider';
 const CountdownTimer = lazy(() => import('../components/CountdownTimer'));
 
 // Loading placeholder for lazy-loaded components
@@ -18,13 +21,59 @@ const LazyLoadingPlaceholder = () => (
 );
 
 // WhatsApp modal component
-const WhatsAppModal = ({ isOpen, onClose, sellerNumber, productName, offerAmount, currency }) => {
+const WhatsAppModal = ({ isOpen, onClose, sellerNumber, productName, productId, productImage, offerAmount, currency }) => {
   const { t } = useTranslation();
+  const { initiateConversation } = useWhatsApp();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   
   if (!isOpen) return null;
+
+  const handleWhatsAppIntegration = async () => {
+    setIsLoading(true);
+    
+    if (!user) {
+      // Redirect to login if not logged in
+      toast.showToast(t('errors.loginRequired'), 'warning');
+      navigate('/login', { state: { from: `/sc/${productId}` } });
+      return;
+    }
+    
+    try {
+      // Format initial message with offer details
+      const initialMessage = `${t('whatsappMessage')}\n\n` +
+        `${t('myOffer')}: ${offerAmount} ${currency}`;
+      
+      // Initiate conversation through our WhatsApp context
+      const conversationId = await initiateConversation(
+        productId,
+        sellerNumber, // This should be the seller ID in a real app
+        productName,
+        productImage
+      );
+      
+      if (conversationId) {
+        // Navigate to WhatsApp conversation
+        navigate('/messages');
+        toast.showToast(t('whatsapp.conversationStarted'), 'success');
+      } else {
+        // Fallback to direct WhatsApp link if conversation creation fails
+        handleDirectWhatsApp();
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      // Fallback to direct WhatsApp
+      handleDirectWhatsApp();
+    } finally {
+      setIsLoading(false);
+      onClose();
+    }
+  };
   
-  const handleWhatsAppClick = () => {
-    // Format WhatsApp link with offer details
+  const handleDirectWhatsApp = () => {
+    // Format WhatsApp link with offer details as fallback
     const message = encodeURIComponent(
       `${t('whatsappMessage')}\n\n` +
       `${t('productName')}: ${productName}\n` +
@@ -33,14 +82,13 @@ const WhatsAppModal = ({ isOpen, onClose, sellerNumber, productName, offerAmount
     );
     
     window.open(`https://wa.me/${sellerNumber.replace(/[^0-9]/g, '')}?text=${message}`, '_blank');
-    onClose();
   };
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6">
         <h3 className="text-xl font-bold mb-4">{t('contactViaTwhatsApp')}</h3>
-        <p className="mb-6">{t('whatsappIntegrationMessage')}</p>
+        <p className="mb-6">{t('whatsapp.startConversation')}</p>
         
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <div className="mb-2">
@@ -52,14 +100,24 @@ const WhatsAppModal = ({ isOpen, onClose, sellerNumber, productName, offerAmount
         </div>
         
         <div className="flex justify-end space-x-3">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
             {t('cancel')}
           </Button>
-          <Button variant="primary" onClick={handleWhatsAppClick}>
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.075-.3-.15-1.263-.465-2.403-1.485-.888-.795-1.484-1.77-1.66-2.07-.174-.3-.019-.465.13-.615.136-.135.301-.345.451-.523.146-.181.194-.301.297-.496.1-.21.049-.375-.025-.524-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.571-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.091 1.767-.722 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.345m-5.446 7.443h-.016c-1.77 0-3.524-.48-5.055-1.38l-.36-.214-3.75.975 1.005-3.645-.239-.375c-.99-1.576-1.516-3.391-1.516-5.26 0-5.445 4.455-9.885 9.942-9.885 2.654 0 5.145 1.035 7.021 2.91 1.875 1.859 2.909 4.35 2.909 6.99-.004 5.444-4.46 9.885-9.935 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652c1.746.943 3.71 1.444 5.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411"/>
-            </svg>
-            {t('contactViaTwhatsApp')}
+          <Button 
+            variant="primary" 
+            onClick={handleWhatsAppIntegration}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+            ) : (
+              <>
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.075-.3-.15-1.263-.465-2.403-1.485-.888-.795-1.484-1.77-1.66-2.07-.174-.3-.019-.465.13-.615.136-.135.301-.345.451-.523.146-.181.194-.301.297-.496.1-.21.049-.375-.025-.524-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.571-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.091 1.767-.722 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.345m-5.446 7.443h-.016c-1.77 0-3.524-.48-5.055-1.38l-.36-.214-3.75.975 1.005-3.645-.239-.375c-.99-1.576-1.516-3.391-1.516-5.26 0-5.445 4.455-9.885 9.942-9.885 2.654 0 5.145 1.035 7.021 2.91 1.875 1.859 2.909 4.35 2.909 6.99-.004 5.444-4.46 9.885-9.935 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652c1.746.943 3.71 1.444 5.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411"/>
+                </svg>
+                {t('contactViaTwhatsApp')}
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -73,6 +131,8 @@ const AuctionDetail = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [offerAmount, setOfferAmount] = useState<string>('');
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
   
   // Use mock data hook
   const { slot: auctionDetail, loading, error } = useMockAuctionSlotById(Number(slotId));
@@ -92,6 +152,12 @@ const AuctionDetail = () => {
   const currentLanguage = i18n.language;
   
   const handleContactSeller = () => {
+    // If not logged in, redirect to login page
+    if (!user) {
+      navigate('/login', { state: { from: `/sc/${slotId}` } });
+      return;
+    }
+    
     setShowWhatsAppModal(true);
   };
 
@@ -330,15 +396,18 @@ const AuctionDetail = () => {
         </ErrorBoundary>
       </main>
       
-      {/* WhatsApp Contact Modal */}
-      <WhatsAppModal
-        isOpen={showWhatsAppModal}
-        onClose={() => setShowWhatsAppModal(false)}
-        sellerNumber={sellerWhatsApp}
-        productName={productName}
-        offerAmount={parseAndFormatPrice(offerAmount)}
-        currency={auctionDetail?.product?.currency || ''}
-      />
+      {showWhatsAppModal && (
+        <WhatsAppModal
+          isOpen={showWhatsAppModal}
+          onClose={() => setShowWhatsAppModal(false)}
+          sellerNumber={sellerWhatsApp}
+          productName={productName}
+          productId={slotId}
+          productImage={selectedImage}
+          offerAmount={offerAmount}
+          currency={auctionDetail?.product?.currency || 'XAF'}
+        />
+      )}
       
       <Footer />
     </div>

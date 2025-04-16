@@ -60,6 +60,8 @@
   "errorOccurred": "An Error Occurred",
   "unknownError": "An unknown error occurred. Please try again later.",
   "missingName": "Unnamed Product",
+  "noBidsYet": "No bids yet",
+  "bidCount": "{{count}} bids",
   
   "unauthorized": "Unauthorized Access",
   "unauthorizedMessage": "You don't have permission to access this page. Please log in with an account that has the required permissions.",
@@ -172,7 +174,29 @@
       "pending": "Pending",
       "completed": "Completed",
       "cancelled": "Cancelled"
-    }
+    },
+    "typeMessage": "Type a message...",
+    "sendMessage": "Send",
+    "noMessages": "No messages yet. Start the conversation!",
+    "startConversation": "Start a WhatsApp conversation with the seller about this product.",
+    "conversationStarted": "Conversation started successfully",
+    "attachFiles": "Attach files",
+    "messageCouldNotBeSent": "Message could not be sent. Please try again.",
+    "retry": "Retry",
+    "messageListEmpty": "No messages found",
+    "loadingMessages": "Loading messages...",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+
+  "errors": {
+    "failedToFetchConversations": "Failed to load conversations",
+    "failedToFetchMessages": "Failed to load messages",
+    "failedToSendMessage": "Failed to send message",
+    "failedToMarkAsRead": "Failed to mark messages as read",
+    "failedToUpdateStatus": "Failed to update conversation status",
+    "failedToInitiateConversation": "Failed to start conversation",
+    "loginRequired": "You need to log in to access this feature"
   },
 
   "error": "Error",
@@ -181,7 +205,29 @@
   "views": "Views",
   "noProductName": "No product name",
   "productName": "Product Name",
-  "productId": "Product ID",
   "myOffer": "My Offer",
-  "fromSokoClick": "From SokoClick Auction"
+  "fromSokoClick": "From SokoClick Auction",
+
+  "auctionState": {
+    "upcoming": "Upcoming",
+    "scheduled": "Scheduled",
+    "active": "Active",
+    "pending": "Pending",
+    "ended": "Ended",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "failed": "Failed"
+  },
+
+  "addToFavorites": "Add to Favorites",
+  "favoriteFeatureComingSoon": "Favorite feature coming soon!",
+  "searchPlaceholder": "Search for products...",
+  "searchResults": "Search Results for \"{{query}}\"",
+  "noSearchResults": "No results found for \"{{query}}\"",
+  "foundResults": "Found {{count}} results",
+  "clearSearch": "Clear Search",
+  "retry": "Retry",
+  "product": {
+    "viewDetails": "View product"
+  }
 } 

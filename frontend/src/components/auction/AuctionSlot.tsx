@@ -184,9 +184,26 @@ const AuctionSlot: React.FC<AuctionSlotProps> = ({
             </div>
           )}
           
-          {/* View count badge */}
-          {slot.view_count > 0 && (
+          {/* Auction State Label */}
+          {slot.auction_state && (
             <div className="absolute top-2 right-2 z-10">
+              <span className={`text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm ${
+                slot.auction_state === 'active' ? 'bg-green-600' : 
+                slot.auction_state === 'pending' ? 'bg-yellow-600' : 
+                slot.auction_state === 'ended' ? 'bg-red-600' : 
+                slot.auction_state === 'scheduled' ? 'bg-blue-600' : 
+                slot.auction_state === 'completed' ? 'bg-purple-600' : 
+                slot.auction_state === 'cancelled' ? 'bg-gray-600' : 
+                'bg-gray-500'
+              }`}>
+                {t(`auctionState.${slot.auction_state}`)}
+              </span>
+            </div>
+          )}
+          
+          {/* View count badge - Move below auction state */}
+          {slot.view_count > 0 && (
+            <div className="absolute top-10 right-2 z-10">
               <span className="bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-full flex items-center">
                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -223,6 +240,20 @@ const AuctionSlot: React.FC<AuctionSlotProps> = ({
                   </span>
                 )}
               </div>
+              
+              {/* Add bid count indicator */}
+              {typeof slot.bid_count === 'number' && (
+                <div className="mt-2 flex items-center text-sm text-gray-600">
+                  <svg className="w-4 h-4 mr-1 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                  </svg>
+                  <span>
+                    {slot.bid_count === 0 
+                      ? t('noBidsYet', 'No bids yet') 
+                      : t('bidCount', '{{count}} bids', { count: slot.bid_count })}
+                  </span>
+                </div>
+              )}
               
               {slot.is_active && slot.end_time && (
                 <div className="mt-2 text-sm text-gray-600">
@@ -262,12 +293,38 @@ const AuctionSlot: React.FC<AuctionSlotProps> = ({
               </Button>
             </div>
           ) : (
-            <Button 
-              variant="primary" 
-              fullWidth
-            >
-              {t('viewDetails')}
-            </Button>
+            <div className="flex gap-2 w-full">
+              <Button 
+                variant="primary" 
+                fullWidth
+              >
+                {t('viewDetails')}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-shrink-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Favorite functionality would be implemented here
+                  alert(t('favoriteFeatureComingSoon', 'Favorite feature coming soon!'));
+                }}
+                title={t('addToFavorites')}
+              >
+                <svg 
+                  className="w-5 h-5 text-red-500" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                  />
+                </svg>
+              </Button>
+            </div>
           )}
         </CardFooter>
       </Link>

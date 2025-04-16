@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Box, Text, VStack, HStack, Input, Button, Avatar, Spinner, Flex, IconButton, Badge } from '@chakra-ui/react';
 import { AttachmentIcon, ArrowForwardIcon } from '@chakra-ui/icons';
 import { useWhatsApp } from '../../context/WhatsAppContext';
-import { WhatsAppMessage, ConversationStatus } from '../../types/whatsapp';
+import { WhatsAppMessage, ConversationStatus, MessageSender } from '../../types/whatsapp';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 
@@ -71,23 +71,11 @@ const WhatsAppConversation: React.FC<WhatsAppConversationProps> = ({ conversatio
     let color = 'gray';
     
     switch (status) {
-      case ConversationStatus.INITIATED:
+      case ConversationStatus.ACTIVE:
         color = 'blue';
         break;
-      case ConversationStatus.NEGOTIATING:
+      case ConversationStatus.PENDING:
         color = 'orange';
-        break;
-      case ConversationStatus.PAYMENT_PENDING:
-        color = 'purple';
-        break;
-      case ConversationStatus.PAID:
-        color = 'green';
-        break;
-      case ConversationStatus.SHIPPED:
-        color = 'teal';
-        break;
-      case ConversationStatus.DELIVERED:
-        color = 'green';
         break;
       case ConversationStatus.COMPLETED:
         color = 'green';
@@ -95,6 +83,8 @@ const WhatsAppConversation: React.FC<WhatsAppConversationProps> = ({ conversatio
       case ConversationStatus.CANCELLED:
         color = 'red';
         break;
+      default:
+        color = 'gray';
     }
     
     return (
@@ -150,15 +140,15 @@ const WhatsAppConversation: React.FC<WhatsAppConversationProps> = ({ conversatio
           messages.map((message) => (
             <Box 
               key={message.id} 
-              alignSelf={message.sender === 'system' 
+              alignSelf={message.sender === MessageSender.SYSTEM 
                 ? 'center' 
-                : message.sender === (conversation.sellerId === user?.id ? 'seller' : 'buyer') 
+                : message.sender === MessageSender.BUSINESS 
                 ? 'flex-end' 
                 : 'flex-start'}
               maxWidth="70%"
-              bg={message.sender === 'system' 
+              bg={message.sender === MessageSender.SYSTEM 
                 ? 'gray.100' 
-                : message.sender === (conversation.sellerId === user?.id ? 'seller' : 'buyer') 
+                : message.sender === MessageSender.BUSINESS
                 ? 'green.100' 
                 : 'blue.100'}
               p={3}

@@ -1,43 +1,128 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 
 export type ToastVariant = 'success' | 'error' | 'info' | 'warning';
 
-interface ToastProps {
+export interface ToastProps {
   message: string;
   variant?: ToastVariant;
   duration?: number;
-  onClose?: () => void;
-  isVisible?: boolean;
+  id?: string;
 }
 
+interface ToastContextType {
+  showToast: (toast: ToastProps) => string;
+  hideToast: (id: string) => void;
+  toasts: Array<ToastProps & { id: string }>;
+}
+
+const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
 /**
- * Toast notification component for displaying temporary messages
+ * Toast Provider component for managing toast notifications across the app
  */
-const Toast: React.FC<ToastProps> = ({
-  message,
-  variant = 'info',
-  duration = 3000,
-  onClose,
-  isVisible = true,
-}) => {
-  const [isShown, setIsShown] = useState(isVisible);
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [toasts, setToasts] = useState<Array<ToastProps & { id: string }>>([]);
 
-  useEffect(() => {
-    setIsShown(isVisible);
-  }, [isVisible]);
-
-  useEffect(() => {
-    if (isShown && duration > 0) {
-      const timer = setTimeout(() => {
-        setIsShown(false);
-        if (onClose) onClose();
-      }, duration);
-
-      return () => clearTimeout(timer);
+  // Show a toast and return its ID
+  const showToast = useCallback((toast: ToastProps): string => {
+    const id = toast.id || `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const newToast = { ...toast, id };
+    
+    // Check if toast with same message already exists
+    const existingToast = toasts.find(t => t.message === toast.message);
+    if (existingToast) {
+      // Reset the timer for the existing toast by updating it
+      setToasts(current => 
+        current.map(t => t.id === existingToast.id ? { ...t, duration: toast.duration } : t)
+      );
+      return existingToast.id;
     }
-  }, [isShown, duration, onClose]);
+    
+    setToasts(current => [...current, newToast]);
+    return id;
+  }, [toasts]);
 
-  if (!isShown) return null;
+  const hideToast = useCallback((id: string): void => {
+    setToasts(current => current.filter(toast => toast.id !== id));
+  }, []);
+
+  useEffect(() => {
+    toasts.forEach(toast => {
+      if (toast.duration !== 0 && toast.duration !== Infinity) {
+        const timer = setTimeout(() => {
+          hideToast(toast.id);
+        }, toast.duration || 3000);
+        
+        return () => clearTimeout(timer);
+      }
+    });
+  }, [toasts, hideToast]);
+
+  return (
+    <ToastContext.Provider value={{ showToast, hideToast, toasts }}>
+      {children}
+      <ToastContainer />
+    </ToastContext.Provider>
+  );
+};
+
+/**
+ * Hook to use toast functionality throughout the app
+ */
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+  
+  return {
+    toast: (message: string, variant: ToastVariant = 'info', duration = 3000) => {
+      context.showToast({ message, variant, duration });
+    },
+    success: (message: string, duration = 3000) => {
+      context.showToast({ message, variant: 'success', duration });
+    },
+    error: (message: string, duration = 3000) => {
+      context.showToast({ message, variant: 'error', duration });
+    },
+    warning: (message: string, duration = 3000) => {
+      context.showToast({ message, variant: 'warning', duration });
+    },
+    info: (message: string, duration = 3000) => {
+      context.showToast({ message, variant: 'info', duration });
+    },
+    hide: context.hideToast,
+  };
+};
+
+/**
+ * Container component that renders all active toasts
+ */
+const ToastContainer: React.FC = () => {
+  const context = useContext(ToastContext);
+  if (!context) return null;
+  
+  const { toasts, hideToast } = context;
+
+  if (toasts.length === 0) return null;
+
+  return (
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+      {toasts.map(toast => (
+        <ToastItem key={toast.id} toast={toast} onClose={() => hideToast(toast.id)} />
+      ))}
+    </div>
+  );
+};
+
+/**
+ * Individual Toast component (internal use only)
+ */
+const ToastItem: React.FC<{ toast: ToastProps & { id: string }, onClose: () => void }> = ({ 
+  toast, 
+  onClose 
+}) => {
+  const { message, variant = 'info' } = toast;
 
   const variantClasses = {
     success: 'bg-success-100 text-success-800 border-success-300',
@@ -86,35 +171,47 @@ const Toast: React.FC<ToastProps> = ({
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm">
-      <div
-        className={`rounded-md border px-4 py-3 shadow-md transition-all duration-300 flex items-start ${variantClasses[variant]}`}
-        role="alert"
-      >
-        <div className="flex-shrink-0 mr-3">{iconByVariant[variant]}</div>
-        <div className="flex-1">
-          <p className="text-sm font-medium">{message}</p>
-        </div>
-        <button
-          type="button"
-          className="ml-4 inline-flex flex-shrink-0 text-gray-500 hover:text-gray-700 focus:outline-none"
-          onClick={() => {
-            setIsShown(false);
-            if (onClose) onClose();
-          }}
-          aria-label="Close"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
+    <div
+      className={`rounded-md border px-4 py-3 shadow-md transition-all duration-300 flex items-start ${variantClasses[variant]}`}
+      role="alert"
+    >
+      <div className="flex-shrink-0 mr-3">{iconByVariant[variant]}</div>
+      <div className="flex-1">
+        <p className="text-sm font-medium">{message}</p>
       </div>
+      <button
+        type="button"
+        className="ml-4 inline-flex flex-shrink-0 text-gray-500 hover:text-gray-700 focus:outline-none"
+        onClick={onClose}
+        aria-label="Close"
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
     </div>
   );
+};
+
+/**
+ * Legacy Toast component for backward compatibility
+ * @deprecated Use useToast hook instead
+ */
+const Toast: React.FC<ToastProps & { onClose?: () => void, isVisible?: boolean }> = (props) => {
+  console.warn('Toast component is deprecated. Use useToast hook instead');
+  const toast = useToast();
+  
+  useEffect(() => {
+    if (props.isVisible) {
+      toast.toast(props.message, props.variant, props.duration);
+    }
+  }, [props.isVisible]);
+  
+  return null;
 };
 
 export default Toast; 

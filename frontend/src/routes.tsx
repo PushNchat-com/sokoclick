@@ -11,9 +11,10 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminDashboard from './pages/AdminDashboard';
 import WhatsAppDashboard from './pages/WhatsAppDashboard';
 import DesignSystem from './pages/DesignSystem';
+import SellerDashboard from './pages/seller/Dashboard';
 
 // Admin pages (import as needed)
-const SellerDashboard = () => <div>Seller Dashboard (Coming Soon)</div>;
+// const SellerDashboard = () => <div>Seller Dashboard (Coming Soon)</div>;
 
 const router = createBrowserRouter([
   {

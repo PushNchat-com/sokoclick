@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
@@ -10,9 +10,47 @@ type AdminTab = 'slots' | 'products' | 'users' | 'analytics';
 const AdminDashboard: React.FC = () => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<AdminTab>('slots');
-  const { user } = useAuth();
+  const { user, updateUserRole } = useAuth();
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
+  // Log user information on component mount for debugging
+  useEffect(() => {
+    if (user) {
+      const userInfo = {
+        id: user.id,
+        email: user.email,
+        metadata: user.user_metadata,
+        role: user.user_metadata?.role
+      };
+      console.log('AdminDashboard - User Info:', userInfo);
+      setDebugInfo(JSON.stringify(userInfo, null, 2));
+    } else {
+      console.log('AdminDashboard - No user found');
+      setDebugInfo('No user data available');
+    }
+  }, [user]);
 
   const isAdmin = user?.user_metadata?.role === 'admin';
+  const isAdminEmail = user?.email === 'sokoclick.com@gmail.com' || user?.email === 'strength.cm@gmail.com';
+
+  const setAdminRole = async () => {
+    if (!user) return;
+    try {
+      const result = await updateUserRole('admin');
+      if (result.error) {
+        console.error('Failed to set admin role:', result.error);
+        setDebugInfo(prev => prev + '\n\nError setting admin role: ' + result.error.message);
+      } else {
+        console.log('Successfully set admin role');
+        setDebugInfo(prev => prev + '\n\nAdmin role set successfully!');
+        // Force refresh to get the updated user data
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error in setAdminRole:', error);
+      setDebugInfo(prev => prev + '\n\nException: ' + String(error));
+    }
+  };
 
   const tabs: { id: AdminTab; label: string }[] = [
     { id: 'slots', label: t('admin.tabs.slots') },
@@ -44,6 +82,23 @@ const AdminDashboard: React.FC = () => {
               </svg>
               <h2 className="text-xl font-bold text-gray-900 mb-2">{t('admin.accessDenied')}</h2>
               <p className="text-gray-600 mb-4">{t('admin.adminRoleRequired')}</p>
+              
+              {/* Debug information */}
+              <div className="mt-4 mb-4 p-4 bg-gray-100 rounded text-left text-xs overflow-auto max-h-60">
+                <h3 className="font-bold mb-2">Debug Information:</h3>
+                <pre>{debugInfo}</pre>
+              </div>
+              
+              {/* Show admin role button only for admin emails */}
+              {isAdminEmail && (
+                <button 
+                  onClick={setAdminRole}
+                  className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Set Admin Role
+                </button>
+              )}
+              
               <a 
                 href="/"
                 className="inline-block px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
@@ -67,6 +122,12 @@ const AdminDashboard: React.FC = () => {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">{t('admin.dashboard')}</h1>
             <p className="text-sm text-gray-500">{t('admin.dashboardDescription')}</p>
+          </div>
+          
+          {/* Optional debug section for admin */}
+          <div className="mb-6 p-4 bg-gray-100 rounded text-left text-xs overflow-auto max-h-40">
+            <h3 className="font-bold mb-2">Debug Information:</h3>
+            <pre>{debugInfo}</pre>
           </div>
           
           <div className="bg-white shadow rounded-lg overflow-hidden">

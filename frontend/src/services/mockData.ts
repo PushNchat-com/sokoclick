@@ -167,6 +167,33 @@ const getTimePeriodsForState = (state: AuctionState): { startTime: string | null
 
 // SELLER PROFILES
 export const MOCK_SELLERS: Profile[] = [
+  // System Admin Accounts
+  {
+    id: 'admin-001',
+    email: 'sokoclick.com@gmail.com',
+    whatsapp_number: '+23765000001',
+    display_name: 'SokoClick Admin',
+    location: 'Douala, Cameroon',
+    rating: 5.0,
+    joined_date: getRandomPastTime(365).toISOString(),
+    bio: 'System administrator for SokoClick platform.',
+    profile_image: 'https://randomuser.me/api/portraits/men/30.jpg',
+    verified: true,
+    role: 'admin'
+  },
+  {
+    id: 'admin-002',
+    email: 'strength.cm@gmail.com',
+    whatsapp_number: '+23765000002',
+    display_name: 'Strength Admin',
+    location: 'Yaounde, Cameroon',
+    rating: 5.0,
+    joined_date: getRandomPastTime(365).toISOString(),
+    bio: 'System administrator for SokoClick platform.',
+    profile_image: 'https://randomuser.me/api/portraits/men/31.jpg',
+    verified: true,
+    role: 'admin'
+  },
   {
     id: 'prof-001',
     email: 'john.doe@example.com',
@@ -653,27 +680,24 @@ export function generateMockAuctionSlots(count = 25): AuctionSlot[] {
     const product = MOCK_PRODUCTS[productIndex];
     
     // Determine the state based on distribution
-    let state: AuctionState;
+    let auctionState: AuctionState = AUCTION_STATES.ACTIVE; // Default initialization
     const randomValue = Math.random();
     let cumulativeProbability = 0;
     
-    for (const [auctionState, probability] of Object.entries(stateDistribution)) {
+    for (const [state, probability] of Object.entries(stateDistribution)) {
       cumulativeProbability += probability;
       if (randomValue <= cumulativeProbability) {
-        state = auctionState as AuctionState;
+        auctionState = state as AuctionState;
         break;
       }
     }
-    
-    // Default to active if something went wrong
-    state = state || AUCTION_STATES.ACTIVE;
     
     // Generate appropriate timestamps based on state
     let startTime: Date;
     let endTime: Date;
     let createdAt = new Date(now.getTime() - randomNumber(1, 30) * 24 * 60 * 60 * 1000); // 1-30 days ago
     
-    switch (state) {
+    switch (auctionState) {
       case AUCTION_STATES.UPCOMING:
         startTime = new Date(now.getTime() + randomNumber(1, 72) * 60 * 60 * 1000); // 1-72 hours in future
         endTime = new Date(startTime.getTime() + randomNumber(24, 168) * 60 * 60 * 1000); // 1-7 days after start
@@ -701,8 +725,8 @@ export function generateMockAuctionSlots(count = 25): AuctionSlot[] {
     }
     
     // Generate bids based on state
-    const bidCount = state === AUCTION_STATES.UPCOMING ? 0 : 
-                     state === AUCTION_STATES.FAILED ? 0 :
+    const bidCount = auctionState === AUCTION_STATES.UPCOMING ? 0 : 
+                     auctionState === AUCTION_STATES.FAILED ? 0 :
                      randomNumber(0, 15);
     
     const currentPrice = bidCount > 0 ? 
@@ -710,15 +734,19 @@ export function generateMockAuctionSlots(count = 25): AuctionSlot[] {
       product.starting_price;
     
     // Generate a buyer for completed/pending auctions
-    const buyerId = (state === AUCTION_STATES.COMPLETED || state === AUCTION_STATES.PENDING) ? 
+    const buyerId = (auctionState === AUCTION_STATES.COMPLETED || auctionState === AUCTION_STATES.PENDING) ? 
       MOCK_SELLERS[randomNumber(0, MOCK_SELLERS.length - 1)].id : 
       null;
+    
+    // Random chance for a slot to be featured (only active ones)
+    const isFeatured = auctionState === AUCTION_STATES.ACTIVE && Math.random() < 0.2; // 20% chance for active slots
     
     return {
       id: index + 1,
       product_id: product.id,
       seller_id: product.seller_id,
-      state,
+      auction_state: auctionState,
+      is_active: auctionState === AUCTION_STATES.ACTIVE || auctionState === AUCTION_STATES.SCHEDULED,
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
       current_price: currentPrice,
@@ -729,6 +757,7 @@ export function generateMockAuctionSlots(count = 25): AuctionSlot[] {
       created_at: createdAt.toISOString(),
       updated_at: new Date().toISOString(),
       product: product,
+      featured: isFeatured,
       seller: MOCK_SELLERS.find(seller => seller.id === product.seller_id) || MOCK_SELLERS[0],
       buyer: buyerId ? MOCK_SELLERS.find(seller => seller.id === buyerId) : null
     };
@@ -739,6 +768,14 @@ export function generateMockAuctionSlots(count = 25): AuctionSlot[] {
 export const getMockAuctionSlotById = (slotId: number): AuctionSlot | null => {
   const slots = generateMockAuctionSlots();
   return slots.find(slot => slot.id === slotId) || null;
+};
+
+// Function to get mock featured slots
+export const getMockFeaturedSlots = (limit = 3): AuctionSlot[] => {
+  const allSlots = generateMockAuctionSlots();
+  return allSlots
+    .filter(slot => slot.featured && slot.auction_state === AUCTION_STATES.ACTIVE)
+    .slice(0, limit);
 };
 
 // Mock auction service methods to simulate backend API
@@ -767,6 +804,15 @@ export const mockAuctionService = {
         // For mock data, we don't need to do anything since we regenerate the data
         resolve();
       }, 200);
+    });
+  },
+  
+  // Get all products
+  getMockProducts: (): Promise<Product[]> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(MOCK_PRODUCTS);
+      }, 300);
     });
   },
   
@@ -857,28 +903,34 @@ export const mockAuctionService = {
     // Validate state transitions
     const validTransitions: Record<AuctionState, AuctionState[]> = {
       [AUCTION_STATES.UPCOMING]: [AUCTION_STATES.ACTIVE, AUCTION_STATES.CANCELLED],
+      [AUCTION_STATES.SCHEDULED]: [AUCTION_STATES.ACTIVE, AUCTION_STATES.CANCELLED],
       [AUCTION_STATES.ACTIVE]: [AUCTION_STATES.PENDING, AUCTION_STATES.FAILED, AUCTION_STATES.CANCELLED],
       [AUCTION_STATES.PENDING]: [AUCTION_STATES.COMPLETED, AUCTION_STATES.FAILED, AUCTION_STATES.CANCELLED],
       [AUCTION_STATES.COMPLETED]: [],
+      [AUCTION_STATES.ENDED]: [AUCTION_STATES.COMPLETED, AUCTION_STATES.FAILED],
       [AUCTION_STATES.CANCELLED]: [],
       [AUCTION_STATES.FAILED]: [AUCTION_STATES.ACTIVE] // Allow reactivation of failed auctions
     };
     
-    if (!validTransitions[slot.state].includes(newState)) {
-      throw new Error(`Invalid state transition from ${slot.state} to ${newState}`);
+    // Make sure slot.auction_state exists and is a valid key
+    const currentState = slot.auction_state as AuctionState;
+    if (!currentState || !validTransitions[currentState]) {
+      throw new Error(`Invalid auction state: ${currentState}`);
+    }
+    
+    if (!validTransitions[currentState].includes(newState)) {
+      throw new Error(`Invalid state transition from ${currentState} to ${newState}`);
     }
     
     // Update the state
     const updatedSlot = {
       ...slot,
-      state: newState,
+      auction_state: newState,
       updated_at: new Date().toISOString()
     };
     
-    // Save the updated slot
-    MOCK_AUCTION_SLOTS = MOCK_AUCTION_SLOTS.map(s => 
-      s.id === id ? updatedSlot : s
-    );
+    // We don't actually modify the MOCK_AUCTION_SLOTS since we regenerate them each time
+    // This is just a simulation
     
     return updatedSlot;
   },
@@ -887,7 +939,12 @@ export const mockAuctionService = {
   completeAuction: async (id: number, buyerId: string): Promise<AuctionSlot | null> => {
     const slot = await mockAuctionService.getAuctionSlotById(id);
     
-    if (!slot || slot.state !== AUCTION_STATES.ACTIVE) {
+    if (!slot) {
+      return null;
+    }
+    
+    // Ensure we're checking auction_state correctly
+    if (slot.auction_state !== AUCTION_STATES.ACTIVE) {
       return null;
     }
     
@@ -899,21 +956,19 @@ export const mockAuctionService = {
     // Update the slot to pending status
     const updatedSlot = {
       ...slot,
-      state: AUCTION_STATES.PENDING,
+      auction_state: AUCTION_STATES.PENDING,
       buyer_id: buyerId,
       buyer: buyer,
       updated_at: new Date().toISOString(),
       end_time: new Date().toISOString() // End the auction now
     };
     
-    // Save the updated slot
-    MOCK_AUCTION_SLOTS = MOCK_AUCTION_SLOTS.map(s => 
-      s.id === id ? updatedSlot : s
-    );
+    // We don't actually modify the MOCK_AUCTION_SLOTS since we regenerate them each time
+    // This is just a simulation
     
     return updatedSlot;
   }
 };
 
 // Initialize the mock auction slots
-let MOCK_AUCTION_SLOTS = generateMockAuctionSlots(25); 
+// Not actually needed since we generate slots on-demand 
