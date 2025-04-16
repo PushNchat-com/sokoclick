@@ -1,0 +1,75 @@
+/* Import variables first */
+@import './styles/variables.css';
+@import './styles/design-system.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Additional custom styles */
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg;
+  }
+
+  /* Enhanced header styles */
+  .site-header {
+    @apply bg-white shadow-md sticky top-0 z-50;
+  }
+
+  /* Hero section styles */
+  .hero-section {
+    @apply bg-gradient-to-r from-primary-600 to-accent-600 text-white py-16 sm:py-24;
+  }
+
+  .hero-title {
+    @apply text-4xl font-extrabold sm:text-5xl md:text-6xl lg:text-7xl mb-4 drop-shadow-md;
+  }
+
+  .hero-subtitle {
+    @apply mt-6 text-xl max-w-3xl mx-auto leading-relaxed;
+  }
+
+  /* Auction grid styles */
+  .auction-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6;
+  }
+
+  /* Additional spacing utilities */
+  .spacing-section {
+    @apply py-12 md:py-16;
+  }
+  
+  .spacing-section-sm {
+    @apply py-8 md:py-12;
+  }
+}
+
+@layer utilities {
+  .animate-skeleton-pulse {
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* Force-enable flex display */
+  .force-flex {
+    display: flex !important;
+  }
+  
+  /* Responsive visibility utilities */
+  .show-on-mobile {
+    @apply block md:hidden;
+  }
+  
+  .hide-on-mobile {
+    @apply hidden md:block;
+  }
+}

@@ -7,6 +7,36 @@ SokoClick is a specialized mobile-first ecommerce auction platform designed to h
 
 SokoClick will primarily serve the Cameroonian market, supporting both English and French as official languages, with considerations for local payment methods, connectivity challenges, and regional user behaviors.
 
+**Business Model:**
+- Seller list products for free and pays 10% commission on sales
+- Seller pays $5 daily listing fee per slot = pays 00 commission on sales
+- Seller pays $140 for a featured slot per month = pays 00 commission on sales 
+- 100% WhatsApp Business API for communication
+- 100% Supabase for backend services
+- 100% Vercel for frontend hosting
+
+**Resolution process between buyers and sellers:**
+- Buyer and seller agree on the price of the product via WhatsApp 
+- Buyer pays for the product
+- Seller receives payment
+- Seller ships the product
+- Buyer receives the product
+- Buyer confirms receipt of the product
+- Seller receives payment of the product
+- Seller confirms receipt of payment
+- Transaction is complete 
+
+Sellers can list products for free and pay $5 daily listing fee per slot = pays 00 commission on sales
+Buyers can bid on products via whatsapp with the seller and pay for the product via MTN Mobile Money, Orange Money, or other regional payment providers
+Seller must have an account to list products and receive payments
+Buer must not have an account to bid on products 
+
+Sellers onboarding process:
+- Seller provides their name, phone number, and WhatsApp number
+- Seller provides product details
+- Seller provides payment details
+- Seller is added to the platform
+
 ## 2. Technical Architecture
 
 SokoClick will utilize a modern web architecture leveraging the following technologies:
@@ -214,7 +244,15 @@ SokoClick will utilize a modern web architecture leveraging the following techno
 7. **Transaction:** Buyer and seller connect via WhatsApp to complete transaction
 8. **Feedback:** Both parties can provide ratings/feedback
 
-### Timer Behavior:
+**Listing Mechanism:** Rotating Products on Permanent Links
+
+*Dedicated Slots:* The core of the platform revolves around 25 pre-defined auction slots. Each slot will have a unique and permanent URL (e.g., https://sokoclick.com/sc/1, https://sokoclick.com/sc/2, ..., https://sokoclick.com/sc/25).
+Admin Product Assignment: The administrator will be responsible for assigning uploaded products to these available slots. This assignment will involve updating the auction_slots table with the product_id of the product to be featured in that slot.
+
+*Auction Lifecycle:* When a product is assigned to a slot, the is_active flag in auction_slots will be set to true, and the start_time and end_time will be calculated based on the auction_duration provided by the seller.
+Frontend Display Logic: The frontend will fetch data from the auction_slots table. For each slot where is_active is true, it will then fetch the corresponding product details from the products table using the product_id. If is_active is false or product_id is null, the slot can display a placeholder or indicate that it's currently empty.
+
+*### Timer Behavior:*
 * Green display when more than 10 hours remain
 * Red display when less than 10 hours remain
 * Accurate countdown synchronized with server time
@@ -241,7 +279,7 @@ SokoClick will utilize a modern web architecture leveraging the following techno
 
 ### Authentication:
 * Email/password with strong password requirements
-* Two-factor authentication option via SMS or authenticator app
+* Two-factor authentication via authenticator apps (preferred) or SMS
 * Social login with security verification
 * Session management with automatic timeouts
 
@@ -374,6 +412,11 @@ SokoClick will utilize a modern web architecture leveraging the following techno
 * Day.js for time handling
 * React Query for data fetching
 
+Project Timeline:
+- 14/04/2025: Project started
+- 15/04/2025: Project completed
+- 48 hours to complete the project
+
 ### Resources:
 * Supabase Documentation: https://supabase.io/docs
 * React Documentation: https://reactjs.org/docs
@@ -381,3 +424,218 @@ SokoClick will utilize a modern web architecture leveraging the following techno
 * i18next Documentation: https://www.i18next.com
 
 This document provides a comprehensive technical overview of the SokoClick project. Implementation details may require adjustment during development based on specific requirements and constraints.
+
+## 17. Project Directory Structure
+
+```
+sokoclick/
+├── .github/                       # GitHub workflows and configuration
+│   └── workflows/                 # CI/CD workflows
+├── public/                        # Static files
+│   ├── locales/                   # Translation files
+│   │   ├── en/                    # English translations
+│   │   └── fr/                    # French translations
+│   │   
+│   ├── favicon.ico
+│   └── robots.txt
+├── src/                           # Frontend source code
+│   ├── api/                       # Supabase API integration
+│   │   ├── supabase.ts            # Supabase client setup and configuration
+│   │   ├── products.ts            # Product-related Supabase queries
+│   │   ├── auctions.ts            # Auction-related Supabase queries
+│   │   ├── users.ts               # User-related Supabase queries
+│   │   ├── bids.ts                # Bidding-related Supabase queries
+│   │   └── notifications.ts       # Notification-related Supabase queries
+│   ├── assets/                    # Static assets
+│   │   ├── images/                # Image assets
+│   │   └── icons/                 # Icon assets
+│   │   
+│   ├── components/                # Reusable components
+│   │   ├── layout/                # Layout components
+│   │   │   ├── Header.tsx         # Site header
+│   │   │   ├── Footer.tsx         # Site footer
+│   │   │   ├── Navigation.tsx     # Navigation component
+│   │   │   └── LanguageSelector.tsx # Language toggle component
+│   │   ├── auction/               # Auction-specific components
+│   │   │   ├── AuctionGrid.tsx    # Grid of auction slots
+│   │   │   ├── AuctionSlot.tsx    # Individual auction slot
+│   │   │   ├── ProductCard.tsx    # Product display card
+│   │   │   ├── BidHistory.tsx     # Bid history display
+│   │   │   ├── CountdownTimer.tsx # Auction countdown timer
+│   │   │   └── FeaturedAuction.tsx # Featured auction display
+│   │   ├── auth/                  # Authentication components
+│   │   │   ├── LoginForm.tsx      # Login form
+│   │   │   ├── RegisterForm.tsx   # Registration form
+│   │   │   └── ProfileManager.tsx # User profile management
+│   │   ├── common/                # Common UI components
+│   │   │   ├── Button.tsx         # Custom button component
+│   │   │   ├── Modal.tsx          # Modal dialog component
+│   │   │   ├── Loader.tsx         # Loading indicator
+│   │   │   ├── ErrorBoundary.tsx  # Error handling component
+│   │   │   └── Notification.tsx   # Notification component
+│   │   ├── seller/                # Seller-specific components
+│   │   │   ├── ProductForm.tsx    # Product creation/edit form
+│   │   │   ├── SellerDashboard.tsx # Seller dashboard
+│   │   │   └── ProductList.tsx    # Seller's product list
+│   │   └── admin/                 # Admin components
+│   │       ├── AdminDashboard.tsx # Admin dashboard
+│   │       ├── SlotManager.tsx    # Auction slot management
+│   │       ├── ProductApproval.tsx # Product approval interface
+│   │       └── UserManagement.tsx # User management interface
+│   ├── context/                   # React context providers
+│   │   ├── AuthContext.tsx        # Authentication context using Supabase Auth
+│   │   ├── I18nContext.tsx        # Internationalization context
+│   │   ├── NotificationContext.tsx # Notification context
+│   │   └── ThemeContext.tsx       # Theme/appearance context
+│   ├── hooks/                     # Custom React hooks
+│   │   ├── useAuth.ts             # Supabase authentication hook
+│   │   ├── useAuction.ts          # Supabase auction data hook
+│   │   ├── useProducts.ts         # Supabase products data hook
+│   │   ├── useBids.ts             # Supabase bidding functionality hook
+│   │   └── useOffline.ts          # Offline detection hook
+│   ├── pages/                     # Application pages
+│   │   ├── Home.tsx               # Homepage
+│   │   ├── AuctionDetail.tsx      # Individual auction page
+│   │   ├── ProductDetail.tsx      # Product details page
+│   │   ├── UserProfile.tsx        # User profile page
+│   │   ├── SellerDashboard.tsx    # Seller dashboard page
+│   │   ├── AdminDashboard.tsx     # Admin dashboard page
+│   │   ├── Authentication.tsx     # Login/registration page
+│   │   └── NotFound.tsx           # 404 page
+│   ├── services/                  # Frontend services
+│   │   ├── storage.ts             # Local storage service
+│   │   ├── analytics.ts           # Analytics service
+│   │   ├── payments.ts            # Payment integration service
+│   │   └── notifications.ts       # Local notification service
+│   ├── styles/                    # Global styles
+│   │   ├── globals.css            # Global CSS
+│   │   └── tailwind.css           # Tailwind entry point
+│   ├── types/                     # TypeScript type definitions
+│   │   ├── supabase.ts            # Generated Supabase types
+│   │   ├── user.ts                # User-related types
+│   │   ├── product.ts             # Product-related types
+│   │   ├── auction.ts             # Auction-related types
+│   │   └── api.ts                 # API response types
+│   ├── utils/                     # Utility functions
+│   │   ├── date.ts                # Date formatting utilities
+│   │   ├── currency.ts            # Currency formatting utilities
+│   │   ├── validation.ts          # Form validation utilities
+│   │   ├── i18n.ts                # Internationalization setup
+│   │   └── supabase.ts            # Supabase utility helpers
+│   ├── App.tsx                    # Main application component
+│   ├── main.tsx                   # Application entry point
+│   ├── routes.tsx                 # Route definitions
+│   └── vite-env.d.ts              # Vite environment definitions
+├── supabase/                      # Supabase configuration (for local dev and migrations)
+│   ├── migrations/                # Database migrations
+│   │   ├── 20240414000000_initial_schema.sql  # Initial schema setup
+│   │   └── 20240414000001_seed_data.sql       # Initial data seeding
+│   ├── functions/                 # Supabase Edge Functions
+│   │   ├── auction-end/           # Function to handle auction ending
+│   │   ├── payment-webhook/       # Payment processing webhooks
+│   │   └── notification-sender/   # Function to send notifications
+│   ├── triggers/                  # Supabase database triggers
+│   ├── seed.sql                   # Initial database seed data
+│   └── config.toml                # Supabase local configuration
+├── .env.example                   # Example environment variables
+├── .eslintrc.js                   # ESLint configuration
+├── .gitignore                     # Git ignore file
+├── .prettierrc                    # Prettier configuration
+├── index.html                     # HTML entry point
+├── package.json                   # NPM package configuration
+├── tailwind.config.js             # Tailwind CSS configuration
+├── tsconfig.json                  # TypeScript configuration
+└── vite.config.ts                 # Vite configuration
+```
+
+This directory structure is optimized for a Supabase backend architecture, with the frontend built using React/Vite. All backend functionality (database, authentication, storage, and realtime features) will be handled through Supabase, eliminating the need for a separate backend codebase. The frontend code is organized to efficiently interact with Supabase services while maintaining clean separation of concerns.
+
+## 18. Production Readiness Checklist
+
+```
+### Pre-Launch Checklist
+□ Database schema finalized and indexed appropriately
+□ Supabase RLS policies thoroughly tested
+□ All API endpoints secured with proper authentication
+□ Rate limiting implemented for all public endpoints
+□ Two-factor authentication tested on all supported devices
+□ Image optimization pipeline confirmed working
+□ Translation files complete for both English and French
+□ SSL/TLS certificates configured
+□ DNS settings configured with appropriate TTL
+□ CDN properly configured for static assets
+□ Error logging and monitoring set up
+□ Payment processing webhooks tested with all supported providers
+□ Backup and recovery procedures documented and tested
+□ Performance testing completed under expected load
+□ Accessibility compliance verified (WCAG 2.1 AA)
+
+### Post-Launch Monitoring
+□ Set up real-time error tracking with Sentry
+□ Configure performance monitoring with New Relic
+□ Implement uptime monitoring with UptimeRobot
+□ Schedule regular security scans and audits
+□ Configure automated database backups
+□ Set up alerts for abnormal system behavior
+□ Implement analytics tracking for key user journeys
+□ Create dashboards for key business metrics
+```
+
+## 19. Contingency Plans
+
+### System Outages
+- **Database Unavailability**: Implement read-only mode with cached data
+- **CDN Disruption**: Fallback to direct asset serving with reduced image quality
+- **Payment Gateway Issues**: Provide alternative payment methods
+
+### Security Incidents
+- **Data Breach Response Plan**: Documentation of steps to take in case of a data breach
+- **Account Compromise**: Automated account locking and recovery procedures
+- **Fraud Detection**: Systems to identify and prevent fraudulent activities
+
+### Business Continuity
+- **Disaster Recovery Plan**: Procedures for full system recovery
+- **Communication Strategy**: Templates for communicating with users during incidents
+- **Service Level Objectives**: Defined recovery time and point objectives (RTO/RPO)
+
+## Current Implementation Status
+
+### Frontend Infrastructure
+- [x] Project Repository Setup
+- [x] Basic React/TypeScript/Vite configuration
+- [x] Tailwind CSS integration
+- [x] i18n setup for English/French
+- [x] Basic routing with React Router
+- [x] Authentication context with Supabase
+- [ ] Comprehensive route protection
+
+### Core Components
+- [x] Layout components (Header, Footer)
+- [x] AuctionCard component
+- [x] LazyImage with error handling
+- [x] Skeleton loading components
+- [x] Error boundaries
+- [x] Infinite scrolling hooks
+- [ ] WhatsApp integration and tracking
+- [ ] Payment processing UI
+
+### Pages
+- [x] Homepage with auction grid
+- [x] Auction detail page
+- [x] Error page
+- [ ] User profile page
+- [ ] Admin dashboard
+- [ ] Seller dashboard
+
+### Backend (Supabase)
+- [x] Database schema creation
+- [x] Basic RLS policies
+- [ ] Edge Functions for business logic
+- [ ] Webhook handlers for external services
+- [ ] Advanced RLS for multi-role permissions
+
+### Deployment
+- [ ] CI/CD setup
+- [ ] Production environment configuration
+- [ ] CDN optimization
+- [ ] Monitoring and error tracking
