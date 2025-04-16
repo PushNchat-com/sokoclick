@@ -15,6 +15,7 @@ export enum MessageSender {
 }
 
 export enum ConversationStatus {
+  INITIATED = 'initiated',
   ACTIVE = 'active',
   PENDING = 'pending',
   COMPLETED = 'completed',
@@ -36,6 +37,8 @@ export interface WhatsAppMessage {
 
 export interface WhatsAppConversation {
   id: string;
+  buyerId: string;
+  sellerId: string;
   userId: string;
   productId: string;
   productName: string;
@@ -47,6 +50,7 @@ export interface WhatsAppConversation {
   messages: WhatsAppMessage[];
   createdAt: string;
   updatedAt: string;
+  threadId?: string;
 }
 
 export interface SendMessageParams {

@@ -1,43 +1,68 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import supabase from '../api/supabase';
+import { UserWithRole } from '../hooks/useAdminData';
 
 // Define valid roles according to database schema
 export type UserRole = 'buyer' | 'seller' | 'admin';
 
-type AuthContextType = {
+// Define the shape of our auth context
+interface AuthContextType {
   session: Session | null;
   user: User | null;
+  userWithRole: UserWithRole | null;
   loading: boolean;
+  error: Error | null;
   userRole: UserRole | null;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  canAccess: (requiredRole: 'buyer' | 'seller' | 'admin') => boolean;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: Error }>;
   signUp: (email: string, password: string, fullName: string, role: UserRole, phone?: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateUserRole: (role: UserRole) => Promise<{ error: any }>;
-};
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create the context with default values
+const AuthContext = createContext<AuthContextType>({
+  session: null,
+  user: null,
+  userWithRole: null,
+  loading: true,
+  error: null,
+  userRole: null,
+  canAccess: () => false,
+  signIn: async () => ({ success: false }),
+  signUp: async () => ({ error: null }),
+  resetPassword: async () => ({ error: null }),
+  updatePassword: async () => ({ error: null }),
+  signOut: async () => {},
+  updateUserRole: async () => ({ error: null }),
+});
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userWithRole, setUserWithRole] = useState<UserWithRole | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Function to parse and validate user role
-  const parseUserRole = (metadata: any): UserRole => {
-    const role = metadata?.role;
-    // Check if role matches one of our valid roles
-    if (role === 'admin' || role === 'buyer' || role === 'seller') {
-      return role as UserRole;
+  const parseUserRole = (userData: any): UserRole => {
+    const role = userData?.role as UserRole;
+    if (role && ['buyer', 'seller', 'admin'].includes(role)) {
+      return role;
     }
-    // Default to buyer if role is invalid
+    // Default to 'buyer' if role is invalid or not present
     return 'buyer';
   };
 
-  // Function to update user state
+  // Update user state when session changes
   const updateUserState = (session: Session | null) => {
     setSession(session);
     setUser(session?.user ?? null);
@@ -46,138 +71,158 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const role = parseUserRole(session.user.user_metadata);
       setUserRole(role);
       
-      // Debug: Log user metadata 
-      console.log('User session loaded:', {
+      // Create a UserWithRole object
+      setUserWithRole({
         id: session.user.id,
-        email: session.user.email,
-        metadata: session.user.user_metadata,
-        role: role
+        email: session.user.email || '',
+        whatsapp_number: session.user.user_metadata?.phone || '',
+        role: role,
+        created_at: session.user.created_at,
+        updated_at: session.user.updated_at || '',
+        display_name: session.user.user_metadata?.full_name || '',
+        profile_image: session.user.user_metadata?.profile_image || '',
+        location: '',
+        rating: 0,
+        joined_date: session.user.created_at,
+        bio: '',
+        verified: false
       });
-      
-      // Check for admin emails and update role if needed
-      const userEmail = session.user.email;
-      if (userEmail && (userEmail === 'sokoclick.com@gmail.com' || userEmail === 'strength.cm@gmail.com')) {
-        if (role !== 'admin') {
-          console.log('Updating user role to admin for:', userEmail);
-          updateUserMetadata('admin').catch(err => {
-            console.error('Failed to update user role:', err);
-          });
-        }
-      }
     } else {
       setUserRole(null);
+      setUserWithRole(null);
     }
-    
-    setLoading(false);
   };
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      updateUserState(session);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: string, session: Session | null) => {
-        updateUserState(session);
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Helper function to update user metadata
-  const updateUserMetadata = async (role: UserRole) => {
-    if (!user) return { error: new Error('No user logged in') };
-    
+  // Sign in function
+  const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: { role }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
       
-      if (!error) {
-        // Update local user state to reflect the change immediately
-        setUser(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            user_metadata: {
-              ...prev.user_metadata,
-              role
-            }
-          };
-        });
-        setUserRole(role);
-      }
+      if (error) throw error;
       
-      return { error };
-    } catch (error) {
-      console.error('Error updating user metadata:', error);
-      return { error };
+      updateUserState(data.session);
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Error signing in:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err : new Error('Failed to sign in') 
+      };
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
-  };
-
-  const signUp = async (email: string, password: string, fullName: string, role: UserRole = 'buyer', phone?: string) => {
-    // Check if email is for admin accounts and override role
-    const isAdmin = email === 'sokoclick.com@gmail.com' || email === 'strength.cm@gmail.com';
-    const effectiveRole = isAdmin ? 'admin' : role;
-    
-    const { error } = await supabase.auth.signUp({ 
-      email, 
+  const signUp = async (email: string, password: string, fullName: string, role: UserRole, phone?: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
       password,
       options: {
         data: {
           full_name: fullName,
-          phone: phone || '',
-          role: effectiveRole
-        }
-      }
+          role,
+          phone,
+        },
+      },
     });
+
     return { error };
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
     return { error };
   };
 
   const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({
-      password,
-    });
+    const { error } = await supabase.auth.updateUser({ password });
     return { error };
   };
 
+  // Sign out function
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setUserWithRole(null);
+      setUserRole(null);
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
   };
 
-  // New method to expose role update functionality
   const updateUserRole = async (role: UserRole) => {
-    return updateUserMetadata(role);
+    if (!user) return { error: new Error('No user is logged in') };
+
+    const { error } = await supabase.auth.updateUser({
+      data: { role },
+    });
+
+    if (!error && userWithRole) {
+      // Update local state
+      setUserRole(role);
+      setUserWithRole({
+        ...userWithRole,
+        role
+      });
+    }
+
+    return { error };
   };
 
+  // Function to check if user can access a specific feature based on role
+  const canAccess = (requiredRole: 'buyer' | 'seller' | 'admin'): boolean => {
+    if (!userRole) return false;
+    
+    switch (requiredRole) {
+      case 'admin':
+        return userRole === 'admin';
+      case 'seller':
+        // Sellers and admins can access seller features
+        return userRole === 'seller' || userRole === 'admin';
+      case 'buyer':
+        // Everyone can access buyer features
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      updateUserState(session);
+      setLoading(false);
+    };
+
+    getSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      updateUserState(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Context value
   const value = {
     session,
     user,
+    userWithRole,
     loading,
-    userRole, // Add userRole to context
+    error,
+    userRole,
+    canAccess,
     signIn,
     signUp,
     resetPassword,
     updatePassword,
     signOut,
-    updateUserRole, 
+    updateUserRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

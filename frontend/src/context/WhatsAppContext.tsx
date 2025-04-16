@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useAuth } from './AuthContext';
 import { WhatsAppConversation, ConversationStatus, TransactionUpdate, WhatsAppMessage } from '../types/whatsapp';
+import supabase from '../api/supabase';
 
 interface WhatsAppContextType {
   conversations: WhatsAppConversation[];
@@ -27,18 +27,24 @@ export const useWhatsApp = () => {
   return context;
 };
 
+// Mock data for direct WhatsApp fallback
+const MOCK_CONVERSATIONS: WhatsAppConversation[] = [];
+
 export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
-  const supabase = useSupabaseClient();
   const { user } = useAuth();
 
   const [conversations, setConversations] = useState<WhatsAppConversation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [useDirectWhatsAppFallback, setUseDirectWhatsAppFallback] = useState<boolean>(false);
 
   useEffect(() => {
     if (user) {
       fetchConversations();
+    } else {
+      setConversations([]);
+      setLoading(false);
     }
   }, [user]);
 
@@ -56,11 +62,23 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .or(`buyerId.eq.${user.id},sellerId.eq.${user.id}`)
         .order('updatedAt', { ascending: false });
 
-      if (error) throw error;
-      setConversations(data || []);
+      if (error) {
+        // Check if it's a 404 error (table doesn't exist)
+        if (error.code === '404' || error.message?.includes('does not exist')) {
+          console.warn('WhatsApp conversations table not found, using direct WhatsApp fallback');
+          setUseDirectWhatsAppFallback(true);
+          setConversations(MOCK_CONVERSATIONS);
+        } else {
+          throw error;
+        }
+      } else {
+        setConversations(data || []);
+      }
     } catch (error: any) {
       console.error('Error fetching WhatsApp conversations:', error);
       setError(t('errors.failedToFetchConversations'));
+      // Fallback to empty conversations array
+      setConversations([]);
     } finally {
       setLoading(false);
     }
@@ -74,15 +92,26 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   ): Promise<string | null> => {
     if (!user) return null;
 
+    // If we're using direct WhatsApp fallback, don't try to use Supabase
+    if (useDirectWhatsAppFallback) {
+      return null; // This will trigger the direct WhatsApp integration
+    }
+
     try {
       // Check if conversation already exists
-      const { data: existingConv } = await supabase
+      const { data: existingConv, error: searchError } = await supabase
         .from('whatsapp_conversations')
         .select('id')
         .eq('productId', productId)
         .eq('buyerId', user.id)
         .eq('sellerId', sellerId)
         .single();
+
+      // If table doesn't exist, use direct WhatsApp
+      if (searchError && (searchError.code === '404' || searchError.message?.includes('does not exist'))) {
+        setUseDirectWhatsAppFallback(true);
+        return null;
+      }
 
       if (existingConv) return existingConv.id;
 
@@ -103,7 +132,14 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If table doesn't exist, use direct WhatsApp
+        if (error.code === '404' || error.message?.includes('does not exist')) {
+          setUseDirectWhatsAppFallback(true);
+          return null;
+        }
+        throw error;
+      }
       
       setConversations([data, ...conversations]);
       return data.id;
@@ -119,6 +155,11 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const getMessages = async (conversationId: string): Promise<WhatsAppMessage[]> => {
+    // If we're using direct WhatsApp fallback, return empty array
+    if (useDirectWhatsAppFallback) {
+      return [];
+    }
+
     try {
       const { data, error } = await supabase
         .from('whatsapp_messages')
@@ -126,7 +167,14 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .eq('conversationId', conversationId)
         .order('timestamp', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        // If table doesn't exist, set fallback flag
+        if (error.code === '404' || error.message?.includes('does not exist')) {
+          setUseDirectWhatsAppFallback(true);
+          return [];
+        }
+        throw error;
+      }
       return data || [];
     } catch (error: any) {
       console.error('Error fetching messages:', error);
@@ -141,6 +189,11 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     attachments: string[] = []
   ): Promise<boolean> => {
     if (!user) return false;
+
+    // If we're using direct WhatsApp fallback, don't try to use Supabase
+    if (useDirectWhatsAppFallback) {
+      return false;
+    }
 
     try {
       const conversation = getConversationById(conversationId);
@@ -158,7 +211,14 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           isRead: false,
         });
 
-      if (msgError) throw msgError;
+      if (msgError) {
+        // If table doesn't exist, set fallback flag
+        if (msgError.code === '404' || msgError.message?.includes('does not exist')) {
+          setUseDirectWhatsAppFallback(true);
+          return false;
+        }
+        throw msgError;
+      }
 
       // Update conversation with last message
       const { error: convError } = await supabase
@@ -170,7 +230,9 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         })
         .eq('id', conversationId);
 
-      if (convError) throw convError;
+      if (convError && !(convError.code === '404' || convError.message?.includes('does not exist'))) {
+        throw convError;
+      }
 
       // Update local state
       fetchConversations();
@@ -183,7 +245,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const markAsRead = async (conversationId: string): Promise<void> => {
-    if (!user) return;
+    if (!user || useDirectWhatsAppFallback) return;
 
     try {
       const conversation = getConversationById(conversationId);
@@ -200,7 +262,9 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .eq('sender', otherParty)
         .eq('isRead', false);
 
-      if (error) throw error;
+      if (error && !(error.code === '404' || error.message?.includes('does not exist'))) {
+        throw error;
+      }
 
       // Update local state
       fetchConversations();
@@ -211,6 +275,9 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateTransactionStatus = async (update: TransactionUpdate): Promise<boolean> => {
+    // If using fallback, don't try to use Supabase
+    if (useDirectWhatsAppFallback) return false;
+    
     try {
       const { conversationId, status, notes } = update;
       
@@ -223,11 +290,17 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         })
         .eq('id', conversationId);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '404' || error.message?.includes('does not exist')) {
+          setUseDirectWhatsAppFallback(true);
+          return false;
+        }
+        throw error;
+      }
 
       // Add system message about the status change
       if (notes) {
-        await supabase
+        const { error: msgError } = await supabase
           .from('whatsapp_messages')
           .insert({
             conversationId,
@@ -235,6 +308,10 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             content: notes,
             isRead: false,
           });
+          
+        if (msgError && !(msgError.code === '404' || msgError.message?.includes('does not exist'))) {
+          throw msgError;
+        }
       }
 
       // Update local state

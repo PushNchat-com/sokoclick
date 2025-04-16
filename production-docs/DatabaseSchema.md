@@ -1,3 +1,4 @@
+#### Deployed Database Schema ***DO NOT EDIT WITHOUT EXPLICITE PERMISSON**
 -- Create schema for sokoclick
 
 -- Enable UUID extension if not already enabled
@@ -175,6 +176,16 @@ CREATE POLICY "Admin can view all transactions" ON transactions
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
   );
 
+-- Ensure only admins can update user roles
+CREATE POLICY "Only admins can update user roles" ON users
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  );
+
 Apply the migration:
 ```bash
 supabase db reset
+```

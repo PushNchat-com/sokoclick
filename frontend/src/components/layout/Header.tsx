@@ -37,7 +37,7 @@ const Header = () => {
             </Link>
             {isAdmin && (
               <>
-                <Link to="/admin" className="px-3 py-2 rounded-md text-sm font-medium text-primary-600 hover:bg-primary-50">
+                <Link to="/admin/dashboard" className="px-3 py-2 rounded-md text-sm font-medium text-primary-600 hover:bg-primary-50">
                   {t('admin.dashboard')}
                 </Link>
                 <Link to="/design-system" className="px-3 py-2 rounded-md text-sm font-medium text-accent-600 hover:bg-accent-50">
@@ -134,7 +134,7 @@ const Header = () => {
               {isAdmin && (
                 <>
                   <Link
-                    to="/admin"
+                    to="/admin/dashboard"
                     className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >

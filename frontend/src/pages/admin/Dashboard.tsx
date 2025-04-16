@@ -8,23 +8,40 @@ import Footer from '../../components/layout/Footer';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { H1, H2, H3, Text } from '../../components/ui/Typography';
+import Card from '../../components/ui/Card';
+import Spinner from '../../components/ui/Spinner';
+import { USER_ROLES } from '../../constants/roles';
+import { useAuth } from '../../context/AuthContext';
+import SlotManager from '../../components/admin/SlotManager';
+import UserManager from '../../components/admin/UserManager';
+import TransactionManager from './TransactionManager';
 
 // Admin Dashboard Tabs
-const ADMIN_TABS = {
-  OVERVIEW: 'overview',
-  AUCTION_SLOTS: 'auction_slots',
-  PRODUCTS: 'products',
-  USERS: 'users',
-  ANALYTICS: 'analytics',
-};
+const ADMIN_TABS: { id: AdminTabType; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'users', label: 'Users' },
+  { id: 'auctions', label: 'Auctions' },
+  { id: 'transactions', label: 'Transactions' },
+  { id: 'settings', label: 'Settings' },
+];
+
+type AdminTabType = 'overview' | 'users' | 'auctions' | 'transactions' | 'settings';
 
 const AdminDashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(ADMIN_TABS.OVERVIEW);
+  const [activeTab, setActiveTab] = useState<AdminTabType>('overview');
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const { slots, loading, error } = useAdminMockAuctionSlots(true); // Include all slots, not just active ones
   const { assignProductToSlot, removeProductFromSlot, updateSlotDetails, loading: actionLoading, error: actionError, success } = useAdminMockSlotActions();
+  const { userWithRole } = useAuth();
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (userWithRole && userWithRole.role !== USER_ROLES.ADMIN) {
+      window.location.href = '/';
+    }
+  }, [userWithRole]);
 
   // Statistics for the overview
   const stats = {
@@ -60,364 +77,210 @@ const AdminDashboard = () => {
     }
   };
 
+  // Calculate dashboard stats
+  const totalAuctions = slots?.length || 0;
+  const activeAuctions = slots?.filter(a => a.auction_state === AUCTION_STATES.ACTIVE).length || 0;
+  const completedAuctions = slots?.filter(a => a.auction_state === AUCTION_STATES.COMPLETED).length || 0;
+  const totalUsers = 120; // This would be fetched from a hook in a real application
+  
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
+  };
+
+  // Get total platform revenue (sum of all completed auction values)
+  const platformRevenue = slots
+    ?.filter(a => a.auction_state === AUCTION_STATES.COMPLETED)
+    .reduce((sum, auction) => sum + (auction.current_price || 0), 0) || 0;
+
   // Render tab content
   const renderTabContent = () => {
+    if (loading) {
+      return <LoadingState />;
+    }
+
     switch (activeTab) {
-      case ADMIN_TABS.OVERVIEW:
-        return renderOverview();
-      case ADMIN_TABS.AUCTION_SLOTS:
-        return renderAuctionSlots();
-      case ADMIN_TABS.PRODUCTS:
-        return renderProducts();
-      case ADMIN_TABS.USERS:
-        return renderUsers();
-      case ADMIN_TABS.ANALYTICS:
-        return renderAnalytics();
+      case 'overview':
+        return renderOverviewTab();
+      case 'users':
+        return <UserManager />;
+      case 'auctions':
+        return <SlotManager />;
+      case 'transactions':
+        return <TransactionManager />;
+      case 'settings':
+        return renderSettingsTab();
       default:
-        return renderOverview();
+        return <div>Select a tab</div>;
     }
   };
 
   // Overview tab
-  const renderOverview = () => (
-    <div>
-      <div className="mb-8">
-        <H2 className="mb-6">{t('dashboardOverview')}</H2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard 
-            title={t('totalSlots')} 
-            value={stats.totalSlots} 
-            icon="🎯" 
-            className="bg-primary-50"
-          />
-          <StatCard 
-            title={t('activeAuctions')} 
-            value={stats.activeSlots} 
-            icon="🔥" 
-            className="bg-success-50"
-          />
-          <StatCard 
-            title={t('emptySlots')} 
-            value={stats.emptySlots} 
-            icon="🆓" 
-            className="bg-warning-50"
-          />
-          <StatCard 
-            title={t('completedAuctions')} 
-            value={stats.completedSlots} 
-            icon="✅" 
-            className="bg-info-50"
-          />
-        </div>
+  const renderOverviewTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold mb-4">{t('admin.dashboardOverview')}</h2>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard 
+          title={t('admin.totalUsers')}
+          value={totalUsers}
+          trend="up"
+          trendValue="12% from last month"
+        />
+        <StatCard 
+          title={t('admin.activeAuctions')}
+          value={activeAuctions}
+          trend="up"
+          trendValue="8% from last week"
+        />
+        <StatCard 
+          title={t('admin.completedAuctions')}
+          value={completedAuctions}
+        />
+        <StatCard 
+          title={t('admin.platformRevenue')}
+          value={formatCurrency(platformRevenue)}
+          trend="up"
+          trendValue="15% from last month"
+        />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-          <H3 className="mb-4">{t('quickActions')}</H3>
-          <div className="space-y-2">
-            <Button 
-              variant="outline" 
-              fullWidth 
-              onClick={() => setActiveTab(ADMIN_TABS.AUCTION_SLOTS)}
-              className="justify-start text-left"
-            >
-              <span className="mr-2">📋</span> {t('manageAuctionSlots')}
-            </Button>
-            <Button 
-              variant="outline" 
-              fullWidth 
-              onClick={() => setActiveTab(ADMIN_TABS.PRODUCTS)}
-              className="justify-start text-left"
-            >
-              <span className="mr-2">📦</span> {t('approveProducts')}
-            </Button>
-            <Button 
-              variant="outline" 
-              fullWidth 
-              onClick={() => navigate('/admin/whatsapp')}
-              className="justify-start text-left"
-            >
-              <span className="mr-2">💬</span> {t('manageConversations')}
-            </Button>
+      
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold mb-4">{t('admin.recentActivity')}</h3>
+        <Card>
+          <div className="p-4">
+            <ul className="space-y-4">
+              {slots?.slice(0, 5).map((slot, index) => (
+                <li key={index} className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-3 last:border-0 last:pb-0">
+                  <div>
+                    <p className="font-medium">{slot.product ? slot.product.name_en : t('emptySlot')}</p>
+                    <p className="text-sm text-gray-500">
+                      {slot.auction_state === AUCTION_STATES.ACTIVE ? 
+                        t('admin.auctionStarted') : 
+                        slot.auction_state === AUCTION_STATES.COMPLETED ? 
+                        t('admin.auctionEnded') : 
+                        t('admin.auctionScheduled')}
+                    </p>
+                  </div>
+                  <div className="flex items-center mt-2 sm:mt-0">
+                    <Badge 
+                      variant={
+                        slot.auction_state === AUCTION_STATES.ACTIVE ? 'success' :
+                        slot.auction_state === AUCTION_STATES.COMPLETED ? 'primary' :
+                        'warning'
+                      }
+                      size="sm"
+                    >
+                      {slot.auction_state}
+                    </Badge>
+                    {slot.auction_state === AUCTION_STATES.COMPLETED && (
+                      <span className="ml-4 text-sm">{formatCurrency(slot.current_price || 0)}</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
+        </Card>
+      </div>
+    </div>
+  );
 
-        <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-          <H3 className="mb-4">{t('recentActivity')}</H3>
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-start pb-3 border-b border-gray-100 last:border-0">
-                <div className="bg-gray-100 rounded-full w-8 h-8 flex-shrink-0 flex items-center justify-center text-sm mr-3">
-                  {['🔔', '✅', '🔄', '📢'][i]}
-                </div>
-                <div>
-                  <Text className="font-medium">
-                    {[
-                      t('newBidNotification'),
-                      t('auctionCompleted', { id: 12 }),
-                      t('productAssigned', { id: 8 }),
-                      t('featuredSlotExpired', { id: 3 })
-                    ][i]}
-                  </Text>
-                  <Text className="text-sm text-gray-500">
-                    {['2 hours ago', '4 hours ago', 'Yesterday', '2 days ago'][i]}
-                  </Text>
+  // Settings tab
+  const renderSettingsTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold mb-4">{t('admin.systemSettings')}</h2>
+      <Card>
+        <div className="p-4 space-y-4">
+          <div>
+            <h3 className="text-lg font-medium mb-2">{t('admin.generalSettings')}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('admin.platformName')}
+                </label>
+                <input 
+                  type="text" 
+                  className="border border-gray-300 rounded-md w-full px-3 py-2"
+                  defaultValue="SokoClick"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('admin.supportEmail')}
+                </label>
+                <input 
+                  type="email" 
+                  className="border border-gray-300 rounded-md w-full px-3 py-2"
+                  defaultValue="support@sokoclick.co.ke"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('admin.maintenanceMode')}
+                </label>
+                <div className="flex items-center">
+                  <input type="checkbox" className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                  <label className="ml-2 block text-sm text-gray-900">
+                    {t('admin.enableMaintenanceMode')}
+                  </label>
                 </div>
               </div>
-            ))}
+            </div>
+          </div>
+          
+          <div className="pt-4 border-t border-gray-200">
+            <h3 className="text-lg font-medium mb-2">{t('admin.auctionSettings')}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('admin.defaultBidIncrement')} (KES)
+                </label>
+                <input 
+                  type="number" 
+                  className="border border-gray-300 rounded-md w-full px-3 py-2"
+                  defaultValue="100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('admin.auctionDuration')} ({t('admin.hours')})
+                </label>
+                <input 
+                  type="number" 
+                  className="border border-gray-300 rounded-md w-full px-3 py-2"
+                  defaultValue="24"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="pt-4 border-t border-gray-200">
+            <h3 className="text-lg font-medium mb-2">{t('admin.securitySettings')}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('admin.twoFactorAuth')}
+                </label>
+                <div className="flex items-center">
+                  <input type="checkbox" className="h-4 w-4 text-blue-600 border-gray-300 rounded" defaultChecked />
+                  <label className="ml-2 block text-sm text-gray-900">
+                    {t('admin.requireTwoFactorForAdmins')}
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="bg-white p-4 md:p-6 rounded-lg shadow mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <H3>{t('activeAuctions')}</H3>
-          <Button 
-            variant="text" 
-            onClick={() => setActiveTab(ADMIN_TABS.AUCTION_SLOTS)}
-          >
-            {t('viewAll')}
+        <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 rounded-b-lg">
+          <Button variant="outline" className="mr-2">
+            {t('admin.cancel')}
+          </Button>
+          <Button>
+            {t('admin.saveSettings')}
           </Button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('slotId')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('product')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('endTime')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('views')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {getSlotsByState(AUCTION_STATES.ACTIVE).slice(0, 5).map(slot => (
-                <tr key={slot.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-4 whitespace-nowrap text-sm">
-                    #{slot.id}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    {slot.product ? (
-                      <div className="flex items-center">
-                        {slot.product.image_urls && slot.product.image_urls[0] && (
-                          <img 
-                            src={slot.product.image_urls[0]} 
-                            alt={slot.product.name_en} 
-                            className="w-8 h-8 rounded-full mr-2 object-cover"
-                          />
-                        )}
-                        <div className="text-sm font-medium text-gray-900">
-                          {slot.product.name_en}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-500">{t('emptySlot')}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {slot.end_time ? new Date(slot.end_time).toLocaleString() : '-'}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {slot.view_count || 0}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Auction slots tab
-  const renderAuctionSlots = () => (
-    <div>
-      <H2 className="mb-6">{t('auctionSlotManagement')}</H2>
-      
-      {/* Success/Error messages */}
-      {success && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded-md">
-          {success}
-        </div>
-      )}
-      
-      {actionError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded-md">
-          {actionError.message}
-        </div>
-      )}
-
-      {/* Slot state filter tabs */}
-      <div className="mb-6 overflow-x-auto">
-        <div className="inline-flex rounded-md border border-gray-200 p-1 bg-white">
-          {Object.values(AUCTION_STATES).map(state => (
-            <button
-              key={state}
-              className={`px-3 py-2 text-sm font-medium rounded-md ${
-                selectedSlotState === state
-                  ? 'bg-primary-100 text-primary-800'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              onClick={() => setSelectedSlotState(state)}
-            >
-              {t(`auctionState.${state}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-      
-      {/* Auction slots list */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('slotId')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('status')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('product')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('startEndTime')}
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('viewCount')}
-                </th>
-                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSlots.map(slot => (
-                <tr key={slot.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium">#{slot.id}</div>
-                    {slot.featured && (
-                      <Badge color="accent" size="small" className="mt-1">
-                        {t('featured')}
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    <Badge color={getStateColor(slot.auction_state)}>
-                      {t(`auctionState.${slot.auction_state}`)}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    {slot.product ? (
-                      <div className="flex items-center">
-                        {slot.product.image_urls && slot.product.image_urls[0] && (
-                          <img 
-                            src={slot.product.image_urls[0]} 
-                            alt={slot.product.name_en} 
-                            className="w-8 h-8 rounded-full mr-2 object-cover"
-                          />
-                        )}
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {slot.product.name_en}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {slot.product.starting_price} {slot.product.currency}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-500">{t('emptySlot')}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    <div className="text-xs text-gray-500">
-                      {slot.start_time ? (
-                        <>
-                          <div>{t('start')}: {new Date(slot.start_time).toLocaleString()}</div>
-                          <div>{t('end')}: {slot.end_time ? new Date(slot.end_time).toLocaleString() : '-'}</div>
-                        </>
-                      ) : (
-                        t('notScheduled')
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {slot.view_count || 0}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button
-                      variant="text"
-                      size="small"
-                      onClick={() => handleEditSlot(slot.id)}
-                    >
-                      {t('edit')}
-                    </Button>
-                    {slot.product ? (
-                      <Button
-                        variant="text"
-                        size="small"
-                        className="text-red-600 hover:text-red-800"
-                        onClick={() => handleRemoveProduct(slot.id)}
-                        disabled={actionLoading}
-                      >
-                        {t('removeProduct')}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="text"
-                        size="small"
-                        className="text-primary-600 hover:text-primary-800"
-                        onClick={() => navigate(`/admin/assign-product/${slot.id}`)}
-                      >
-                        {t('assignProduct')}
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Products tab (placeholder)
-  const renderProducts = () => (
-    <div>
-      <H2 className="mb-6">{t('productManagement')}</H2>
-      <div className="bg-white shadow rounded-lg p-6">
-        <p>{t('productManagementComingSoon')}</p>
-      </div>
-    </div>
-  );
-
-  // Users tab (placeholder)
-  const renderUsers = () => (
-    <div>
-      <H2 className="mb-6">{t('userManagement')}</H2>
-      <div className="bg-white shadow rounded-lg p-6">
-        <p>{t('userManagementComingSoon')}</p>
-      </div>
-    </div>
-  );
-
-  // Analytics tab (placeholder)
-  const renderAnalytics = () => (
-    <div>
-      <H2 className="mb-6">{t('analytics')}</H2>
-      <div className="bg-white shadow rounded-lg p-6">
-        <p>{t('analyticsComingSoon')}</p>
-      </div>
+      </Card>
     </div>
   );
 
@@ -442,6 +305,22 @@ const AdminDashboard = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        {t('common.error')}: {error instanceof Error ? error.message : String(error)}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -450,8 +329,8 @@ const AdminDashboard = () => {
         <div className="max-container px-4">
           <div className="flex flex-col md:flex-row items-start mb-8">
             <div className="w-full md:w-auto mb-4 md:mb-0">
-              <H1 className="text-2xl md:text-3xl">{t('adminDashboard')}</H1>
-              <Text className="text-gray-600">{t('adminDashboardDescription')}</Text>
+              <H1 className="text-2xl md:text-3xl">{t('admin.dashboard')}</H1>
+              <Text className="text-gray-600">{t('admin.dashboardDescription')}</Text>
             </div>
             
             <div className="md:ml-auto flex flex-wrap gap-2">
@@ -475,11 +354,11 @@ const AdminDashboard = () => {
             <select
               className="w-full p-2 border border-gray-300 rounded-md bg-white"
               value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value)}
+              onChange={(e) => setActiveTab(e.target.value as AdminTabType)}
             >
-              {Object.entries(ADMIN_TABS).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {t(`adminTabs.${value}`)}
+              {ADMIN_TABS.map((tab) => (
+                <option key={tab.id} value={tab.id}>
+                  {t(`admin.tab${tab.id.charAt(0).toUpperCase() + tab.id.slice(1)}`)}
                 </option>
               ))}
             </select>
@@ -487,34 +366,25 @@ const AdminDashboard = () => {
           
           {/* Desktop Tabs */}
           <div className="hidden md:flex mb-6 border-b border-gray-200">
-            {Object.entries(ADMIN_TABS).map(([key, value]) => (
+            {ADMIN_TABS.map((tab) => (
               <button
-                key={key}
+                key={tab.id}
                 className={`py-3 px-6 border-b-2 font-medium text-sm ${
-                  activeTab === value
+                  activeTab === tab.id
                     ? 'border-primary-600 text-primary-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => setActiveTab(value)}
+                onClick={() => setActiveTab(tab.id)}
               >
-                {t(`adminTabs.${value}`)}
+                {t(`admin.tab${tab.id.charAt(0).toUpperCase() + tab.id.slice(1)}`)}
               </button>
             ))}
           </div>
           
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent"></div>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md">
-              {error.message}
-            </div>
-          ) : (
-            <div>
-              {renderTabContent()}
-            </div>
-          )}
+          {/* Tab content */}
+          <div className="mb-6">
+            {renderTabContent()}
+          </div>
         </div>
       </main>
       
@@ -524,12 +394,23 @@ const AdminDashboard = () => {
 };
 
 // Stat card component
-const StatCard = ({ title, value, icon, className = '' }) => (
-  <div className={`p-4 rounded-lg shadow-sm ${className}`}>
-    <div className="text-2xl mb-2">{icon}</div>
-    <div className="text-sm text-gray-500">{title}</div>
-    <div className="text-2xl font-bold">{value}</div>
-  </div>
+const StatCard = ({ title, value, trend, trendValue }: { title: string; value: string | number; trend?: 'up' | 'down' | 'neutral'; trendValue?: string }) => (
+  <Card className="h-full">
+    <div className="p-4 flex flex-col h-full">
+      <h3 className="text-gray-500 text-sm font-medium mb-1">{title}</h3>
+      <p className="text-2xl font-bold mb-2">{value}</p>
+      {trend && (
+        <div className="mt-auto flex items-center">
+          <span className={`text-sm font-medium ${
+            trend === 'up' ? 'text-green-500' : 
+            trend === 'down' ? 'text-red-500' : 'text-gray-500'
+          }`}>
+            {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'} {trendValue}
+          </span>
+        </div>
+      )}
+    </div>
+  </Card>
 );
 
 export default AdminDashboard; 

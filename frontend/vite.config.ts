@@ -1,9 +1,26 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
+import fs from 'fs'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'generate-redirects-file',
+      closeBundle() {
+        // Make sure the dist directory exists
+        if (!fs.existsSync('dist')) {
+          fs.mkdirSync('dist')
+        }
+        
+        // Write _redirects file to ensure SPA routing works
+        fs.writeFileSync('dist/_redirects', '/* /index.html 200\n')
+        console.log('✅ _redirects file created for SPA routing')
+      }
+    }
+  ],
   css: {
     devSourcemap: true,
   },

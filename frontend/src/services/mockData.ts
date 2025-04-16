@@ -967,6 +967,27 @@ export const mockAuctionService = {
     // This is just a simulation
     
     return updatedSlot;
+  },
+  
+  // Get products by seller ID
+  getProductsBySellerId: (sellerId: string): Promise<Product[]> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const sellerProducts = MOCK_PRODUCTS.filter(product => product.seller_id === sellerId);
+        resolve(sellerProducts);
+      }, 300);
+    });
+  },
+  
+  // Get auction slots by seller ID
+  getAuctionSlotsBySellerId: (sellerId: string): Promise<AuctionSlot[]> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const allSlots = generateMockAuctionSlots();
+        const sellerSlots = allSlots.filter(slot => slot.product?.seller_id === sellerId);
+        resolve(sellerSlots);
+      }, 300);
+    });
   }
 };
 

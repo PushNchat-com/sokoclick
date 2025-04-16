@@ -287,70 +287,86 @@ export type MockAuctionService = {
   getAuctionSlotById: (id: string) => Promise<AuctionSlot | null>;
   getMockFeaturedSlots: (limit?: number) => Promise<AuctionSlot[]>;
   getMockProducts: () => Promise<any[]>;
+  getAllProducts: () => Promise<Product[]>;
+  getProductsBySellerId: (sellerId: string) => Promise<Product[]>;
+  getAuctionSlotsBySellerId: (sellerId: string) => Promise<AuctionSlot[]>;
 };
 
 /**
- * Hook for sellers to get their products
- * @param sellerId ID of the seller to filter products by
+ * Admin hook to fetch all mock products
  */
-export const useSellerMockProducts = (sellerId: string = '1') => {
-  const [products, setProducts] = useState<any[]>([]);
+export const useAdminMockProducts = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+
+    mockAuctionService
+      .getMockProducts() // Using the existing method name to match the API
+      .then((data: Product[]) => {
+        setProducts(data);
+        setIsLoading(false);
+      })
+      .catch((err: unknown) => {
+        setError(err as Error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  return { isLoading, error, products };
+};
+
+// Hook for fetching products for a specific seller
+export const useSellerMockProducts = (sellerId: string) => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     const fetchSellerProducts = async () => {
       try {
-        setIsLoading(true);
-        // Get all products
-        const allProducts = await mockAuctionService.getMockProducts();
-        // Filter for seller's products
-        const sellerProducts = allProducts.filter(product => product.seller?.id === sellerId);
-        setProducts(sellerProducts);
+        setLoading(true);
+        const data = await mockAuctionService.getProductsBySellerId(sellerId);
+        setProducts(data);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch seller products'));
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
     fetchSellerProducts();
   }, [sellerId]);
 
-  return { products, isLoading, error };
+  return { products, loading, error };
 };
 
-/**
- * Hook for sellers to get their auction slots
- * @param sellerId ID of the seller to filter auctions by
- */
-export const useSellerMockAuctions = (sellerId: string = '1') => {
+// Hook for fetching auction slots for a specific seller
+export const useSellerMockAuctions = (sellerId: string) => {
   const [auctions, setAuctions] = useState<AuctionSlot[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     const fetchSellerAuctions = async () => {
       try {
-        setIsLoading(true);
-        // Get all auction slots with details (no limit)
-        const allAuctions = await mockAuctionService.getAuctionSlots(100, 0);
-        // Filter for seller's auctions
-        const sellerAuctions = allAuctions.filter(
-          (auction: AuctionSlot) => auction.product?.seller?.id === sellerId
-        );
-        setAuctions(sellerAuctions);
+        setLoading(true);
+        const data = await mockAuctionService.getAuctionSlotsBySellerId(sellerId);
+        setAuctions(data);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch seller auctions'));
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
     fetchSellerAuctions();
   }, [sellerId]);
 
-  return { auctions, isLoading, error };
-}; 
+  return { auctions, loading, error };
+};

@@ -229,5 +229,49 @@
   "retry": "Retry",
   "product": {
     "viewDetails": "View product"
+  },
+
+  "seller": {
+    "dashboard": "Seller Dashboard",
+    "tabs": {
+      "overview": "Overview",
+      "products": "Products",
+      "auctions": "Auctions",
+      "sales": "Sales",
+      "account": "Account"
+    },
+    "stats": {
+      "activeAuctions": "Active Auctions",
+      "soldItems": "Sold Items",
+      "totalRevenue": "Total Revenue",
+      "totalProducts": "Total Products"
+    },
+    "recentActivity": "Recent Activity",
+    "noActiveAuctions": "No active auctions",
+    "myProducts": "My Products",
+    "addProduct": "Add Product",
+    "createAuction": "Create Auction",
+    "noProducts": "No products found",
+    "myAuctions": "My Auctions",
+    "activeAuctions": "Active Auctions",
+    "pastAuctions": "Past Auctions",
+    "noPastAuctions": "No past auctions",
+    "mySales": "My Sales",
+    "noSales": "No sales recorded",
+    "accountSettings": "Account Settings",
+    "personalInfo": "Personal Information",
+    "paymentInfo": "Payment Information"
+  },
+
+  "user": {
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "location": "Location"
+  },
+
+  "payment": {
+    "method": "Payment Method",
+    "accountNumber": "Account Number"
   }
 } 

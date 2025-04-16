@@ -8,13 +8,65 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Unauthorized from './pages/Unauthorized';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/admin/Dashboard';
 import WhatsAppDashboard from './pages/WhatsAppDashboard';
 import DesignSystem from './pages/DesignSystem';
 import SellerDashboard from './pages/seller/Dashboard';
+import Dashboard from './pages/Dashboard';
+import { useAuth } from './context/AuthContext';
+import { useEffect } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
 
 // Admin pages (import as needed)
 // const SellerDashboard = () => <div>Seller Dashboard (Coming Soon)</div>;
+
+// Admin route guard component
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading, userRole } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && (!user || userRole !== 'admin')) {
+      navigate('/unauthorized?role=admin');
+    }
+  }, [user, loading, userRole, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-primary-600 border-r-primary-300 border-b-primary-200 border-l-primary-100"></div>
+      </div>
+    );
+  }
+
+  return user && userRole === 'admin' ? (
+    <>{children}</>
+  ) : null;
+};
+
+// Seller route guard component
+const SellerRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading, userRole } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && (!user || (userRole !== 'seller' && userRole !== 'admin'))) {
+      navigate('/unauthorized?role=seller');
+    }
+  }, [user, loading, userRole, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-primary-600 border-r-primary-300 border-b-primary-200 border-l-primary-100"></div>
+      </div>
+    );
+  }
+
+  return user && (userRole === 'seller' || userRole === 'admin') ? (
+    <>{children}</>
+  ) : null;
+};
 
 const router = createBrowserRouter([
   {
@@ -47,22 +99,39 @@ const router = createBrowserRouter([
     path: '/unauthorized',
     element: <Unauthorized />,
   },
+  // Dashboard router - redirects to appropriate dashboard based on role
+  {
+    path: '/dashboard',
+    element: (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    ),
+  },
   // Protected admin routes
   {
     path: '/admin',
     element: (
-      <ProtectedRoute requiredRole="admin">
+      <AdminRoute>
+        <Navigate to="/admin/dashboard" replace />
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/dashboard',
+    element: (
+      <AdminRoute>
         <AdminDashboard />
-      </ProtectedRoute>
+      </AdminRoute>
     ),
   },
   // Protected seller routes
   {
-    path: '/seller',
+    path: '/seller/dashboard',
     element: (
-      <ProtectedRoute requiredRole="seller">
+      <SellerRoute>
         <SellerDashboard />
-      </ProtectedRoute>
+      </SellerRoute>
     ),
   },
   // WhatsApp dashboard

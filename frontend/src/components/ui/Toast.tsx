@@ -209,7 +209,7 @@ const Toast: React.FC<ToastProps & { onClose?: () => void, isVisible?: boolean }
     if (props.isVisible) {
       toast.toast(props.message, props.variant, props.duration);
     }
-  }, [props.isVisible]);
+  }, [props.isVisible, props.message, props.variant, props.duration, toast]);
   
   return null;
 };
