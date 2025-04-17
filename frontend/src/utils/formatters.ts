@@ -4,23 +4,28 @@
  * @param currencyCode The currency code (e.g., USD, EUR, KES)
  * @returns Formatted currency string
  */
-export const formatCurrency = (amount: number, currencyCode: string = 'USD'): string => {
-  // Handle edge cases
-  if (isNaN(amount)) return '0.00';
-  
+export const formatCurrency = (
+  amount: number | string,
+  currencyCode: string = 'XAF'
+): string => {
+  if (amount === null || amount === undefined) return '';
+
+  // Convert string to number if needed
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+
+  // If conversion results in NaN, return empty string
+  if (isNaN(numAmount)) return '';
+
   try {
-    // Get the currency display format based on currency code
-    const formatter = new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('fr-CM', {
       style: 'currency',
       currency: currencyCode,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
-    
-    return formatter.format(amount);
+      maximumFractionDigits: 0,
+    }).format(numAmount);
   } catch (error) {
-    // Fallback for unsupported currencies
-    return `${amount.toLocaleString()} ${currencyCode}`;
+    // Fallback for unsupported currency codes
+    return `${currencyCode} ${numAmount.toLocaleString('fr-CM')}`;
   }
 };
 

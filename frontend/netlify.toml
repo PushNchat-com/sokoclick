@@ -5,7 +5,9 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Ensure SPA routing works correctly
 [[redirects]]
   from = "/*"
   to = "/index.html"
-  status = 200 
+  status = 200
+  force = true 

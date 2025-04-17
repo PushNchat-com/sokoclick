@@ -13,6 +13,8 @@ import WhatsAppDashboard from './pages/WhatsAppDashboard';
 import DesignSystem from './pages/DesignSystem';
 import SellerDashboard from './pages/seller/Dashboard';
 import Dashboard from './pages/Dashboard';
+import Game from './pages/Game';
+import SupabaseTest from './pages/SupabaseTest';
 import { useAuth } from './context/AuthContext';
 import { useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
@@ -125,6 +127,39 @@ const router = createBrowserRouter([
       </AdminRoute>
     ),
   },
+  // Add the missing admin routes
+  {
+    path: '/admin/users',
+    element: (
+      <AdminRoute>
+        <AdminDashboard key="users" defaultTab="users" />
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/auctions',
+    element: (
+      <AdminRoute>
+        <AdminDashboard key="auctions" defaultTab="auctions" />
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/transactions',
+    element: (
+      <AdminRoute>
+        <AdminDashboard key="transactions" defaultTab="transactions" />
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/settings',
+    element: (
+      <AdminRoute>
+        <AdminDashboard key="settings" defaultTab="settings" />
+      </AdminRoute>
+    ),
+  },
   // Protected seller routes
   {
     path: '/seller/dashboard',
@@ -142,6 +177,16 @@ const router = createBrowserRouter([
         <WhatsAppDashboard />
       </ProtectedRoute>
     ),
+  },
+  // Sokoclick game
+  {
+    path: '/game',
+    element: <Game />,
+  },
+  // Supabase integration test
+  {
+    path: '/supabase-test',
+    element: <SupabaseTest />,
   },
   // Design system documentation
   {

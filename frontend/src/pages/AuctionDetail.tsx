@@ -9,7 +9,7 @@ import EmptySlotCard from '../components/EmptySlotCard';
 import Container from '../components/ui/Container';
 import { H1, H2, Text } from '../components/ui/Typography';
 import Button from '../components/ui/Button';
-import { useMockAuctionSlotById } from '../hooks/useMockData';
+import { useAuctionSlotById } from '../hooks/useSupabaseData';
 import { useWhatsApp } from '../context/WhatsAppContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../providers/ToastProvider';
@@ -36,7 +36,7 @@ const WhatsAppModal = ({ isOpen, onClose, sellerNumber, productName, productId, 
     
     if (!user) {
       // Redirect to login if not logged in
-      toast.showToast(t('errors.loginRequired'), 'warning');
+      toast.warning(t('errors.loginRequired'));
       navigate('/login', { state: { from: `/sc/${productId}` } });
       return;
     }
@@ -57,7 +57,7 @@ const WhatsAppModal = ({ isOpen, onClose, sellerNumber, productName, productId, 
       if (conversationId) {
         // Navigate to WhatsApp conversation
         navigate('/messages');
-        toast.showToast(t('whatsapp.conversationStarted'), 'success');
+        toast.success(t('whatsapp.conversationStarted'));
       } else {
         // Fallback to direct WhatsApp link if conversation creation fails
         handleDirectWhatsApp();
@@ -134,8 +134,8 @@ const AuctionDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  // Use mock data hook
-  const { slot: auctionDetail, loading, error } = useMockAuctionSlotById(Number(slotId));
+  // Use real data hook instead of mock
+  const { slot: auctionDetail, loading, error } = useAuctionSlotById(Number(slotId));
   
   useEffect(() => {
     // Set the first image as selected image when data loads

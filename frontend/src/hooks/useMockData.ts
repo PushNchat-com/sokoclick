@@ -319,54 +319,58 @@ export const useAdminMockProducts = () => {
   return { isLoading, error, products };
 };
 
-// Hook for fetching products for a specific seller
-export const useSellerMockProducts = (sellerId: string) => {
+/**
+ * Hook to fetch products for a specific seller
+ */
+export function useSellerMockProducts(sellerId: string) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const fetchSellerProducts = async () => {
+    async function fetchSellerProducts() {
       try {
         setLoading(true);
-        const data = await mockAuctionService.getProductsBySellerId(sellerId);
-        setProducts(data);
+        const sellerProducts = await mockAuctionService.getProductsBySellerId(sellerId);
+        setProducts(sellerProducts);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch seller products'));
+        setError(err as Error);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     fetchSellerProducts();
   }, [sellerId]);
 
   return { products, loading, error };
-};
+}
 
-// Hook for fetching auction slots for a specific seller
-export const useSellerMockAuctions = (sellerId: string) => {
+/**
+ * Hook to fetch auction slots for a specific seller
+ */
+export function useSellerMockAuctions(sellerId: string) {
   const [auctions, setAuctions] = useState<AuctionSlot[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const fetchSellerAuctions = async () => {
+    async function fetchSellerAuctions() {
       try {
         setLoading(true);
-        const data = await mockAuctionService.getAuctionSlotsBySellerId(sellerId);
-        setAuctions(data);
+        const sellerAuctions = await mockAuctionService.getAuctionSlotsBySellerId(sellerId);
+        setAuctions(sellerAuctions);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch seller auctions'));
+        setError(err as Error);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     fetchSellerAuctions();
   }, [sellerId]);
 
   return { auctions, loading, error };
-};
+}

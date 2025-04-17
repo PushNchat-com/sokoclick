@@ -1,18 +1,18 @@
 import React from 'react';
-import classNames from 'classnames';
+import clsx from 'clsx';
 
-export type BadgeVariant = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
+export type BadgeColor = 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info';
 export type BadgeSize = 'sm' | 'md' | 'lg';
 
-interface BadgeProps {
+export interface BadgeProps {
   /**
    * Badge content
    */
   children: React.ReactNode;
   /**
-   * Badge variant
+   * Badge color
    */
-  variant?: BadgeVariant;
+  color?: BadgeColor;
   /**
    * Badge size variant
    */
@@ -26,32 +26,34 @@ interface BadgeProps {
 /**
  * Badge component for displaying status indicators, labels, or counts
  */
-export const Badge: React.FC<BadgeProps> = ({
+const Badge: React.FC<BadgeProps> = ({
   children,
-  variant = 'default',
+  color = 'primary',
   size = 'md',
   className = '',
 }) => {
-  const variantClasses: Record<BadgeVariant, string> = {
-    default: 'bg-gray-100 text-gray-800',
+  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-full whitespace-nowrap';
+  
+  const colorClasses = {
     primary: 'bg-blue-100 text-blue-800',
+    secondary: 'bg-purple-100 text-purple-800',
     success: 'bg-green-100 text-green-800',
     warning: 'bg-yellow-100 text-yellow-800',
     danger: 'bg-red-100 text-red-800',
-    info: 'bg-purple-100 text-purple-800',
+    info: 'bg-sky-100 text-sky-800'
   };
   
-  const sizeClasses: Record<BadgeSize, string> = {
+  const sizeClasses = {
     sm: 'text-xs px-2 py-0.5',
-    md: 'text-sm px-2 py-1',
-    lg: 'text-base px-3 py-1.5',
+    md: 'text-sm px-2.5 py-0.5',
+    lg: 'text-base px-3 py-1'
   };
   
   return (
-    <span
-      className={classNames(
-        'inline-flex items-center font-medium rounded-full',
-        variantClasses[variant],
+    <span 
+      className={clsx(
+        baseClasses,
+        colorClasses[color],
         sizeClasses[size],
         className
       )}

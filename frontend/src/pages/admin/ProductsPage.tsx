@@ -175,7 +175,7 @@ const ProductsPage: React.FC = () => {
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     />
                     <IconButton
-                      aria-label="Search"
+                      aria-label={t('admin.productspage.search')}
                       icon={<SearchIcon />}
                       ml={2}
                       onClick={handleSearch}

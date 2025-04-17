@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import supabase from '../api/supabase';
+import { supabaseClient } from '../api/supabase';
 import { UserWithRole } from '../hooks/useAdminData';
 
 // Define valid roles according to database schema
@@ -71,14 +71,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const role = parseUserRole(session.user.user_metadata);
       setUserRole(role);
       
-      // Create a UserWithRole object
+      // Create a UserWithRole object with only the properties defined in the interface
       setUserWithRole({
         id: session.user.id,
         email: session.user.email || '',
         whatsapp_number: session.user.user_metadata?.phone || '',
         role: role,
-        created_at: session.user.created_at,
-        updated_at: session.user.updated_at || '',
         display_name: session.user.user_metadata?.full_name || '',
         profile_image: session.user.user_metadata?.profile_image || '',
         location: '',
@@ -96,7 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Sign in function
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
       });
@@ -116,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signUp = async (email: string, password: string, fullName: string, role: UserRole, phone?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { error } = await supabaseClient.auth.signUp({
       email,
       password,
       options: {
@@ -132,19 +130,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
     return { error };
   };
 
   const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabaseClient.auth.updateUser({ password });
     return { error };
   };
 
   // Sign out function
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       setUser(null);
       setUserWithRole(null);
       setUserRole(null);
@@ -156,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUserRole = async (role: UserRole) => {
     if (!user) return { error: new Error('No user is logged in') };
 
-    const { error } = await supabase.auth.updateUser({
+    const { error } = await supabaseClient.auth.updateUser({
       data: { role },
     });
 
@@ -192,7 +190,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       updateUserState(session);
       setLoading(false);
     };
@@ -201,7 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       updateUserState(session);
     });
 

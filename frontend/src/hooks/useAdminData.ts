@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseClient } from '../api/supabase';
 import { Profile } from '../types/supabase';
 
-// Type for user with role
-export interface UserWithRole extends Profile {
-  role: 'buyer' | 'seller' | 'admin' | null;
+// Type for user with role - make compatible with Profile interface
+export interface UserWithRole extends Omit<Profile, 'role'> {
+  role: 'buyer' | 'seller' | 'admin' | undefined;
 }
 
 /**
@@ -20,7 +20,7 @@ export const useAdminUsers = () => {
     try {
       // In a real app, this would be connected to Supabase
       // Only accessible to admin due to RLS policies
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
@@ -59,7 +59,7 @@ export const useUpdateUserRole = () => {
     try {
       // In a real app, this would be connected to Supabase
       // Only accessible to admin due to RLS policies
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('users')
         .update({ role: newRole })
         .eq('id', userId);
@@ -91,7 +91,7 @@ export const getMockUsers = (): UserWithRole[] => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       location: 'Douala, Cameroon',
-      profile_image: null,
+      profile_image: '',
       rating: 5.0,
       joined_date: new Date().toISOString(),
       bio: 'System administrator',
@@ -106,7 +106,7 @@ export const getMockUsers = (): UserWithRole[] => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       location: 'Yaounde, Cameroon',
-      profile_image: null,
+      profile_image: '',
       rating: 4.5,
       joined_date: new Date().toISOString(),
       bio: 'Selling electronics and gadgets',
@@ -121,11 +121,11 @@ export const getMockUsers = (): UserWithRole[] => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       location: 'Buea, Cameroon',
-      profile_image: null,
+      profile_image: '',
       rating: 4.0,
       joined_date: new Date().toISOString(),
       bio: 'Looking for great deals',
       verified: true
     }
   ];
-}; 
+};

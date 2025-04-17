@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChakraProvider as ChakraUIProvider, extendTheme } from '@chakra-ui/react';
+// Importing directly from the canonical implementation
 import { ToastProvider } from '../components/ui/Toast';
 
 interface Props {

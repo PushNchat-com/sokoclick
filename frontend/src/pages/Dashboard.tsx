@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Spinner from '../components/ui/Spinner';
+import LoadingState from '../components/ui/LoadingState';
 
 /**
  * Dashboard router component that redirects users to the appropriate
@@ -28,7 +28,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
+        <LoadingState message="Loading your dashboard..." />
       </div>
     );
   }

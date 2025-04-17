@@ -56,7 +56,7 @@ const WhatsAppDashboard = () => {
   // Show error toast if there's an error loading conversations
   useEffect(() => {
     if (error) {
-      toast.showToast(error, 'error');
+      toast.error(error);
     }
   }, [error, toast]);
 

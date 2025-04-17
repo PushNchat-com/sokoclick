@@ -31,10 +31,9 @@ export const CURRENCIES = [
   'USD', 
   'EUR', 
   'GBP', 
-  'KES', 
+  'XAF', 
   'NGN', 
   'ZAR', 
-  'XAF', 
   'XOF'
 ];
 
@@ -331,7 +330,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1611472173362-3f53dbd65d80?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=868&q=80'
     ],
     starting_price: 85000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-001',
     seller_whatsapp: '+254712345678',
@@ -350,7 +349,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1553179459-4514c0f52f41?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1036&q=80'
     ],
     starting_price: 78000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Good',
     seller_id: 'prof-002',
     seller_whatsapp: '+254723456789',
@@ -369,7 +368,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1667372393080-11eb8ad7a5a4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=764&q=80'
     ],
     starting_price: 65000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Very Good',
     seller_id: 'prof-009',
     seller_whatsapp: '+233244567890',
@@ -387,7 +386,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1586183189334-43d3b934261b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1169&q=80'
     ],
     starting_price: 55000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-005',
     seller_whatsapp: '+234812345678',
@@ -408,7 +407,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=687&q=80'
     ],
     starting_price: 195000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-003',
     seller_whatsapp: '+254734567890',
@@ -427,7 +426,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1032&q=80'
     ],
     starting_price: 175000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-002',
     seller_whatsapp: '+254723456789',
@@ -448,7 +447,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1542879438-db3b7ef41c75?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80'
     ],
     starting_price: 350000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-002',
     seller_whatsapp: '+254723456789',
@@ -469,7 +468,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1579829366248-204fe8413f31?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80'
     ],
     starting_price: 230000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-003',
     seller_whatsapp: '+254734567890',
@@ -490,7 +489,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1622297845775-5ff3fef71d13?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80'
     ],
     starting_price: 65000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Good',
     seller_id: 'prof-001',
     seller_whatsapp: '+254712345678',
@@ -509,7 +508,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1605901309584-818e25960a8f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1619&q=80'
     ],
     starting_price: 60000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-005',
     seller_whatsapp: '+234812345678',
@@ -530,7 +529,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1548171562-f345eedccca4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=687&q=80'
     ],
     starting_price: 1200000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-009',
     seller_whatsapp: '+233244567890',
@@ -551,7 +550,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=739&q=80'
     ],
     starting_price: 35000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-004',
     seller_whatsapp: '+221777654321',
@@ -571,7 +570,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1662380840228-2b2ee9c6c9ab?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1171&q=80'
     ],
     starting_price: 45000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Like New',
     seller_id: 'prof-008',
     seller_whatsapp: '+221788765432',
@@ -591,7 +590,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1617083934777-8fa4583ceb3b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80'
     ],
     starting_price: 25000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Very Good',
     seller_id: 'prof-007',
     seller_whatsapp: '+254745678901',
@@ -611,7 +610,7 @@ export const MOCK_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1584917865442-de89df76afd3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=735&q=80'
     ],
     starting_price: 150000,
-    currency: 'KES',
+    currency: 'XAF',
     condition: 'Very Good',
     seller_id: 'prof-010',
     seller_whatsapp: '+234912345678',

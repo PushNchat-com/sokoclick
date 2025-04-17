@@ -8,16 +8,37 @@ export default defineConfig({
   plugins: [
     react(),
     {
-      name: 'generate-redirects-file',
+      name: 'ensure-spa-routing',
       closeBundle() {
         // Make sure the dist directory exists
         if (!fs.existsSync('dist')) {
           fs.mkdirSync('dist')
         }
         
-        // Write _redirects file to ensure SPA routing works
+        // Create and write _redirects file to dist folder
         fs.writeFileSync('dist/_redirects', '/* /index.html 200\n')
         console.log('✅ _redirects file created for SPA routing')
+        
+        // Copy netlify.toml to dist
+        if (fs.existsSync('netlify.toml')) {
+          fs.copyFileSync('netlify.toml', 'dist/netlify.toml')
+          console.log('✅ netlify.toml copied to dist directory')
+        }
+        
+        // Create a verification file to debug deployment
+        const verificationContent = `<!DOCTYPE html>
+<html>
+<head>
+  <title>SPA Routing Test</title>
+</head>
+<body>
+  <h1>SPA Routing Test</h1>
+  <p>If you can see this page, static file serving works, but SPA routing might have issues.</p>
+  <p>Current time: ${new Date().toISOString()}</p>
+</body>
+</html>`;
+        fs.writeFileSync('dist/routing-test.html', verificationContent)
+        console.log('✅ routing-test.html created for debugging')
       }
     }
   ],

@@ -1,24 +1,6 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
-import Backend from 'i18next-http-backend';
+// This file is deprecated - using main i18n config from src/i18n/index.ts instead
+import i18n from '../i18n';
 import dayjs from 'dayjs';
-
-i18n
-  .use(Backend)
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    fallbackLng: 'en',
-    debug: Boolean(import.meta.env.DEV),
-    interpolation: {
-      escapeValue: false,
-    },
-    supportedLngs: ['en', 'fr'],
-    backend: {
-      loadPath: '/locales/{{lng}}/{{ns}}.json',
-    },
-  });
 
 // Synchronize dayjs locale when i18n language changes
 i18n.on('languageChanged', (lng) => {

@@ -7,7 +7,7 @@ import AuctionCard from '../components/AuctionCard';
 import AuctionSkeletonCard from '../components/AuctionSkeletonCard';
 import ErrorBoundary from '../components/ErrorBoundary';
 import useInfiniteScroll from '../hooks/useInfiniteScroll';
-import { useMockAuctionSlots, useMockFeaturedSlots } from '../hooks/useMockData';
+import { useAuctionSlots, useFeaturedSlots } from '../hooks/useSupabaseData';
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
 
@@ -26,11 +26,11 @@ const Home = () => {
     setHasMore
   } = useInfiniteScroll();
 
-  // Use the mock data hook instead of direct Supabase call
-  const { slots, loading: initialLoading, error } = useMockAuctionSlots(SLOTS_PER_PAGE, 0);
+  // Use the real Supabase data hook instead of mock data
+  const { slots, loading: initialLoading, error } = useAuctionSlots(SLOTS_PER_PAGE, 0);
   
   // Featured slots for showcasing on empty results
-  const { featuredSlots } = useMockFeaturedSlots(3);
+  const { featuredSlots } = useFeaturedSlots(3);
   
   // Update hasMore based on received data length
   useEffect(() => {
@@ -60,6 +60,9 @@ const Home = () => {
               </p>
               <Link to="#auction-slots" className="inline-block px-6 py-3 md:px-8 md:py-4 bg-white text-primary-600 rounded-lg font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-100 transition transform hover:-translate-y-1">
                 {t('viewAuctions', 'View Auctions')}
+              </Link>
+              <Link to="/supabase-test" className="ml-4 inline-block px-6 py-3 md:px-8 md:py-4 bg-accent-600 text-white rounded-lg font-bold text-lg shadow-lg hover:shadow-xl hover:bg-accent-700 transition transform hover:-translate-y-1">
+                Supabase Test
               </Link>
             </div>
           </div>
@@ -192,6 +195,51 @@ const Home = () => {
             </div>
           </div>
         </section>
+        
+        {/* Game Promotion Section */}
+        <section className="py-12 md:py-16 bg-gradient-to-r from-accent-500 to-accent-700 text-white">
+          <div className="max-container px-4">
+            <div className="flex flex-col md:flex-row items-center justify-between">
+              <div className="md:w-1/2 mb-8 md:mb-0">
+                <h2 className="text-2xl md:text-3xl font-extrabold mb-4">{t('game.title')}</h2>
+                <p className="text-lg mb-6">{t('game.description')}</p>
+                <Link to="/game">
+                  <Button 
+                    variant="secondary" 
+                    size="lg" 
+                    className="bg-white text-accent-600 hover:bg-gray-100"
+                  >
+                    {t('game.startGame')}
+                  </Button>
+                </Link>
+              </div>
+              <div className="md:w-1/2 md:pl-8">
+                <div className="bg-white p-4 rounded-lg shadow-lg">
+                  <div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded overflow-hidden">
+                    <div className="flex flex-col items-center justify-center p-4 text-center">
+                      <div className="grid grid-cols-5 grid-rows-5 gap-1 mb-4">
+                        {Array.from({ length: 25 }).map((_, index) => (
+                          <div 
+                            key={index}
+                            className={`w-full h-6 rounded-sm ${
+                              // Add some variety to the demo grid with different cell types
+                              index === 7 || index === 11 || index === 17 ? 'bg-blue-500' : // player cells
+                              index === 6 || index === 12 ? 'bg-green-500' : // target cells
+                              index === 8 || index === 18 ? 'bg-amber-700' : // box cells
+                              index === 0 || index === 4 || index === 20 || index === 24 || 
+                              index === 5 || index === 9 || index === 15 || index === 19 ? 'bg-gray-800' : // wall cells
+                              'bg-gray-100' // empty cells
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
       
       <Footer />
@@ -199,4 +247,4 @@ const Home = () => {
   );
 };
 
-export default Home; 
+export default Home;

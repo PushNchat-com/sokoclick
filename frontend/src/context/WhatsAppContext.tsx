@@ -4,6 +4,9 @@ import { useAuth } from './AuthContext';
 import { WhatsAppConversation, ConversationStatus, TransactionUpdate, WhatsAppMessage } from '../types/whatsapp';
 import supabase from '../api/supabase';
 
+// Default WhatsApp number to use when no specific number is provided
+export const DEFAULT_WHATSAPP_NUMBER = '237673870377';
+
 interface WhatsAppContextType {
   conversations: WhatsAppConversation[];
   loading: boolean;
@@ -14,7 +17,7 @@ interface WhatsAppContextType {
   sendMessage: (conversationId: string, content: string, attachments?: string[]) => Promise<boolean>;
   markAsRead: (conversationId: string) => Promise<void>;
   updateTransactionStatus: (update: TransactionUpdate) => Promise<boolean>;
-  getWhatsAppShareLink: (phoneNumber: string, message: string) => string;
+  getWhatsAppShareLink: (phoneNumber: string | undefined, message: string) => string;
 }
 
 const WhatsAppContext = createContext<WhatsAppContextType | undefined>(undefined);
@@ -49,13 +52,30 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [user]);
 
   const fetchConversations = async () => {
-    if (!user) return;
+    if (!user || useDirectWhatsAppFallback) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
-    setError(null);
 
     try {
-      // Find conversations where the user is either buyer or seller
+      // Check first if the table exists to avoid multiple error handling
+      const { error: checkError } = await supabase
+        .from('whatsapp_conversations')
+        .select('id')
+        .limit(1);
+
+      // If the table doesn't exist, use the fallback immediately
+      if (checkError && (checkError.code === '404' || checkError.message?.includes('does not exist'))) {
+        console.warn('WhatsApp conversations table not found, using direct WhatsApp fallback');
+        setUseDirectWhatsAppFallback(true);
+        setConversations(MOCK_CONVERSATIONS);
+        setLoading(false);
+        return;
+      }
+
+      // If we got here, the table exists, so proceed with the query
       const { data, error } = await supabase
         .from('whatsapp_conversations')
         .select('*')
@@ -63,14 +83,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .order('updatedAt', { ascending: false });
 
       if (error) {
-        // Check if it's a 404 error (table doesn't exist)
-        if (error.code === '404' || error.message?.includes('does not exist')) {
-          console.warn('WhatsApp conversations table not found, using direct WhatsApp fallback');
-          setUseDirectWhatsAppFallback(true);
-          setConversations(MOCK_CONVERSATIONS);
-        } else {
-          throw error;
-        }
+        throw error;
       } else {
         setConversations(data || []);
       }
@@ -324,9 +337,11 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const getWhatsAppShareLink = (phoneNumber: string, message: string): string => {
+  const getWhatsAppShareLink = (phoneNumber: string | undefined, message: string): string => {
+    // Use default number if no phone number provided
+    const numberToUse = phoneNumber ? phoneNumber : DEFAULT_WHATSAPP_NUMBER;
     // Format phone number (remove any non-digit characters)
-    const formattedPhone = phoneNumber.replace(/\D/g, '');
+    const formattedPhone = numberToUse.replace(/\D/g, '');
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
     return `https://wa.me/${formattedPhone}?text=${encodedMessage}`;

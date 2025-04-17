@@ -97,3 +97,96 @@ The application uses client-side routing with React Router. To ensure this works
 For troubleshooting routing issues, visit:
 - Netlify's documentation on [redirects](https://docs.netlify.com/routing/redirects/)
 - The [deploy-check.html](/deploy-check.html) page on your deployed site
+
+## Testing
+
+This project uses Vitest for unit and integration testing, along with React Testing Library for component testing.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run tests with coverage
+npm test -- --coverage
+```
+
+### Test Utilities
+
+#### Supabase Mock Utilities
+
+For testing components and services that interact with Supabase, we've created a comprehensive mock utility in `src/utils/tests/supabaseMock.ts`. This utility provides:
+
+- In-memory data storage for tests
+- Mock implementations of Supabase query builders
+- Authentication and storage method mocks
+
+Example usage:
+
+```typescript
+import { mockSupabase, resetMockData, seedMockData } from '../utils/tests/supabaseMock';
+
+describe('My Test Suite', () => {
+  beforeEach(() => {
+    // Reset mock data
+    resetMockData();
+    
+    // Seed test data
+    seedMockData({
+      users: [{ id: 'user1', email: 'test@example.com' }],
+      products: [{ id: 'product1', name: 'Test Product' }]
+    });
+  });
+  
+  it('fetches data correctly', async () => {
+    // Use the mock in tests
+    const { data } = await mockSupabase
+      .from('products')
+      .select('*')
+      .execute();
+      
+    expect(data).toHaveLength(1);
+  });
+});
+```
+
+For more information about the mock utilities, see the README in `src/utils/tests/README.md`.
+
+#### API Testing
+
+We use the mock Supabase client for API tests. You can inject the mock client into API classes for testing:
+
+```typescript
+import { ProductAPI } from '../api/testableApi';
+import { mockSupabase } from '../utils/tests/supabaseMock';
+
+// Create API with mock client
+const productApi = new ProductAPI(mockSupabase);
+
+// Test API methods
+const products = await productApi.getProducts();
+```
+
+#### Component Testing
+
+For component tests, we use React Testing Library with custom mocks for Supabase, context providers, and other dependencies. See examples in the `src/tests/components` directory.
+
+## Supabase MCP Integration
+
+This project supports the Model Context Protocol (MCP) for AI-assisted development with Supabase. We've created comprehensive documentation to help you get started:
+
+- [MCP Quick Start Guide](./docs/mcp-quick-start.md) - Get set up in 5 minutes
+- [Complete Setup Guide](./docs/mcp-setup.md) - Detailed instructions and troubleshooting
+- [Example Queries](./docs/mcp-example-queries.md) - SokoClick-specific queries to try
+
+With MCP configured, you can use AI assistants like Claude in Cursor to:
+- Query the SokoClick database directly
+- Generate optimized SQL for frontend components
+- Explore database schema and relationships
+- Get help with testing and mock data
+
+See the [official Supabase MCP documentation](https://supabase.com/docs/guides/getting-started/mcp) for more information.
