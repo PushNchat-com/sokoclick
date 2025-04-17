@@ -1,4 +1,4 @@
-import { supabaseClient } from './supabase';
+import { supabaseClient } from '../lib/supabase';
 
 /**
  * Configuration for storage buckets

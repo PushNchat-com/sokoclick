@@ -102,9 +102,9 @@ export const supabaseHelper = {
         .from('auction_slots')
         .select(`
           *,
-          product:products(*),
-          seller:users(*),
-          buyer:users(*)
+          product:products(id, name, description, price, image_url, category, condition),
+          seller:users!seller_id(id, full_name, email, avatar_url, phone_number),
+          buyer:users!buyer_id(id, full_name, email, avatar_url)
         `)
         .order('id', { ascending: false })
         .limit(limit);
@@ -134,9 +134,9 @@ export const supabaseHelper = {
         .from('auction_slots')
         .select(`
           *,
-          product:products(*),
-          seller:users(*),
-          buyer:users(*)
+          product:products(id, name, description, price, image_url, category, condition),
+          seller:users!seller_id(id, full_name, email, avatar_url, phone_number),
+          buyer:users!buyer_id(id, full_name, email, avatar_url)
         `)
         .eq('id', id)
         .single();
@@ -153,7 +153,15 @@ export const supabaseHelper = {
         .from('auction_slots')
         .select(`
           *,
-          product:products(*),
-          seller:users(*),
-          buyer:users(*)
-        `
+          product:products(id, name, description, price, image_url, category, condition),
+          seller:users!seller_id(id, full_name, email, avatar_url, phone_number),
+          buyer:users!buyer_id(id, full_name, email, avatar_url)
+        `)
+        .eq('seller_id', sellerId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw handleError(error);
+      return data;
+    },
+  },
+};

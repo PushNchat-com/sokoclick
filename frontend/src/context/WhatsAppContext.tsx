@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 import { WhatsAppConversation, ConversationStatus, TransactionUpdate, WhatsAppMessage } from '../types/whatsapp';
-import supabase from '../api/supabase';
+import { supabaseClient } from '../lib/supabase';
 
 // Default WhatsApp number to use when no specific number is provided
 export const DEFAULT_WHATSAPP_NUMBER = '237673870377';
@@ -61,7 +61,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       // Check first if the table exists to avoid multiple error handling
-      const { error: checkError } = await supabase
+      const { error: checkError } = await supabaseClient
         .from('whatsapp_conversations')
         .select('id')
         .limit(1);
@@ -76,7 +76,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // If we got here, the table exists, so proceed with the query
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('whatsapp_conversations')
         .select('*')
         .or(`buyerId.eq.${user.id},sellerId.eq.${user.id}`)
@@ -112,7 +112,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       // Check if conversation already exists
-      const { data: existingConv, error: searchError } = await supabase
+      const { data: existingConv, error: searchError } = await supabaseClient
         .from('whatsapp_conversations')
         .select('id')
         .eq('productId', productId)
@@ -131,7 +131,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Create new conversation
       const threadId = `whatsapp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('whatsapp_conversations')
         .insert({
           productId,
@@ -174,7 +174,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('whatsapp_messages')
         .select('*')
         .eq('conversationId', conversationId)
@@ -214,7 +214,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       const isSeller = conversation.sellerId === user.id;
       
-      const { error: msgError } = await supabase
+      const { error: msgError } = await supabaseClient
         .from('whatsapp_messages')
         .insert({
           conversationId,
@@ -234,7 +234,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // Update conversation with last message
-      const { error: convError } = await supabase
+      const { error: convError } = await supabaseClient
         .from('whatsapp_conversations')
         .update({
           lastMessage: content,
@@ -268,7 +268,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const otherParty = isSeller ? 'buyer' : 'seller';
 
       // Mark all messages from the other party as read
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('whatsapp_messages')
         .update({ isRead: true })
         .eq('conversationId', conversationId)
@@ -295,7 +295,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { conversationId, status, notes } = update;
       
       // Update conversation status
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('whatsapp_conversations')
         .update({
           status,
@@ -313,7 +313,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // Add system message about the status change
       if (notes) {
-        const { error: msgError } = await supabase
+        const { error: msgError } = await supabaseClient
           .from('whatsapp_messages')
           .insert({
             conversationId,

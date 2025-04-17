@@ -664,3 +664,29 @@ This directory structure is optimized for a Supabase backend architecture, with 
 - [ ] Production environment configuration
 - [ ] CDN optimization
 - [ ] Monitoring and error tracking
+
+## Supabase MCP Integration
+
+This project supports the Model Context Protocol (MCP) for AI-assisted development with Supabase. This allows AI tools like Cursor to interact directly with your Supabase database.
+
+### Setup
+
+1. Create a personal access token in your [Supabase dashboard](https://app.supabase.com) (Profile > Access Tokens)
+2. Replace `<personal-access-token>` in `.cursor/mcp.json` with your token
+3. Open the project in Cursor and verify the MCP connection in Settings > MCP
+
+### Usage
+
+With MCP configured, you can ask your AI assistant to:
+
+- Query your Supabase database ("Show me all auction slots in the database")
+- Help with schema design ("How should I structure the relationship between users and products?")
+- Generate database queries ("Write a query to find all products with bids above X")
+- Troubleshoot database issues ("Why isn't this data showing up in my frontend?")
+
+### Security Notes
+
+- Use a token with appropriate permissions (read-only for querying, read-write for modifications)
+- Never commit the token to version control (the file with your token is already in .gitignore)
+- Regularly rotate your access tokens
+- Consider using a dedicated token for MCP that can be revoked if needed
