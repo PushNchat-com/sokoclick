@@ -16,8 +16,9 @@ import Dashboard from './pages/Dashboard';
 import Game from './pages/Game';
 import SupabaseTest from './pages/SupabaseTest';
 import { useAuth } from './context/AuthContext';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { supabaseClient } from './lib/supabase';
 
 // Admin pages (import as needed)
 // const SellerDashboard = () => <div>Seller Dashboard (Coming Soon)</div>;
@@ -50,14 +51,51 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 const SellerRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, userRole } = useAuth();
   const navigate = useNavigate();
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!loading && (!user || (userRole !== 'seller' && userRole !== 'admin'))) {
-      navigate('/unauthorized?role=seller');
-    }
+    const checkAccess = async () => {
+      if (loading) return;
+      
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        // Double-check the role directly from the database
+        if (userRole === 'seller' || userRole === 'admin') {
+          setIsAuthorized(true);
+        } else {
+          // Fall back to directly checking the database for the role
+          const { data, error } = await supabaseClient
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          
+          if (error) {
+            console.error('Error checking role from database:', error);
+            navigate('/unauthorized?role=seller');
+            return;
+          }
+          
+          if (data && (data.role === 'seller' || data.role === 'admin')) {
+            setIsAuthorized(true);
+          } else {
+            navigate('/unauthorized?role=seller');
+          }
+        }
+      } catch (error) {
+        console.error('Error in seller route guard:', error);
+        navigate('/unauthorized?role=seller');
+      }
+    };
+
+    checkAccess();
   }, [user, loading, userRole, navigate]);
 
-  if (loading) {
+  if (loading || isAuthorized === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-primary-600 border-r-primary-300 border-b-primary-200 border-l-primary-100"></div>
@@ -65,9 +103,7 @@ const SellerRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return user && (userRole === 'seller' || userRole === 'admin') ? (
-    <>{children}</>
-  ) : null;
+  return isAuthorized ? <>{children}</> : null;
 };
 
 const router = createBrowserRouter([
@@ -178,11 +214,6 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  // Sokoclick game
-  {
-    path: '/game',
-    element: <Game />,
-  },
   // Supabase integration test
   {
     path: '/supabase-test',
@@ -191,7 +222,11 @@ const router = createBrowserRouter([
   // Design system documentation
   {
     path: '/design-system',
-    element: <DesignSystem />,
+    element: (
+      <AdminRoute>
+        <DesignSystem />
+      </AdminRoute>
+    ),
   },
 ]);
 

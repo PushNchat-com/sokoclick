@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import { useAuth } from '../context/AuthContext';
+import { UserRole } from '../context/AuthContext';
 
 const Register = () => {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('buyer');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +42,7 @@ const Register = () => {
       setError(null);
       setLoading(true);
       
-      const { error: signUpError } = await signUp(email, password, fullName, phone);
+      const { error: signUpError } = await signUp(email, password, fullName, selectedRole, phone);
       
       if (signUpError) {
         throw new Error(signUpError.message);
@@ -129,6 +131,27 @@ const Register = () => {
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 placeholder={t('phonePlaceholder')}
               />
+            </div>
+            
+            <div>
+              <label htmlFor="accountType" className="block text-sm font-medium text-gray-700 mb-1">
+                {t('accountType')}
+              </label>
+              <select
+                id="accountType"
+                name="accountType"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="buyer">{t('roles.buyer')}</option>
+                <option value="seller">{t('roles.seller')}</option>
+              </select>
+              {selectedRole === 'seller' && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {t('sellerAccountDescription')}
+                </p>
+              )}
             </div>
             
             <div>

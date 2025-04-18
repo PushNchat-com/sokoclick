@@ -35,9 +35,6 @@ const Header = () => {
             <Link to="/contact" className="px-3 py-2 rounded-md text-sm font-medium text-gray-900 hover:bg-gray-50">
               {t('contact')}
             </Link>
-            <Link to="/game" className="px-3 py-2 rounded-md text-sm font-medium text-accent-600 hover:bg-accent-50">
-              {t('game.title')}
-            </Link>
             {isAdmin && (
               <>
                 <Link to="/admin/dashboard" className="px-3 py-2 rounded-md text-sm font-medium text-primary-600 hover:bg-primary-50">
@@ -133,13 +130,6 @@ const Header = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {t('contact')}
-              </Link>
-              <Link
-                to="/game"
-                className="block px-3 py-2 rounded-md text-base font-medium text-accent-600 hover:bg-accent-50"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {t('game.title')}
               </Link>
               {isAdmin && (
                 <>

@@ -62,7 +62,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               We're sorry, but an error occurred while rendering this page.
             </Text>
             
-            {process.env.NODE_ENV !== 'production' && error && (
+            {!import.meta.env.PROD && error && (
               <Box
                 p={4}
                 bg="gray.100"

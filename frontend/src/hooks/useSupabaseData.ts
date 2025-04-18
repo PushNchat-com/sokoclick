@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AuctionSlot, Product, Profile } from '../types/supabase';
-import { supabaseClient, supabaseHelper } from '../api/supabase';
+import { supabaseClient, supabaseHelper, applyMigrations } from '../api/supabase';
 import { AUCTION_STATES } from '../services/mockData'; // We'll still use the states enum for type safety
 
 /**
@@ -11,11 +11,20 @@ export const useAuctionSlots = (limit: number = 25, offset: number = 0, filter: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [migrationRun, setMigrationRun] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Check if we need to run migrations first
+        if (!migrationRun) {
+          console.log('Checking if database migrations are needed...');
+          const migrationResult = await applyMigrations();
+          console.log('Migration check result:', migrationResult);
+          setMigrationRun(true);
+        }
+
         // Get auction slots from Supabase using the helper function
         const data = await supabaseHelper.auctionSlots.getAuctionSlots(limit, filter);
         
@@ -26,6 +35,7 @@ export const useAuctionSlots = (limit: number = 25, offset: number = 0, filter: 
         setSlots(data);
         setError(null);
       } catch (err) {
+        console.error('Error fetching auction slots:', err);
         setError(err instanceof Error ? err : new Error('An unknown error occurred'));
       } finally {
         setLoading(false);
@@ -33,12 +43,19 @@ export const useAuctionSlots = (limit: number = 25, offset: number = 0, filter: 
     };
 
     fetchData();
-  }, [limit, offset, filter]);
+  }, [limit, offset, filter, migrationRun]);
 
   // Function to refetch data
   const refetch = async () => {
     setLoading(true);
     try {
+      // Check if migrations are needed before refetching
+      if (!migrationRun) {
+        const migrationResult = await applyMigrations();
+        console.log('Migration check result on refetch:', migrationResult);
+        setMigrationRun(true);
+      }
+
       const data = await supabaseHelper.auctionSlots.getAuctionSlots(limit, filter);
       
       // Check if there are more slots available
@@ -48,6 +65,7 @@ export const useAuctionSlots = (limit: number = 25, offset: number = 0, filter: 
       setSlots(data);
       setError(null);
     } catch (err) {
+      console.error('Error refetching auction slots:', err);
       setError(err instanceof Error ? err : new Error('An unknown error occurred'));
     } finally {
       setLoading(false);

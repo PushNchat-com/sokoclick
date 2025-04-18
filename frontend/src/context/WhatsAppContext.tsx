@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
-import { WhatsAppConversation, ConversationStatus, TransactionUpdate, WhatsAppMessage } from '../types/whatsapp';
+import { WhatsAppConversation, ConversationStatus, TransactionUpdate, WhatsAppMessage, MessageType } from '../types/whatsapp';
 import { supabaseClient } from '../lib/supabase';
 
 // Default WhatsApp number to use when no specific number is provided
@@ -79,13 +79,29 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { data, error } = await supabaseClient
         .from('whatsapp_conversations')
         .select('*')
-        .or(`buyerId.eq.${user.id},sellerId.eq.${user.id}`)
-        .order('updatedAt', { ascending: false });
+        .or('buyer_id.eq.' + user.id + ',seller_id.eq.' + user.id)
+        .order('updated_at', { ascending: false });
 
       if (error) {
         throw error;
       } else {
-        setConversations(data || []);
+        // Ensure the data conforms to WhatsAppConversation type
+        const typedConversations: WhatsAppConversation[] = data?.map(item => ({
+          id: item.id,
+          buyer_id: item.buyer_id,
+          seller_id: item.seller_id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          product_image: item.product_image,
+          status: (item.status || ConversationStatus.INITIATED) as ConversationStatus,
+          last_message: item.last_message,
+          last_message_timestamp: item.last_message_timestamp,
+          thread_id: item.thread_id,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+        })) || [];
+        
+        setConversations(typedConversations);
       }
     } catch (error: any) {
       console.error('Error fetching WhatsApp conversations:', error);
@@ -115,9 +131,9 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { data: existingConv, error: searchError } = await supabaseClient
         .from('whatsapp_conversations')
         .select('id')
-        .eq('productId', productId)
-        .eq('buyerId', user.id)
-        .eq('sellerId', sellerId)
+        .eq('product_id', productId)
+        .eq('buyer_id', user.id)
+        .eq('seller_id', sellerId)
         .single();
 
       // If table doesn't exist, use direct WhatsApp
@@ -134,12 +150,12 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { data, error } = await supabaseClient
         .from('whatsapp_conversations')
         .insert({
-          productId,
-          buyerId: user.id,
-          sellerId,
-          threadId,
-          productName,
-          productImage,
+          product_id: productId,
+          buyer_id: user.id,
+          seller_id: sellerId,
+          thread_id: threadId,
+          product_name: productName,
+          product_image: productImage,
           status: ConversationStatus.INITIATED,
         })
         .select()
@@ -154,7 +170,22 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         throw error;
       }
       
-      setConversations([data, ...conversations]);
+      const newConversation: WhatsAppConversation = {
+        id: data.id,
+        buyer_id: data.buyer_id,
+        seller_id: data.seller_id,
+        product_id: data.product_id,
+        product_name: data.product_name,
+        product_image: data.product_image,
+        status: (data.status || ConversationStatus.INITIATED) as ConversationStatus,
+        last_message: data.last_message,
+        last_message_timestamp: data.last_message_timestamp,
+        thread_id: data.thread_id,
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      };
+      
+      setConversations([newConversation, ...conversations]);
       return data.id;
     } catch (error: any) {
       console.error('Error initiating conversation:', error);
@@ -177,7 +208,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { data, error } = await supabaseClient
         .from('whatsapp_messages')
         .select('*')
-        .eq('conversationId', conversationId)
+        .eq('conversation_id', conversationId)
         .order('timestamp', { ascending: true });
 
       if (error) {
@@ -188,7 +219,20 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         throw error;
       }
-      return data || [];
+      
+      const typedMessages: WhatsAppMessage[] = data?.map(item => ({
+        id: item.id,
+        conversation_id: item.conversation_id,
+        content: item.content,
+        type: item.type as MessageType | undefined,
+        sender: item.sender,
+        timestamp: item.timestamp,
+        is_read: item.is_read,
+        attachments: item.attachments,
+        metadata: item.metadata
+      })) || [];
+      
+      return typedMessages;
     } catch (error: any) {
       console.error('Error fetching messages:', error);
       setError(t('errors.failedToFetchMessages'));
@@ -212,16 +256,16 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const conversation = getConversationById(conversationId);
       if (!conversation) return false;
 
-      const isSeller = conversation.sellerId === user.id;
+      const isSeller = conversation.seller_id === user.id;
       
       const { error: msgError } = await supabaseClient
         .from('whatsapp_messages')
         .insert({
-          conversationId,
+          conversation_id: conversationId,
           sender: isSeller ? 'seller' : 'buyer',
           content,
           attachments: attachments.length > 0 ? attachments : null,
-          isRead: false,
+          is_read: false,
         });
 
       if (msgError) {
@@ -237,9 +281,9 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { error: convError } = await supabaseClient
         .from('whatsapp_conversations')
         .update({
-          lastMessage: content,
-          lastMessageTimestamp: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          last_message: content,
+          last_message_timestamp: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', conversationId);
 
@@ -264,16 +308,16 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const conversation = getConversationById(conversationId);
       if (!conversation) return;
 
-      const isSeller = conversation.sellerId === user.id;
+      const isSeller = conversation.seller_id === user.id;
       const otherParty = isSeller ? 'buyer' : 'seller';
 
       // Mark all messages from the other party as read
       const { error } = await supabaseClient
         .from('whatsapp_messages')
-        .update({ isRead: true })
-        .eq('conversationId', conversationId)
+        .update({ is_read: true })
+        .eq('conversation_id', conversationId)
         .eq('sender', otherParty)
-        .eq('isRead', false);
+        .eq('is_read', false);
 
       if (error && !(error.code === '404' || error.message?.includes('does not exist'))) {
         throw error;
@@ -299,7 +343,7 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .from('whatsapp_conversations')
         .update({
           status,
-          updatedAt: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', conversationId);
 
@@ -316,10 +360,10 @@ export const WhatsAppProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const { error: msgError } = await supabaseClient
           .from('whatsapp_messages')
           .insert({
-            conversationId,
+            conversation_id: conversationId,
             sender: 'system',
             content: notes,
-            isRead: false,
+            is_read: false,
           });
           
         if (msgError && !(msgError.code === '404' || msgError.message?.includes('does not exist'))) {

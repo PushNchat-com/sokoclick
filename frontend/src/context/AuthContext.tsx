@@ -68,15 +68,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(session?.user ?? null);
     
     if (session?.user) {
-      const role = parseUserRole(session.user.user_metadata);
-      setUserRole(role);
+      // Start with the role from metadata
+      const metadataRole = parseUserRole(session.user.user_metadata);
+      setUserRole(metadataRole);
       
-      // Create a UserWithRole object with only the properties defined in the interface
+      // Create a basic UserWithRole object from session data
       setUserWithRole({
         id: session.user.id,
         email: session.user.email || '',
         whatsapp_number: session.user.user_metadata?.phone || '',
-        role: role,
+        role: metadataRole,
         display_name: session.user.user_metadata?.full_name || '',
         profile_image: session.user.user_metadata?.profile_image || '',
         location: '',
@@ -85,9 +86,74 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         bio: '',
         verified: false
       });
+      
+      // Then fetch user data from the database to update with more accurate info
+      fetchUserData(session.user.id).catch(err => {
+        console.error('Error fetching user data:', err);
+      });
     } else {
       setUserRole(null);
       setUserWithRole(null);
+    }
+  };
+  
+  // Fetch user data from database and sync roles
+  const fetchUserData = async (userId: string) => {
+    try {
+      // Log that we're fetching the user's role data
+      console.log(`Fetching role data for user: ${userId}`);
+      
+      const { data: userData, error } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching user data from database:', error);
+        return;
+      }
+      
+      if (userData) {
+        // Extract the role from database and validate it
+        let dbRole = userData.role;
+        
+        // Ensure role is valid or default to 'buyer'
+        if (!dbRole || !['buyer', 'seller', 'admin'].includes(dbRole as string)) {
+          dbRole = 'buyer';
+        }
+        
+        // Log the role we determined
+        console.log(`User ${userId} has role: ${dbRole} in database`);
+        
+        // Update the local state with the validated role
+        setUserRole(dbRole as UserRole);
+        
+        // Ensure auth metadata role is synchronized with database role
+        if (user && (!user.user_metadata?.role || user.user_metadata.role !== dbRole)) {
+          console.log(`Updating auth metadata with role: ${dbRole}`);
+          await supabaseClient.auth.updateUser({
+            data: { role: dbRole }
+          });
+        }
+        
+        // Update the user with role from database
+        setUserWithRole({
+          id: userData.id,
+          email: userData.email || '',
+          whatsapp_number: userData.whatsapp_number || '',
+          role: dbRole as UserRole,
+          display_name: userData.display_name || '',
+          profile_image: userData.profile_image || '',
+          location: userData.location || '',
+          rating: userData.rating || 0,
+          joined_date: userData.joined_date || userData.created_at,
+          bio: userData.bio || '',
+          verified: userData.verified || false
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch user data from database:', err);
     }
   };
 
@@ -154,20 +220,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUserRole = async (role: UserRole) => {
     if (!user) return { error: new Error('No user is logged in') };
 
-    const { error } = await supabaseClient.auth.updateUser({
-      data: { role },
-    });
-
-    if (!error && userWithRole) {
-      // Update local state
-      setUserRole(role);
-      setUserWithRole({
-        ...userWithRole,
-        role
+    try {
+      // Step 1: Update auth metadata
+      const { error: authError } = await supabaseClient.auth.updateUser({
+        data: { role },
       });
-    }
 
-    return { error };
+      if (authError) throw authError;
+
+      // Step 2: Update database user table
+      const { error: dbError } = await supabaseClient
+        .from('users')
+        .update({ role, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (dbError) throw dbError;
+
+      // Step 3: Update local state
+      if (userWithRole) {
+        setUserRole(role);
+        setUserWithRole({
+          ...userWithRole,
+          role
+        });
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      return { error };
+    }
   };
 
   // Function to check if user can access a specific feature based on role

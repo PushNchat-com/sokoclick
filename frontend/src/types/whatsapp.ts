@@ -24,37 +24,48 @@ export enum ConversationStatus {
 
 export interface WhatsAppMessage {
   id: string;
-  conversationId: string;
+  conversation_id: string | null;
   content: string;
-  type: MessageType;
-  sender: MessageSender;
+  type?: MessageType | null;
+  sender: string | null;
   timestamp: string;
-  isRead: boolean;
-  metadata?: {
-    [key: string]: any;
-  };
+  is_read: boolean | null;
+  attachments?: string[] | null;
+  metadata?: any;
+  conversationId?: string;
+  isRead?: boolean;
 }
 
 export interface WhatsAppConversation {
   id: string;
-  buyerId: string;
-  sellerId: string;
-  userId: string;
-  productId: string;
-  productName: string;
-  productImage?: string;
+  buyer_id: string | null;
+  seller_id: string | null;
+  product_id: string | null;
+  product_name: string | null;
+  product_image: string | null;
   status: ConversationStatus;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount: number;
-  messages: WhatsAppMessage[];
-  createdAt: string;
-  updatedAt: string;
+  last_message: string | null;
+  last_message_timestamp: string | null;
+  thread_id: string | null;
+  created_at: string;
+  updated_at: string;
+  buyerId?: string;
+  sellerId?: string;
+  userId?: string;
+  productId?: string;
+  productName?: string;
+  productImage?: string;
+  lastMessage?: string;
+  lastMessageTime?: string;
+  unreadCount?: number;
+  messages?: WhatsAppMessage[];
+  createdAt?: string;
+  updatedAt?: string;
   threadId?: string;
 }
 
 export interface SendMessageParams {
-  conversationId: string;
+  conversation_id: string;
   content: string;
   type?: MessageType;
   metadata?: {
@@ -63,7 +74,7 @@ export interface SendMessageParams {
 }
 
 export interface UpdateConversationStatusParams {
-  conversationId: string;
+  conversation_id: string;
   status: ConversationStatus;
 }
 

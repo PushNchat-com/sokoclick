@@ -21,7 +21,27 @@ const LazyLoadingPlaceholder = () => (
 );
 
 // WhatsApp modal component
-const WhatsAppModal = ({ isOpen, onClose, sellerNumber, productName, productId, productImage, offerAmount, currency }) => {
+interface WhatsAppModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  sellerNumber: string;
+  productName: string;
+  productId: string | number;
+  productImage: string | null;
+  offerAmount: string;
+  currency: string;
+}
+
+const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  sellerNumber, 
+  productName, 
+  productId, 
+  productImage, 
+  offerAmount, 
+  currency 
+}) => {
   const { t } = useTranslation();
   const { initiateConversation } = useWhatsApp();
   const { user } = useAuth();

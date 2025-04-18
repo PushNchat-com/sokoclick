@@ -171,7 +171,7 @@ const SlotManager: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to load auction slots');
       
       // For testing purposes in non-production environments
-      if (process.env.NODE_ENV !== 'production') {
+      if (!import.meta.env.PROD) {
         // Load mock data
         const { slots: mockSlots } = useAdminMockAuctionSlots();
         setSlots(mockSlots || []);

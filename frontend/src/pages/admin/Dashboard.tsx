@@ -130,18 +130,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'overview'
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch dashboard statistics');
-      
-      // Set mock stats for development
-      if (process.env.NODE_ENV !== 'production') {
-        setStats({
-          totalUsers: 156,
-          activeAuctions: 24,
-          completedAuctions: 85,
-          totalRevenue: 12500,
-          transactionVolume: 125000,
-          pendingTransactions: 8
-        });
-      }
     } finally {
       setLoading(false);
     }
@@ -198,14 +186,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'overview'
           <p className="font-bold">{t('admin.errorLoadingDashboard')}:</p>
           <p>{error}</p>
           <Button 
-            variant="primary" 
-            size="sm" 
             onClick={fetchStats} 
-            className="mt-3"
+            variant="primary" 
+            className="mt-4"
           >
-            <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
             {t('common.retry')}
           </Button>
         </div>

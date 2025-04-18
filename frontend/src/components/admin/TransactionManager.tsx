@@ -89,7 +89,7 @@ const TransactionManager: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
       
       // For development only
-      if (process.env.NODE_ENV !== 'production') {
+      if (!import.meta.env.PROD) {
         setTransactions(getMockTransactions());
       }
     } finally {
