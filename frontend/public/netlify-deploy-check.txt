@@ -1,5 +1,0 @@
-This file confirms that static files from the public directory are being properly included in the Netlify deployment.
-
-If you can see this file at https://sokoclick.com/netlify-deploy-check.txt, it means the build process is working correctly for static files.
-
-Last deployment check: <%= new Date().toISOString() %> 
