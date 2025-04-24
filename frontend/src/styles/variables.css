@@ -1,0 +1,53 @@
+:root {
+  /* Primary Colors */
+  --color-primary-50: 230, 247, 255;   /* #e6f7ff */
+  --color-primary-100: 186, 227, 255;  /* #bae3ff */
+  --color-primary-200: 124, 196, 250;  /* #7cc4fa */
+  --color-primary-300: 54, 163, 245;   /* #36a3f5 */
+  --color-primary-400: 11, 135, 234;   /* #0b87ea */
+  --color-primary-500: 14, 165, 233;   /* #0ea5e9 */
+  --color-primary-600: 2, 132, 199;    /* #0284c7 */
+  --color-primary-700: 3, 96, 150;     /* #036096 */
+  --color-primary-800: 10, 76, 112;    /* #0a4c70 */
+  --color-primary-900: 12, 59, 86;     /* #0c3b56 */
+
+  /* Secondary Colors */
+  --color-secondary-50: 255, 247, 230;   /* #fff7e6 */
+  --color-secondary-100: 255, 236, 179;  /* #ffecb3 */
+  --color-secondary-200: 255, 217, 102;  /* #ffd966 */
+  --color-secondary-300: 255, 191, 0;    /* #ffbf00 */
+  --color-secondary-400: 245, 158, 11;   /* #f59e0b */
+  --color-secondary-500: 249, 115, 22;   /* #f97316 */
+  --color-secondary-600: 234, 88, 12;    /* #ea580c */
+  --color-secondary-700: 194, 65, 12;    /* #c2410c */
+  --color-secondary-800: 154, 52, 18;    /* #9a3412 */
+  --color-secondary-900: 124, 45, 18;    /* #7c2d12 */
+
+  /* UI Colors */
+  --color-background: 255, 255, 255;     /* #ffffff */
+  --color-card: 255, 255, 255;          /* #ffffff */
+  --color-border: 229, 231, 235;        /* #e5e7eb */
+  --color-input: 243, 244, 246;         /* #f3f4f6 */
+
+  /* Brand Colors */
+  --color-whatsapp: 37, 211, 102;       /* #25D366 */
+
+  /* Dark Mode Colors */
+  &.dark {
+    --color-background: 17, 24, 39;      /* #111827 */
+    --color-card: 31, 41, 55;           /* #1f2937 */
+    --color-border: 75, 85, 99;         /* #4b5563 */
+    --color-input: 55, 65, 81;          /* #374151 */
+  }
+}
+
+/* Container Sizes */
+@custom-media --sm (min-width: 640px);
+@custom-media --md (min-width: 768px);
+@custom-media --lg (min-width: 1024px);
+@custom-media --xl (min-width: 1280px);
+@custom-media --2xl (min-width: 1536px);
+
+/* Motion Preferences */
+@custom-media --motionOK (prefers-reduced-motion: no-preference);
+@custom-media --motionNotOK (prefers-reduced-motion: reduce); 

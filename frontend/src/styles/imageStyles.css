@@ -1,0 +1,135 @@
+/* Image loading and error states CSS */
+
+/* Basic image transition styles */
+.image-loading {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.image-loaded {
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Shimmer loading effect for image placeholders */
+.shimmer-placeholder {
+  background: linear-gradient(90deg, 
+    rgba(0,0,0,0.06) 0%, 
+    rgba(0,0,0,0.12) 50%, 
+    rgba(0,0,0,0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Error state styles */
+.image-load-error {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+}
+
+/* Progressive loading image styles */
+.progressive-image-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.progressive-image-thumb {
+  filter: blur(10px);
+  transform: scale(1.1);
+  transition: visibility 0ms ease 400ms;
+}
+
+.progressive-image-thumb.loaded {
+  visibility: hidden;
+}
+
+.progressive-image-full {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 400ms ease 0ms;
+}
+
+.progressive-image-full.loaded {
+  opacity: 1;
+}
+
+/* Aspect ratio containers */
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
+.aspect-product {
+  aspect-ratio: 4 / 3;
+}
+
+/* Optimized responsive sizing */
+@media screen and (max-width: 767px) {
+  .product-image {
+    height: 180px;
+  }
+}
+
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  .product-image {
+    height: 200px;
+  }
+}
+
+@media screen and (min-width: 1024px) {
+  .product-image {
+    height: 220px;
+  }
+}
+
+/* WebP fallback image styling */
+.no-webp .webp-image {
+  display: none;
+}
+
+.webp .original-image {
+  display: none;
+}
+
+/* Lazyload image with placeholder */
+.lazy-image-wrapper {
+  background-color: #f3f4f6;
+  position: relative;
+  overflow: hidden;
+}
+
+.lazy-image-wrapper::before {
+  content: "";
+  display: block;
+  padding-top: 75%; /* 4:3 aspect ratio */
+}
+
+.lazy-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.lazy-image.loaded {
+  opacity: 1;
+} 
