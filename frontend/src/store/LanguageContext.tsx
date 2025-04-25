@@ -13,6 +13,7 @@ export type TranslationObject = {
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
+  toggleLanguage: () => void;
   t: (textObj: TranslationObject) => string;
 }
 
@@ -20,6 +21,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType>({
   language: 'en',
   setLanguage: () => {},
+  toggleLanguage: () => {},
   t: (textObj: TranslationObject) => textObj.en,
 });
 
@@ -51,6 +53,12 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
     }
   };
   
+  // Add toggle language function
+  const toggleLanguage = () => {
+    const newLanguage: Language = language === 'en' ? 'fr' : 'en';
+    setLanguage(newLanguage);
+  };
+  
   // Translation function
   const t = (textObj: TranslationObject): string => {
     if (!textObj) return '';
@@ -67,6 +75,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
   const value = {
     language,
     setLanguage,
+    toggleLanguage,
     t,
   };
   

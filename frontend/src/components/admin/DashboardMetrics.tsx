@@ -1,27 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../store/LanguageContext';
-
-interface MetricsData {
-  activeSlots: number;
-  totalProducts: number;
-  pendingApprovals: number;
-  usersCount: number;
-  totalViews: number;
-  whatsappClicks: number;
-}
+import { DashboardMetrics as Metrics, getAdminMetrics } from '../../services/adminMetrics';
+import { toast } from '../../utils/toast';
 
 interface DashboardMetricsProps {
-  metrics: MetricsData;
-  isLoading?: boolean;
+  className?: string;
 }
 
-const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ 
-  metrics, 
-  isLoading = false 
-}) => {
+const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ className = '' }) => {
   const { t } = useLanguage();
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Texts for localization
+  // Text content
   const text = {
     activeSlots: { en: 'Active Slots', fr: 'Emplacements actifs' },
     totalProducts: { en: 'Total Products', fr: 'Total des produits' },
@@ -31,16 +23,32 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({
     whatsappClicks: { en: 'WhatsApp Clicks', fr: 'Clics WhatsApp' },
     slotCapacity: { en: 'Slot Capacity', fr: 'Capacité d\'emplacement' },
     ofSlots: { en: 'of 25 slots', fr: 'sur 25 emplacements' },
+    error: { en: 'Error loading metrics', fr: 'Erreur lors du chargement des métriques' }
   };
-  
-  // Calculate conversion rate from views to WhatsApp clicks
-  const conversionRate = metrics.totalViews > 0 
-    ? ((metrics.whatsappClicks / metrics.totalViews) * 100).toFixed(1) 
-    : '0';
-  
+
+  // Fetch metrics
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await getAdminMetrics();
+        setMetrics(data);
+      } catch (err) {
+        console.error('Error fetching metrics:', err);
+        setError(t(text.error));
+        toast.error(t(text.error));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, []);
+
   // Function to render a metric card with loading state
   const renderMetricCard = (
-    title: { en: string; fr: string }, 
+    title: { en: string; fr: string },
     value: string | number,
     subtitle?: { en: string; fr: string },
     colorClass: string = 'text-blue-600'
@@ -72,48 +80,56 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({
       </div>
     );
   };
-  
+
+  if (error) {
+    return (
+      <div className={`bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded ${className}`}>
+        {error}
+      </div>
+    );
+  }
+
   return (
-    <div className="metrics-grid">
+    <div className={`metrics-grid ${className}`}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Active Slots */}
         {renderMetricCard(
           text.activeSlots,
-          `${metrics.activeSlots}/25`,
+          metrics ? `${metrics.activeSlots}/25` : '-',
           text.slotCapacity,
-          metrics.activeSlots > 20 ? 'text-green-600' : 'text-blue-600'
+          metrics?.activeSlots > 20 ? 'text-green-600' : 'text-blue-600'
         )}
         
         {/* Total Products */}
         {renderMetricCard(
           text.totalProducts,
-          metrics.totalProducts
+          metrics?.totalProducts || '-'
         )}
         
         {/* Pending Approvals */}
         {renderMetricCard(
           text.pendingApprovals,
-          metrics.pendingApprovals,
+          metrics?.pendingApprovals || '-',
           undefined,
-          metrics.pendingApprovals > 0 ? 'text-yellow-600' : 'text-green-600'
+          metrics?.pendingApprovals > 0 ? 'text-yellow-600' : 'text-green-600'
         )}
         
         {/* User Count */}
         {renderMetricCard(
           text.usersCount,
-          metrics.usersCount
+          metrics?.usersCount || '-'
         )}
         
         {/* Total Views */}
         {renderMetricCard(
           text.totalViews,
-          metrics.totalViews.toLocaleString()
+          metrics ? metrics.totalViews.toLocaleString() : '-'
         )}
         
         {/* WhatsApp Conversion */}
         {renderMetricCard(
           text.whatsappClicks,
-          `${metrics.whatsappClicks} (${conversionRate}%)`,
+          metrics ? `${metrics.whatsappClicks.toLocaleString()} (${((metrics.whatsappClicks / metrics.totalViews) * 100).toFixed(1)}%)` : '-',
           undefined,
           'text-whatsapp-green'
         )}

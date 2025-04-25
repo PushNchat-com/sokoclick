@@ -43,7 +43,7 @@ export interface ImageValidationResult {
 export type AllowedImageType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/jpg';
 
 export const IMAGE_CONSTRAINTS = {
-  maxSize: 5 * 1024 * 1024, // 5MB in bytes
+  maxSize: 2 * 1024 * 1024, // 2MB in bytes (changed from 5MB)
   allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'] as AllowedImageType[],
   maxImages: 5,
   minImages: 1,

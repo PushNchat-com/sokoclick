@@ -185,46 +185,33 @@ const validateImages = (
   ctx: ValidationContext
 ) => {
   // Check minimum required images
-  const validImages = imageFiles.filter(img => 
-    (img.file !== null && img.progress >= 0) || 
-    (img.url !== null && typeof img.url === 'string') ||
-    (img.preview !== null && typeof img.preview === 'string')
-  );
+  const validImages = imageFiles.filter(img => {
+    // Consider an image valid if:
+    // 1. It has a file that's been uploaded (progress = 100)
+    // 2. It has a URL from previous upload
+    // 3. It has a preview that's not a blob (indicating it's a server URL)
+    return (img.file && img.progress === 100) || 
+           (img.url && img.url.length > 0) ||
+           (img.preview && !img.preview.startsWith('blob:'));
+  });
 
   if (validImages.length < IMAGE_CONSTRAINTS.minImages) {
     errors.images = ctx.t({
       en: 'At least one product image is required',
       fr: 'Au moins une image de produit est requise'
     });
-    return; // Exit early if no valid images
-  }
-
-  // Check maximum images
-  if (imageFiles.length > IMAGE_CONSTRAINTS.maxImages) {
-    errors.images = ctx.t({
-      en: `Maximum ${IMAGE_CONSTRAINTS.maxImages} images allowed`,
-      fr: `Maximum ${IMAGE_CONSTRAINTS.maxImages} images autorisées`
-    });
     return;
   }
 
-  // Check for upload errors or incomplete uploads
-  const failedUploads = imageFiles.filter(img => img.error !== null);
-  const incompleteUploads = imageFiles.filter(img => 
-    img.file && img.progress !== undefined && img.progress < 100 && !img.error
+  // Check for any images with errors or incomplete uploads
+  const hasErrors = imageFiles.some(img => 
+    img.error || (img.file && img.progress > 0 && img.progress < 100)
   );
 
-  if (failedUploads.length > 0) {
-    errors.imageUpload = ctx.t({
-      en: 'Some images failed to upload. Please try again or remove them.',
-      fr: "Certaines images n'ont pas pu être téléchargées. Veuillez réessayer ou les supprimer."
-    });
-  }
-
-  if (incompleteUploads.length > 0) {
-    errors.imageUpload = ctx.t({
-      en: 'Please wait for all images to finish uploading.',
-      fr: "Veuillez attendre que toutes les images soient téléchargées."
+  if (hasErrors) {
+    errors.images = ctx.t({
+      en: 'Please wait for all images to finish uploading or fix upload errors',
+      fr: 'Veuillez attendre que toutes les images soient téléchargées ou corriger les erreurs de téléchargement'
     });
   }
 };

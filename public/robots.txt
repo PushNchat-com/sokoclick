@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Disallow admin-only paths
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+
+# Sitemap location
+Sitemap: https://sokoclick.com/sitemap.xml 

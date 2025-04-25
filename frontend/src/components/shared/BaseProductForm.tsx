@@ -213,10 +213,10 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
   
   // Image transformation for ImageUploadStep - memoized to prevent unnecessary re-renders
   const transformedImages = useMemo(() => imageFiles.map(img => ({
-    url: img.preview as string || '',
-    previewUrl: img.preview as string,
-    uploading: img.progress > 0 && img.progress < 100,
-    error: img.error || undefined,
+    url: img.url || '',
+    preview: img.preview || '',
+    progress: img.progress,
+    error: img.error,
     file: img.file
   })), [imageFiles]);
   
@@ -251,16 +251,16 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
             onChange={handleImagesChange}
             errors={errors}
             productId={productId}
-            isSaving={isSaving || isSubmitting}
+            isSaving={isSaving}
           />
         )}
         
         {currentStep === 3 && (
           <DeliveryOptionsStep
             options={deliveryOptions}
-            errors={errors}
             onChange={handleDeliveryOptionsChange}
             onRemove={handleDeliveryOptionRemoved}
+            errors={errors}
           />
         )}
         
@@ -277,7 +277,7 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
           </div>
         )}
         
-        {/* Form actions */}
+        {/* Add form action buttons */}
         <FormActionButtons
           currentStep={currentStep}
           totalSteps={3}
@@ -291,7 +291,7 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
           showCancelDialog={showCancelDialog}
           onConfirmCancel={handleConfirmCancel}
           onCancelDialog={() => setShowCancelDialog(false)}
-          className="border-t border-gray-200 pt-6"
+          className="mt-6"
         />
       </form>
       

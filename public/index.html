@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta
+      name="description"
+      content="SokoClick: Discover Limited-Time Offers in Cameroon"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- Base URL configuration to ensure assets load correctly on Netlify -->
+    <base href="/" />
+    
+    <title>SokoClick</title>
+    
+    <!-- Preconnect to key domains to improve performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" href="%PUBLIC_URL%/logo.svg" as="image" type="image/svg+xml">
+    
+    <!-- Service Worker registration script -->
+    <script>
+      // Check if service workers are supported
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(function(registration) {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch(function(error) {
+              console.log('ServiceWorker registration failed: ', error);
+            });
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!-- 
+      This HTML file is a template for the React application.
+      The build step will inject bundled scripts into the body.
+      
+      To prevent 404 errors:
+      1. All assets are referenced with %PUBLIC_URL% prefix
+      2. We've added a <base> tag for correct routing
+      3. Scripts are loaded with defer attribute for performance
+    -->
+  </body>
+</html> 

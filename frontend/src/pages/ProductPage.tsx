@@ -23,6 +23,9 @@ import {
   CalendarIcon,
   WhatsAppIcon
 } from '../components/ui/Icons';
+import SeoComponent from '../components/seo/SeoComponent';
+import OptimizedImage from '../components/image/OptimizedImage';
+import { generateProductSchema, generateBreadcrumbSchema } from '../utils/schemaMarkup';
 
 // Product interface following SokoClick's data model
 interface Product {
@@ -323,6 +326,48 @@ const ProductPage: React.FC<ProductPageProps> = ({ isAdmin = false }) => {
     }
   };
 
+  // Generate structured data for the product
+  const productSchema = useMemo(() => {
+    if (!product) return null;
+    
+    // Convert product data to schema format
+    return generateProductSchema({
+      id: product.id,
+      name: product.title,
+      description: product.description,
+      price: product.price,
+      currency: product.currency,
+      mainImage: product.mainImage,
+      images: product.images.map(img => img.url),
+      condition: product.condition === 'new' 
+        ? 'NewCondition' 
+        : product.condition === 'used' 
+          ? 'UsedCondition' 
+          : 'RefurbishedCondition',
+      category: product.category,
+      seller: {
+        name: product.seller.name
+      },
+      availability: 'InStock'
+    }, language as 'en' | 'fr');
+  }, [product, language]);
+
+  // Generate breadcrumb structured data
+  const breadcrumbSchema = useMemo(() => {
+    if (!product) return null;
+    
+    return generateBreadcrumbSchema([
+      { name: { en: 'Home', fr: 'Accueil' }, url: 'https://sokoclick.com/' },
+      { 
+        name: product.category 
+          ? { en: product.category, fr: product.category } 
+          : { en: 'Products', fr: 'Produits' }, 
+        url: `https://sokoclick.com/category/${product.category?.toLowerCase() || 'all'}` 
+      },
+      { name: product.title, url: window.location.href }
+    ], language as 'en' | 'fr');
+  }, [product, language]);
+
   // Show loading state
   if (loading) {
     return (
@@ -391,15 +436,25 @@ const ProductPage: React.FC<ProductPageProps> = ({ isAdmin = false }) => {
 
   return (
     <div className="bg-gray-50">
-      <Helmet>
-        <title>{product.title[language as 'en' | 'fr']} | SokoClick</title>
-        <meta name="description" content={product.description[language as 'en' | 'fr']} />
-        <meta property="og:title" content={product.title[language as 'en' | 'fr']} />
-        <meta property="og:description" content={product.description[language as 'en' | 'fr']} />
-        <meta property="og:image" content={product.images[0].url} />
-        <meta property="og:type" content="product" />
-        <meta property="og:url" content={window.location.href} />
-      </Helmet>
+      {product && (
+        <SeoComponent
+          title={product.title}
+          description={product.description}
+          ogType="product"
+          ogImage={product.images[0].url}
+          ogImageAlt={product.images[0].alt || product.title[language as 'en' | 'fr']}
+          jsonLd={productSchema}
+        />
+      )}
+      
+      {/* Add breadcrumb structured data */}
+      {breadcrumbSchema && (
+        <Helmet>
+          <script type="application/ld+json">
+            {JSON.stringify(breadcrumbSchema)}
+          </script>
+        </Helmet>
+      )}
 
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         {/* Page Header - Navigation and Slot */}
@@ -458,10 +513,21 @@ const ProductPage: React.FC<ProductPageProps> = ({ isAdmin = false }) => {
           {/* Left Column - Images (spans 3 columns on large screens) */}
           <div className="lg:col-span-3">
             <div className="sticky top-4">
-              <ImageGallery 
-                images={product.images} 
-                className="bg-white rounded-xl p-2 shadow-sm"
-              />
+              <div className="bg-white rounded-xl p-2 shadow-sm">
+                {product.images.map((image, index) => (
+                  <div key={`image-${index}`} className={index === 0 ? 'block' : 'hidden md:block mt-2'}>
+                    <OptimizedImage
+                      src={image.url}
+                      alt={image.alt || product.title[language as 'en' | 'fr']}
+                      width={index === 0 ? 800 : 150}
+                      height={index === 0 ? 600 : 150}
+                      className={index === 0 ? 'rounded-lg' : 'rounded-md'}
+                      objectFit="contain"
+                      priority={index === 0}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

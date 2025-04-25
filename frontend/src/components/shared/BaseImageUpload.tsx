@@ -12,6 +12,8 @@ interface BaseImageUploadProps {
   className?: string;
   onUpload?: (file: File) => Promise<{ url: string }>;
   maxRetries?: number;
+  onRetry?: (index: number) => Promise<void>;
+  retryLabel?: string;
 }
 
 export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
@@ -22,12 +24,15 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
   showPreview = true,
   className = '',
   onUpload,
-  maxRetries = 3
+  maxRetries = 3,
+  onRetry,
+  retryLabel
 }) => {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [retryQueue, setRetryQueue] = useState<{ file: File; retries: number }[]>([]);
+  const [retrying, setRetrying] = useState<number | null>(null);
 
   // Text content
   const text = {
@@ -37,6 +42,7 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
     supportedFormats: { en: 'Supported formats: JPG, PNG, WebP', fr: 'Formats supportés: JPG, PNG, WebP' },
     uploadingImage: { en: 'Uploading...', fr: 'Téléchargement...' },
     retrying: { en: 'Retrying...', fr: 'Nouvelle tentative...' },
+    retry: { en: 'Retry', fr: 'Réessayer' },
     remove: { en: 'Remove', fr: 'Supprimer' },
     compressionError: { en: 'Error compressing image', fr: 'Erreur de compression de l\'image' }
   };
@@ -139,6 +145,18 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
     }
   }, [images, maxImages, disabled, onChange, onUpload, t]);
 
+  // Handle manual retry
+  const handleRetryClick = async (index: number) => {
+    if (!onRetry || retrying !== null || disabled) return;
+    
+    setRetrying(index);
+    try {
+      await onRetry(index);
+    } finally {
+      setRetrying(null);
+    }
+  };
+
   // Handle drag events
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -226,10 +244,20 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
                     </div>
                   )}
                   {image.error && (
-                    <div className="absolute inset-0 bg-red-500 bg-opacity-50 flex items-center justify-center">
-                      <div className="text-white text-sm px-2 text-center">
+                    <div className="absolute inset-0 bg-red-500 bg-opacity-50 flex flex-col items-center justify-center">
+                      <div className="text-white text-sm px-2 text-center mb-2">
                         {image.error}
                       </div>
+                      {onRetry && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetryClick(index)}
+                          disabled={disabled || retrying === index}
+                          className="px-3 py-1 bg-white text-red-600 rounded text-xs font-medium hover:bg-red-50 focus:outline-none disabled:opacity-50"
+                        >
+                          {retrying === index ? t(text.retrying) : retryLabel || t(text.retry)}
+                        </button>
+                      )}
                     </div>
                   )}
                   <button

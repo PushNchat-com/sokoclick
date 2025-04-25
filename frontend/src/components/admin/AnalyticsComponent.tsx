@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../store/LanguageContext';
-import analyticsService, { AnalyticsMetrics, DateRange } from '../../services/analytics';
+import { AnalyticsMetrics, getAnalyticsMetrics } from '../../services/adminMetrics';
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -13,6 +13,9 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { toast } from '../../utils/toast';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import ErrorMessage from '../ui/ErrorMessage';
 
 // Register ChartJS components
 ChartJS.register(
@@ -27,7 +30,7 @@ ChartJS.register(
 );
 
 interface AnalyticsComponentProps {
-  dateRange?: DateRange;
+  dateRange?: { startDate: Date; endDate: Date };
   className?: string;
 }
 
@@ -72,7 +75,7 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
   };
 
   // Calculate date range based on selection
-  const getDateRangeFromSelection = (): DateRange => {
+  const getDateRangeFromSelection = (): { startDate: Date; endDate: Date } => {
     const endDate = new Date();
     let startDate: Date;
     
@@ -103,11 +106,12 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
     
     try {
       const currentDateRange = getDateRangeFromSelection();
-      const data = await analyticsService.getMetrics(currentDateRange);
+      const data = await getAnalyticsMetrics(currentDateRange);
       setMetrics(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       console.error('Error fetching analytics:', err);
+      toast.error(t(text.errorLoading));
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +164,6 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
   const prepareSlotChartData = () => {
     if (!metrics) return null;
     
-    // Get all slot IDs and ensure they're sorted
     const slotIds = Array.from(
       new Set([
         ...Object.keys(metrics.viewsBySlot),
@@ -191,17 +194,9 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
   // Loading state
   if (isLoading) {
     return (
-      <div className={`analytics-loading p-4 ${className}`}>
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-24 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-          <div className="h-64 bg-gray-200 rounded mt-6"></div>
-          <div className="h-64 bg-gray-200 rounded mt-6"></div>
-        </div>
+      <div className={`flex justify-center items-center h-64 ${className}`}>
+        <LoadingSpinner size="lg" />
+        <span className="ml-3 text-gray-600">{t(text.loading)}</span>
       </div>
     );
   }
@@ -209,20 +204,12 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
   // Error state
   if (error) {
     return (
-      <div className={`analytics-error p-4 ${className}`}>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">{t(text.errorLoading)}:</strong>
-          <span className="block sm:inline ml-2">{error}</span>
-          <button 
-            onClick={handleRefresh}
-            className="absolute top-0 right-0 mt-3 mr-4 text-red-500 hover:text-red-700"
-            aria-label={t(text.refresh)}
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
+      <div className={`p-4 ${className}`}>
+        <ErrorMessage
+          title={t(text.errorLoading)}
+          message={error}
+          onRetry={handleRefresh}
+        />
       </div>
     );
   }
@@ -230,19 +217,12 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
   // No data state
   if (!metrics) {
     return (
-      <div className={`analytics-no-data p-4 ${className}`}>
-        <div className="text-center py-10 text-gray-500">
-          <p>{t(text.noData)}</p>
-          <button 
-            onClick={handleRefresh}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {t(text.refresh)}
-          </button>
-        </div>
+      <div className={`p-4 ${className}`}>
+        <ErrorMessage
+          title={t(text.noData)}
+          message=""
+          onRetry={handleRefresh}
+        />
       </div>
     );
   }

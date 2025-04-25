@@ -169,6 +169,12 @@ This document defines the coding rules and guidelines for the SokoClick project.
       "filePattern": "src/store/LanguageContext.tsx",
       "rule": "Language context modifications require approval and must:\n- Maintain existing API compatibility\n- Support English and French only\n- Use proper TypeScript types\n- Handle edge cases gracefully\n- Maintain performance optimization\n- Support SSR if implemented\n- Handle loading states properly",
       "alwaysApply": true
+    },
+    {
+      "description": "Incremental Development Approach",
+      "filePattern": "src/**/*.{ts,tsx,js,jsx}",
+      "rule": "Follow these guidelines for codebase modifications:\n- Before creating new components/files, verify they don't already exist\n- Update and enhance existing code rather than duplicating functionality\n- Build incrementally upon the current codebase with coherent changes\n- Avoid introducing redundant files or repeating previously fixed issues\n- Use consistent naming, formatting, and patterns as established in similar files\n- Create fallback mechanisms for problematic database structures\n- Document any workarounds with clear explanations and TODOs\n- Ensure changes are backward compatible with existing functionality\n- Test modifications against edge cases and error conditions",
+      "alwaysApply": true
     }
   ]
 }
@@ -216,6 +222,48 @@ These rules are enforced by Cursor AI to provide inline guidance and ensure cons
 ## Frontend-Database Integration
 
 When developing frontend components and services, always refer to the Supabase schema defined in `supabase/migrations/20240615120500_sokoclick_initial_schema.sql` to ensure strict alignment between frontend models and the database structure. This integration ensures data consistency, proper validation, and adherence to the business logic defined in the database schema.
+
+## Architecture Patterns
+
+### Repository Pattern
+
+Clean separation between data access and business logic:
+- Database operations are isolated in service methods
+- Business rules are enforced at the service layer
+- UI components don't directly access the database
+
+### Hook Pattern
+
+React hooks for data fetching and state management:
+- Custom hooks encapsulate data access logic
+- Components remain focused on presentation
+- State management is standardized across the application
+
+### Service Layer Pattern
+
+Central service for all slot operations:
+- All slot-related operations go through the `slotService`
+- Validation and business rules are consistently applied
+- Error handling is standardized
+
+### Component Composition
+
+Layered components from presentation to connected data:
+- `SlotGrid` focuses on presentation
+- `SlotGridConnected` handles data fetching
+- `SlotManagement` provides complete workflow
+
+### Incremental Development
+
+Cumulative approach to codebase modifications:
+- Verify existence before creating new components/files
+- Update and enhance instead of duplicating functionality
+- Build coherently upon the current codebase
+- Ensure backward compatibility with existing systems
+- Document workarounds and edge case handling
+- Implement fallback mechanisms for structural issues
+- Follow established naming and formatting conventions
+- Test against potential edge cases and error conditions
 
 ## Authentication Implementation Details
 

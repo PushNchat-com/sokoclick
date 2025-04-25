@@ -28,7 +28,7 @@ const ImageUploadZone: React.FC<ImageUploadZoneProps> = ({
   images,
   onChange,
   maxImages = 5,
-  maxSizeInMB = 5,
+  maxSizeInMB = 2,
   uploadHandler,
   disabled = false
 }) => {

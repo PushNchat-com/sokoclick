@@ -6,7 +6,7 @@ import { ImageFile } from '@/types/image';
 import { DeliveryOptionInternal } from '@/types/delivery';
 import { validateStepData, validateWhatsAppNumber } from '@/utils/productFormValidation';
 import { useLanguage } from '@/store/LanguageContext';
-import { fileUploadService } from '@/services/fileUpload';
+import { fileUploadService, DEFAULT_BUCKET } from '@/services/fileUpload';
 import { createProduct, updateProduct, Product } from '@/services/products';
 import { createDeliveryOption, updateDeliveryOption, deleteDeliveryOption } from '@/services/deliveryOptions';
 import supabase from '@/services/supabase';
@@ -262,7 +262,7 @@ export const useProductForm = ({
           
           const result = await fileUploadService.uploadFile(
             image.file,
-            'product-images', // Using hyphen to match policy
+            DEFAULT_BUCKET, // Use the constant for consistency
             productId 
               ? `products/${productId}` 
               : `products/temp/${userId || 'anonymous'}`  // Use user ID instead of "new"

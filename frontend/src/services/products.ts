@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import supabase from './supabase';
 import type { PostgrestError } from '@supabase/postgrest-js';
 import { Product as BaseProduct } from '../types/product';
+import { DEFAULT_BUCKET } from './fileUpload';
 
 // Re-export the Product interface with additional properties
 export interface Product extends BaseProduct {
@@ -331,18 +332,35 @@ export const createProduct = async (productData: Partial<Product>): Promise<Serv
     let sellerId = productData.seller_id;
     
     if (!sellerId) {
-      // Try to find the default vendor
-      const { data: vendorData, error: vendorError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('name', 'SokoClick Vendor')
-        .single();
-      
-      if (vendorError || !vendorData) {
-        throw new Error('No valid seller ID provided and default vendor not found');
+      try {
+        // Try to find the default vendor
+        const { data: vendorData, error: vendorError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('name', 'SokoClick Vendor')
+          .single();
+        
+        if (!vendorError && vendorData) {
+          sellerId = vendorData.id;
+          console.log('Using default vendor ID:', sellerId);
+        } else {
+          console.warn('Default vendor not found, error:', vendorError);
+        }
+      } catch (err) {
+        console.warn('Error fetching default vendor:', err);
       }
       
-      sellerId = vendorData.id;
+      // If still no sellerId, try to use current user as fallback
+      if (!sellerId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        sellerId = user?.id;
+        
+        if (!sellerId) {
+          throw new Error('No seller ID available and not authenticated');
+        }
+        
+        console.log('Using current user as seller ID:', sellerId);
+      }
     }
     
     // Create the product with the validated seller ID
@@ -448,7 +466,42 @@ export const deleteProduct = async (productId: string): Promise<ServiceResponse<
  * Approve a product
  */
 export const approveProduct = async (productId: string) => {
-  return updateProduct(productId, { is_approved: true });
+  try {
+    const { error } = await supabase
+      .from('products')
+      .update({ 
+        status: 'approved',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', productId);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error approving product:', error);
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
+/**
+ * Reject a product
+ */
+export const rejectProduct = async (productId: string) => {
+  try {
+    const { error } = await supabase
+      .from('products')
+      .update({ 
+        status: 'rejected',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', productId);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error rejecting product:', error);
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
 };
 
 /**
@@ -468,7 +521,7 @@ export const uploadProductImages = async (
       const filePath = `products/${productId}/${fileName}`;
       
       const { error: uploadError, data } = await supabase.storage
-        .from('product-images')
+        .from(DEFAULT_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -480,7 +533,7 @@ export const uploadProductImages = async (
       
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('product-images')
+        .from(DEFAULT_BUCKET)
         .getPublicUrl(filePath);
       
       urls.push(urlData.publicUrl);
@@ -574,6 +627,32 @@ export const getProducts = async (
   }
 };
 
+/**
+ * Gets all products with 'pending' status for admin approval
+ */
+export const getPendingProducts = async (): Promise<ServiceResponse<Product[]>> => {
+  try {
+    const { data, error, count } = await supabase
+      .from('products')
+      .select('*, seller:users(*)', { count: 'exact' })
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      data: data as Product[]
+    };
+  } catch (err) {
+    console.error('Error fetching pending products:', err);
+    return {
+      success: false,
+      error: isPostgrestError(err) ? err.message : 'Failed to fetch pending products'
+    };
+  }
+};
+
 // Add type guard for PostgrestError
 function isPostgrestError(error: unknown): error is PostgrestError {
   return (
@@ -596,7 +675,9 @@ export default {
   updateProduct,
   deleteProduct,
   approveProduct,
+  rejectProduct,
   uploadProductImages,
   getProduct,
-  getProducts
+  getProducts,
+  getPendingProducts
 };

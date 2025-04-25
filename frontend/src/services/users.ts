@@ -16,6 +16,7 @@ export interface User {
   isVerified: boolean;
   createdAt: string;
   lastLogin?: string;
+  name?: string;
 }
 
 // Add type guard for PostgrestError
@@ -54,91 +55,64 @@ export const useUsers = (
       setError(null);
 
       try {
-        // Initial query for regular users
-        let query = supabase
-          .from('profiles')
+        // Check if users table exists instead of profiles
+        let userTable = 'users';
+        let userQuery = supabase
+          .from(userTable)
           .select('*', { count: 'exact' });
+        
+        // If users table doesn't work, try the users view
+        const { error: testError } = await userQuery.limit(1);
+        if (testError && testError.message.includes('does not exist')) {
+          // Try alternate table for users
+          userTable = 'auth_users';
+          userQuery = supabase
+            .from(userTable)
+            .select('*', { count: 'exact' });
+        }
         
         // Apply filters
         if (role) {
-          query = query.eq('role', role);
+          userQuery = userQuery.eq('role', role);
         }
         
         if (verificationStatus !== undefined) {
-          query = query.eq('is_verified', verificationStatus);
+          userQuery = userQuery.eq('is_verified', verificationStatus);
         }
         
         if (searchQuery) {
-          query = query.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`);
+          // Adapt this based on actual column names in your table
+          userQuery = userQuery.or(`email.ilike.%${searchQuery}%`);
         }
         
-        const { data: profilesData, error: profilesError, count } = await query;
+        const { data: userData, error: userError, count } = await userQuery;
         
-        if (profilesError) {
-          throw new Error(`Error fetching user profiles: ${profilesError.message}`);
+        if (userError) {
+          console.warn(`Error fetching from ${userTable}:`, userError);
+          // Fall back to minimal approach - if we can't get users, at least don't crash
+          setUsers([]);
+          setTotal(0);
+          throw new Error(`Error fetching users: ${userError.message}`);
         }
         
         // Set total count
         setTotal(count || 0);
         
-        // If no regular users match or we're specifically looking for admin users
-        let adminUsers: any[] = [];
-        if (role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN || 
-            role === UserRole.CONTENT_MODERATOR || role === UserRole.ANALYTICS_VIEWER || 
-            role === UserRole.CUSTOMER_SUPPORT) {
-          
-          // Query for admin users
-          let adminQuery = supabase
-            .from('admin_users')
-            .select('*');
-          
-          if (role) {
-            adminQuery = adminQuery.eq('role', role);
-          }
-          
-          if (searchQuery) {
-            adminQuery = adminQuery.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
-          }
-          
-          const { data: adminData, error: adminError } = await adminQuery;
-          
-          if (adminError) {
-            throw new Error(`Error fetching admin users: ${adminError.message}`);
-          }
-          
-          if (adminData) {
-            adminUsers = adminData;
-          }
-        }
-        
-        // Transform regular user data
-        const regularUsers = profilesData ? profilesData.map(profile => ({
-          id: profile.id,
-          email: profile.email || '',
-          firstName: profile.first_name,
-          lastName: profile.last_name,
-          phone: profile.phone,
-          role: profile.role as UserRole,
-          isVerified: profile.is_verified || false,
-          createdAt: profile.created_at,
-          lastLogin: profile.last_login
+        // Transform regular user data with field mapping
+        const regularUsers = userData ? userData.map(user => ({
+          id: user.id,
+          email: user.email || '',
+          firstName: user.first_name || user.firstName || '',
+          lastName: user.last_name || user.lastName || '',
+          phone: user.phone || '',
+          role: user.role as UserRole,
+          isVerified: user.is_verified || user.isVerified || false,
+          createdAt: user.created_at || user.createdAt,
+          lastLogin: user.last_login || user.lastLogin
         })) : [];
         
-        // Transform admin user data
-        const transformedAdminUsers = adminUsers.map(admin => ({
-          id: admin.id,
-          email: admin.email,
-          firstName: '',
-          lastName: '',
-          name: admin.name,
-          role: admin.role as UserRole,
-          isVerified: true, // Admins are always verified
-          createdAt: admin.created_at,
-          lastLogin: admin.last_login
-        }));
-        
-        // Combine and set users
-        setUsers([...regularUsers, ...transformedAdminUsers]);
+        // Set users
+        setUsers(regularUsers);
       } catch (err) {
         console.error('Error:', err);
         setError(isPostgrestError(err) ? err.message : 'Failed to fetch users');

@@ -43,12 +43,13 @@ export const AUTH_ERROR_MESSAGES = {
 
 // Define user roles
 export enum UserRole {
+  CUSTOMER = 'customer',
+  SELLER = 'seller',
+  ADMIN = 'admin',
   SUPER_ADMIN = 'super_admin',
   CONTENT_MODERATOR = 'content_moderator',
   ANALYTICS_VIEWER = 'analytics_viewer',
-  CUSTOMER_SUPPORT = 'customer_support',
-  SELLER = 'seller',
-  CUSTOMER = 'customer'
+  CUSTOMER_SUPPORT = 'customer_support'
 }
 
 // User profile type

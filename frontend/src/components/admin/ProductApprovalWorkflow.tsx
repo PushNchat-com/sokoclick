@@ -1,101 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../store/LanguageContext';
-import { Product } from '../../services/products';
+import { Product, getPendingProducts, approveProduct, rejectProduct } from '../../services/products';
 import Button from '../ui/Button';
 import { toast } from '../../utils/toast';
 import { useNavigate } from 'react-router-dom';
-
-// Import the products service
-import productService from '../../services/products';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import ErrorMessage from '../ui/ErrorMessage';
 
 interface ProductApprovalWorkflowProps {
   className?: string;
 }
-
-// Define functions that are missing from the productService
-const mockProductService = {
-  ...productService,
-  getPendingProducts: async (): Promise<{ data: Product[]; error: string | null }> => {
-    // Mock implementation
-    return {
-      data: [
-        {
-          id: '1',
-          name_en: 'Sample Product 1',
-          name_fr: 'Produit Exemple 1',
-          description_en: 'This is a sample product',
-          description_fr: 'Ceci est un produit exemple',
-          price: 25000,
-          currency: 'XAF',
-          image_urls: ['https://via.placeholder.com/150'],
-          category_id: 'electronics',
-          category: {
-            id: 'electronics',
-            name: 'Electronics',
-            name_en: 'Electronics',
-            name_fr: 'Électronique'
-          },
-          seller_id: '123',
-          is_approved: false,
-          is_featured: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          seller: {
-            id: '123',
-            name: 'John Doe',
-            whatsapp_number: '+237612345678',
-            location: 'Douala',
-            is_verified: true
-          }
-        },
-        {
-          id: '2',
-          name_en: 'Sample Product 2',
-          name_fr: 'Produit Exemple 2',
-          description_en: 'This is another sample product',
-          description_fr: 'Ceci est un autre produit exemple',
-          price: 15000,
-          currency: 'XAF',
-          image_urls: ['https://via.placeholder.com/150'],
-          category_id: 'clothing',
-          category: {
-            id: 'clothing',
-            name: 'Clothing',
-            name_en: 'Clothing',
-            name_fr: 'Vêtements'
-          },
-          seller_id: '124',
-          is_approved: false,
-          is_featured: false,
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          updated_at: new Date(Date.now() - 86400000).toISOString(),
-          end_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-          seller: {
-            id: '124',
-            name: 'Jane Smith',
-            whatsapp_number: '+237687654321',
-            location: 'Yaoundé',
-            is_verified: false
-          }
-        }
-      ],
-      error: null
-    };
-  },
-  
-  approveProduct: async (productId: string): Promise<{ error: string | null }> => {
-    // Mock implementation
-    console.log(`Approving product ${productId}`);
-    return { error: null };
-  },
-  
-  rejectProduct: async (productId: string): Promise<{ error: string | null }> => {
-    // Mock implementation
-    console.log(`Rejecting product ${productId}`);
-    return { error: null };
-  }
-};
 
 const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ className = '' }) => {
   const { t, language } = useLanguage();
@@ -161,10 +75,10 @@ const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ class
     setError(null);
     
     try {
-      const { data, error } = await mockProductService.getPendingProducts();
+      const { data, error } = await getPendingProducts();
       if (error) throw new Error(error);
       
-      setPendingProducts(data || []);
+      setPendingProducts(data);
     } catch (err) {
       console.error('Error loading pending products:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -183,7 +97,7 @@ const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ class
     setProcessingId(productId);
     
     try {
-      const { error } = await mockProductService.approveProduct(productId);
+      const { error } = await approveProduct(productId);
       if (error) throw new Error(error);
       
       toast.success(t(text.approvalSuccess));
@@ -203,7 +117,7 @@ const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ class
     setProcessingId(productId);
     
     try {
-      const { error } = await mockProductService.rejectProduct(productId);
+      const { error } = await rejectProduct(productId);
       if (error) throw new Error(error);
       
       toast.success(t(text.rejectionSuccess));
@@ -230,11 +144,9 @@ const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ class
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">{t(text.title)}</h2>
         </div>
-        <div className="animate-pulse">
-          <div className="h-10 bg-gray-200 rounded mb-4"></div>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-16 bg-gray-200 rounded mb-2"></div>
-          ))}
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner size="lg" />
+          <span className="ml-3 text-gray-600">{t(text.loading)}</span>
         </div>
       </div>
     );
@@ -257,10 +169,11 @@ const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ class
             {t(text.refresh)}
           </Button>
         </div>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">{t(text.errorLoading)}:</strong>
-          <span className="block sm:inline ml-2">{error}</span>
-        </div>
+        <ErrorMessage
+          title={t(text.errorLoading)}
+          message={error}
+          onRetry={loadPendingProducts}
+        />
       </div>
     );
   }
@@ -329,7 +242,7 @@ const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ class
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{product.seller?.name || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{product.seller?.whatsapp_number}</div>
+                      <div className="text-sm text-gray-500">{product.seller_whatsapp}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{product.price.toLocaleString()} {product.currency}</div>

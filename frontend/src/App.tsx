@@ -19,6 +19,11 @@ const Dashboard = lazy(() => import('./pages/Dashboard')) as ComponentType;
 const Profile = lazy(() => import('./pages/Profile')) as ComponentType;
 const AdminProductsPage = lazy(() => import('./pages/AdminProductsPage')) as ComponentType;
 
+// New pages
+const AboutPage = lazy(() => import('./pages/AboutPage')) as ComponentType;
+const FaqPage = lazy(() => import('./pages/FaqPage')) as ComponentType;
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage')) as ComponentType;
+
 // Auth Components - these are smaller and can be imported directly
 import Login from './components/auth/Login';
 import Signup from './components/auth/Signup';
@@ -79,7 +84,8 @@ const AdminUnauthorizedPage = () => (
   </div>
 );
 
-function App() {
+// Define the App component
+const App: React.FC = () => {
   return (
     <HelmetProvider>
       <LanguageProvider>
@@ -98,6 +104,10 @@ function App() {
                       <Route path="signup" element={<Signup />} />
                       <Route path="forgot-password" element={<ForgotPassword />} />
                       <Route path="reset-password" element={<ResetPassword />} />
+                      {/* New public pages */}
+                      <Route path="about" element={<AboutPage />} />
+                      <Route path="faq" element={<FaqPage />} />
+                      <Route path="how-it-works" element={<HowItWorksPage />} />
                       <Route
                         path="dashboard"
                         element={
@@ -153,6 +163,7 @@ function App() {
       </LanguageProvider>
     </HelmetProvider>
   );
-}
+};
 
+// Explicit default export
 export default App;

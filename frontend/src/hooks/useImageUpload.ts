@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fileUploadService } from '../services/fileUpload';
+import { fileUploadService, DEFAULT_BUCKET } from '../services/fileUpload';
 import { ImageFile, ImageUploadResult } from '../types/image';
 import { supabase } from '../services/supabase';
 
@@ -36,7 +36,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       // Upload the file
       const result = await fileUploadService.uploadFile(
         image.file,
-        options.bucket || 'product-images',
+        options.bucket || DEFAULT_BUCKET,
         options.productId 
           ? `products/${options.productId}` 
           : `products/temp/${userId}`,
@@ -92,7 +92,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       if (!path) return false;
 
       const { error } = await supabase.storage
-        .from(options.bucket || 'product-images')
+        .from(options.bucket || DEFAULT_BUCKET)
         .remove([path]);
 
       return !error;
