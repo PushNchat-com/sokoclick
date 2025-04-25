@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import { fileUploadService, DEFAULT_BUCKET } from '../services/fileUpload';
 import { ImageFile, ImageUploadResult } from '../types/image';
 import { supabase } from '../services/supabase';
@@ -10,7 +10,7 @@ interface UseImageUploadOptions {
 }
 
 export const useImageUpload = (options: UseImageUploadOptions = {}) => {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 

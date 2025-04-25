@@ -1,22 +1,37 @@
-import React from 'react';
+import React, { ReactElement } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAdminAuth } from '../../contexts/AdminAuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
 import { UserRole } from '../../types/auth';
 
 interface AdminRouteProps {
   children: React.ReactNode;
   requiredRoles?: UserRole[];
+  redirectTo?: string;
+  fallback?: ReactElement;
 }
 
+/**
+ * AdminRoute component protects routes that require admin privileges
+ * @param children - The route content to render if authorized
+ * @param requiredRoles - Array of roles that can access this route (defaults to SUPER_ADMIN)
+ * @param redirectTo - Custom redirect path for unauthorized users (defaults to /admin/login)
+ * @param fallback - Custom loading component (uses default if not provided)
+ */
 const AdminRoute: React.FC<AdminRouteProps> = ({
   children,
-  requiredRoles = [UserRole.SUPER_ADMIN]
+  requiredRoles = [UserRole.SUPER_ADMIN],
+  redirectTo = '/admin/login',
+  fallback
 }) => {
-  const { isAuthenticated, isAdmin, user, loading } = useAdminAuth();
+  const { user, isAdmin, loading } = useUnifiedAuth();
   const location = useLocation();
   
   // Show loading indicator while authentication is being verified
   if (loading) {
+    if (fallback) {
+      return fallback;
+    }
+    
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
@@ -27,22 +42,23 @@ const AdminRoute: React.FC<AdminRouteProps> = ({
     );
   }
 
-  // Check if user is not authenticated
-  if (!isAuthenticated) {
-    // Redirect to admin login
-    return <Navigate to="/admin/login" state={{ from: location.pathname }} replace />;
+  // Check if user is not authenticated - redirect to login
+  if (!user) {
+    return <Navigate to={redirectTo} state={{ from: location.pathname }} replace />;
   }
 
-  // Check if user is not admin
+  // Check if user is not admin - redirect to unauthorized page
   if (!isAdmin) {
-    // Redirect to unauthorized page
     return <Navigate to="/admin/unauthorized" replace />;
   }
 
-  // Check if user has required roles
-  if (requiredRoles.length > 0 && user && !requiredRoles.includes(user.role)) {
-    // Redirect to unauthorized page
-    return <Navigate to="/admin/unauthorized" replace />;
+  // Check if user has at least one of the required roles
+  if (requiredRoles.length > 0) {
+    const hasRequiredRole = requiredRoles.includes(user.role);
+    
+    if (!hasRequiredRole) {
+      return <Navigate to="/admin/unauthorized" replace />;
+    }
   }
 
   // If all checks pass, render the children

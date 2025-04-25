@@ -33,6 +33,7 @@ export interface ImageUploadResult {
   url: string;
   error?: string;
   path?: string;
+  slotNumber?: number;
 }
 
 export interface ImageValidationResult {

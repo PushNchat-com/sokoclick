@@ -1,7 +1,7 @@
-import supabase from './supabase';
+import { supabase } from './supabase';
 import type { PostgrestError } from '@supabase/postgrest-js';
 import { useState, useEffect, useCallback } from 'react';
-import { UserRole } from './auth';
+import { UserRole } from '../types/auth';
 
 /**
  * User interface for admin management

@@ -6,9 +6,10 @@ import { Input } from '../ui/Input';
 import { SlotStatus, useSlots, slotService, Slot } from '../../services/slots';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/Tabs';
 import { toast } from '../../utils/toast';
-import { RefreshIcon, SearchIcon, CheckIcon, CalendarIcon, UndoIcon } from '../ui/Icons';
+import { RefreshIcon, SearchIcon, CheckIcon, CalendarIcon, UndoIcon, UploadIcon } from '../ui/Icons';
 import useUndo from '../../hooks/useUndo';
 import Tooltip from '../ui/Tooltip';
+import { useNavigate } from 'react-router-dom';
 
 interface SlotState {
   slots: Slot[];
@@ -18,6 +19,7 @@ interface SlotState {
 
 const SlotManagement: React.FC = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -103,6 +105,11 @@ const SlotManagement: React.FC = () => {
   const handleScheduleSlot = () => {
     // Navigate to slot scheduling page
     window.location.href = '/admin/slots/schedule';
+  };
+  
+  // Handle navigate to slot uploads
+  const handleNavigateToUploads = () => {
+    navigate('/admin/slots/uploads');
   };
   
   // Handle slot actions with undo support
@@ -263,6 +270,24 @@ const SlotManagement: React.FC = () => {
           </Tooltip>
           
           <Tooltip content={t({
+            en: 'Manage slot images',
+            fr: 'Gérer les images des emplacements'
+          })}>
+            <Button
+              onClick={handleNavigateToUploads}
+              variant="secondary"
+              size="sm"
+              className="flex items-center"
+            >
+              <UploadIcon className="w-4 h-4 mr-2" />
+              {t({
+                en: 'Manage Images',
+                fr: 'Gérer les Images'
+              })}
+            </Button>
+          </Tooltip>
+          
+          <Tooltip content={t({
             en: 'Schedule a slot',
             fr: 'Planifier un emplacement'
           })}>
@@ -281,7 +306,10 @@ const SlotManagement: React.FC = () => {
           </Tooltip>
           
           {canUndo && (
-            <Tooltip content={undoText.undo}>
+            <Tooltip content={t({
+              en: 'Undo last action',
+              fr: 'Annuler la dernière action'
+            })}>
               <Button
                 onClick={undo}
                 variant="outline"
@@ -289,7 +317,10 @@ const SlotManagement: React.FC = () => {
                 className="flex items-center"
               >
                 <UndoIcon className="w-4 h-4 mr-2" />
-                {undoText.undo}
+                {t({
+                  en: 'Undo',
+                  fr: 'Annuler'
+                })}
               </Button>
             </Tooltip>
           )}

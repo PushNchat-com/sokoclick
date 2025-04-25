@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import supabase from './supabase';
+import { supabase } from './supabase';
 import { PostgrestError } from '@supabase/postgrest-js';
 import { Product } from './products';
+import { clearSlotImages } from '../utils/slotStorage';
 
 /**
  * Slot status enum
@@ -29,8 +30,8 @@ export interface Slot {
   updated_at: string;
   status: SlotStatus;
   // Additional fields for UI state management
-  reservedUntil?: string;
-  reservedBy?: string;
+  reserved_until?: string;
+  reserved_by?: string;
   maintenance: boolean;
   product_name?: string;
   product_image?: string;
@@ -116,17 +117,15 @@ export const useSlots = (filterStatus?: SlotStatus, searchTerm?: string) => {
           }
         }
         
-        // Determine slot status
-        let status: SlotStatus;
+        // Determine slot status - initialize with a default to avoid linter error
+        let status: SlotStatus = SlotStatus.AVAILABLE;
         
         if (slot.is_maintenance) {
           status = SlotStatus.MAINTENANCE;
         } else if (slot.product_id && slot.is_active) {
           status = SlotStatus.OCCUPIED;
-        } else if (slot.reservedUntil && new Date(slot.reservedUntil) > new Date()) {
+        } else if (slot.reserved_until && new Date(slot.reserved_until) > new Date()) {
           status = SlotStatus.RESERVED;
-        } else {
-          status = SlotStatus.AVAILABLE;
         }
         
         return {
@@ -200,11 +199,7 @@ export const useSlotStats = () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('auction_slots')
-        .select(`
-          *,
-          reservedUntil:reserved_until,
-          maintenance
-        `);
+        .select('*');
       
       if (fetchError) {
         throw fetchError;
@@ -223,7 +218,7 @@ export const useSlotStats = () => {
           maintenance++;
         } else if (slot.product_id) {
           occupied++;
-        } else if (slot.reservedUntil && new Date(slot.reservedUntil) > now) {
+        } else if (slot.reserved_until && new Date(slot.reserved_until) > now) {
           reserved++;
         }
       }
@@ -304,7 +299,7 @@ export const useSlot = (slotId: number) => {
         status = SlotStatus.AVAILABLE;
       } else if (data.product_id) {
         status = SlotStatus.OCCUPIED;
-      } else if (data.reservedUntil && new Date(data.reservedUntil) > new Date()) {
+      } else if (data.reserved_until && new Date(data.reserved_until) > new Date()) {
         status = SlotStatus.RESERVED;
       } else {
         status = SlotStatus.AVAILABLE;
@@ -326,7 +321,7 @@ export const useSlot = (slotId: number) => {
     } finally {
       setLoading(false);
     }
-  }, [slotId, refreshTrigger]);
+  }, [slotId]);
   
   // Fetch slot on mount and when slotId or refresh trigger changes
   useEffect(() => {
@@ -372,7 +367,7 @@ export const slotService = {
         return { success: false, error: 'Slot is under maintenance' };
       }
       
-      if (slotData.reservedUntil && new Date(slotData.reservedUntil) > new Date()) {
+      if (slotData.reserved_until && new Date(slotData.reserved_until) > new Date()) {
         return { success: false, error: 'Slot is already reserved' };
       }
       
@@ -454,48 +449,36 @@ export const slotService = {
    */
   async removeProductFromSlot(slotId: number): Promise<ServiceResponse> {
     try {
-      // First update the product's auction_slot_id to null
-      const { data: slotData, error: slotError } = await supabase
-        .from('auction_slots')
-        .select('product_id')
-        .eq('id', slotId)
-        .single();
-      
-      if (slotError) {
-        throw slotError;
-      }
-      
-      if (slotData?.product_id) {
-        const { error: productError } = await supabase
-          .from('products')
-          .update({ auction_slot_id: null })
-          .eq('id', slotData.product_id);
-        
-        if (productError) {
-          throw productError;
-        }
-      }
-      
-      // Then update the slot
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from('auction_slots')
         .update({
           product_id: null,
-          is_active: false,
+          status: SlotStatus.AVAILABLE,
           start_time: null,
-          end_time: null,
-          updated_at: new Date().toISOString()
+          end_time: null
         })
         .eq('id', slotId);
+
+      if (error) throw error;
       
-      if (updateError) {
-        throw updateError;
+      // Clear slot images after removing the product
+      try {
+        await clearSlotImages(slotId);
+        console.log(`Cleared images from slot ${slotId}`);
+      } catch (clearError) {
+        console.error(`Error clearing images from slot ${slotId}:`, clearError);
+        // Continue execution even if image clearing fails
       }
-      
+
       return { success: true };
-    } catch (err: unknown) {
-      console.error('Error removing product:', err);
-      throw isPostgrestError(err) ? err.message : 'Failed to remove product';
+    } catch (error) {
+      console.error('Error removing product from slot:', error);
+      return {
+        success: false,
+        error: isPostgrestError(error)
+          ? error.message
+          : 'Failed to remove product from slot'
+      };
     }
   },
   

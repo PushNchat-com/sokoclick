@@ -8,19 +8,23 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "init:slots": "tsx src/scripts/initializeSlotStorage.ts"
   },
   "dependencies": {
     "@supabase/postgrest-js": "^1.19.4",
     "@supabase/supabase-js": "2.39.3",
+    "@tanstack/react-query": "^5.74.4",
     "browser-image-compression": "^2.0.2",
     "chart.js": "^4.4.9",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "3.3.1",
     "intersection-observer": "0.12.2",
     "react": "18.2.0",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "18.2.0",
+    "react-dropzone": "^14.3.8",
     "react-helmet-async": "2.0.4",
     "react-hot-toast": "2.5.2",
     "react-router-dom": "6.22.1",
@@ -29,6 +33,7 @@
     "uuid": "9.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.25.1",
     "@tailwindcss/aspect-ratio": "0.4.2",
     "@tailwindcss/container-queries": "0.1.1",
     "@tailwindcss/forms": "0.5.7",
@@ -40,11 +45,16 @@
     "@vitejs/plugin-react": "4.2.1",
     "autoprefixer": "10.4.17",
     "cssnano": "6.0.3",
+    "eslint": "^9.25.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.0.0",
     "postcss": "8.4.35",
     "postcss-import": "16.0.0",
     "postcss-preset-env": "9.3.0",
     "tailwindcss": "3.4.1",
     "typescript": "5.3.3",
+    "typescript-eslint": "^8.31.0",
     "vite": "5.1.3"
   }
 }

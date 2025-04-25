@@ -35,9 +35,6 @@ export const validateStepData = (
       validateBasicInfo(formData, errors, ctx);
       break;
     case 2:
-      validateImages(imageFiles, errors, ctx);
-      break;
-    case 3:
       validateDeliveryOptions(deliveryOptions, errors, ctx);
       break;
   }
@@ -184,36 +181,8 @@ const validateImages = (
   errors: Record<string, string>,
   ctx: ValidationContext
 ) => {
-  // Check minimum required images
-  const validImages = imageFiles.filter(img => {
-    // Consider an image valid if:
-    // 1. It has a file that's been uploaded (progress = 100)
-    // 2. It has a URL from previous upload
-    // 3. It has a preview that's not a blob (indicating it's a server URL)
-    return (img.file && img.progress === 100) || 
-           (img.url && img.url.length > 0) ||
-           (img.preview && !img.preview.startsWith('blob:'));
-  });
-
-  if (validImages.length < IMAGE_CONSTRAINTS.minImages) {
-    errors.images = ctx.t({
-      en: 'At least one product image is required',
-      fr: 'Au moins une image de produit est requise'
-    });
-    return;
-  }
-
-  // Check for any images with errors or incomplete uploads
-  const hasErrors = imageFiles.some(img => 
-    img.error || (img.file && img.progress > 0 && img.progress < 100)
-  );
-
-  if (hasErrors) {
-    errors.images = ctx.t({
-      en: 'Please wait for all images to finish uploading or fix upload errors',
-      fr: 'Veuillez attendre que toutes les images soient téléchargées ou corriger les erreurs de téléchargement'
-    });
-  }
+  // Images are now managed by SlotImageUploader, so we don't need to validate them here
+  return;
 };
 
 const validateDeliveryOptions = (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../store/LanguageContext';
-import { useAdminAuth } from '../../contexts/AdminAuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
 import { 
   DashboardIcon, 
   ProductIcon, 
@@ -17,11 +17,12 @@ interface NavItem {
   path: string;
   label: { en: string; fr: string };
   icon: React.ReactNode;
+  badge?: number;
 }
 
 const AdminNav: React.FC = () => {
   const { t } = useLanguage();
-  const { user } = useAdminAuth();
+  const { user, signOut } = useUnifiedAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -30,37 +31,53 @@ const AdminNav: React.FC = () => {
     {
       path: '/admin/dashboard',
       label: { en: 'Dashboard', fr: 'Tableau de bord' },
-      icon: <DashboardIcon className="w-5 h-5" />
+      icon: <DashboardIcon className="w-5 h-5" />,
+      badge: 0
     },
     {
       path: '/admin/products',
       label: { en: 'Products', fr: 'Produits' },
-      icon: <ProductIcon className="w-5 h-5" />
+      icon: <ProductIcon className="w-5 h-5" />,
+      badge: 0
     },
     {
       path: '/admin/slots',
       label: { en: 'Slot Management', fr: 'Gestion des emplacements' },
-      icon: <CategoryIcon className="w-5 h-5" />
+      icon: <CategoryIcon className="w-5 h-5" />,
+      badge: 0
     },
     {
       path: '/admin/users',
       label: { en: 'User Management', fr: 'Gestion des utilisateurs' },
-      icon: <UsersIcon className="w-5 h-5" />
+      icon: <UsersIcon className="w-5 h-5" />,
+      badge: 0
     },
     {
       path: '/admin/analytics',
       label: { en: 'Analytics', fr: 'Analytique' },
-      icon: <AnalyticsIcon className="w-5 h-5" />
+      icon: <AnalyticsIcon className="w-5 h-5" />,
+      badge: 0
     },
     {
       path: '/admin/settings',
       label: { en: 'Settings', fr: 'Paramètres' },
-      icon: <SettingsIcon className="w-5 h-5" />
+      icon: <SettingsIcon className="w-5 h-5" />,
+      badge: 0
+    },
+    {
+      path: '/admin/transactions',
+      label: { en: 'Transactions', fr: 'Transactions' },
+      icon: <i className="fas fa-credit-card mr-3" />,
+      badge: 0
     }
   ];
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname.startsWith(path);
   };
 
   return (
@@ -92,6 +109,11 @@ const AdminNav: React.FC = () => {
                 >
                   <span className="mr-3 text-gray-500">{item.icon}</span>
                   <span>{t(item.label)}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}
@@ -142,6 +164,11 @@ const AdminNav: React.FC = () => {
                   >
                     <span className="mr-3 text-gray-500">{item.icon}</span>
                     <span>{t(item.label)}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               ))}

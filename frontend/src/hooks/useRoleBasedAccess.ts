@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { UserRole } from '../types/auth';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { UserRole } from '../../services/auth';
+import { UserRole } from '../../types/auth';
 import UserMigrationHelper from '../../components/admin/UserMigrationHelper';
 
 interface AdminNavigationProps {
@@ -24,6 +24,10 @@ const text = {
   slots: {
     en: 'Slot Management',
     fr: 'Gestion des Emplacements'
+  },
+  slotUploads: {
+    en: 'Slot Image Uploads',
+    fr: 'Images des Emplacements'
   },
   categories: {
     en: 'Categories',
@@ -106,10 +110,20 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ language = 'en' }) =>
             <Link 
               to="/admin/slots" 
               className={`block px-4 py-2 rounded hover:bg-gray-700 ${
-                location.pathname.startsWith('/admin/slots') ? 'bg-gray-700' : ''
+                location.pathname === '/admin/slots' ? 'bg-gray-700' : ''
               }`}
             >
               {text.slots[language]}
+            </Link>
+          </li>
+          <li>
+            <Link 
+              to="/admin/slots/uploads" 
+              className={`block px-4 py-2 pl-8 rounded hover:bg-gray-700 ${
+                location.pathname === '/admin/slots/uploads' ? 'bg-gray-700' : ''
+              }`}
+            >
+              {text.slotUploads[language]}
             </Link>
           </li>
           <li>

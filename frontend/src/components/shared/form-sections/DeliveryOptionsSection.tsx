@@ -1,10 +1,10 @@
 import React from 'react';
 import { useLanguage } from '../../../store/LanguageContext';
-import { DeliveryOption } from '../../../types/delivery';
+import { DeliveryOptionInternal } from '../../../types/delivery';
 
 interface DeliveryOptionsSectionProps {
-  deliveryOptions: DeliveryOption[];
-  onChange: (deliveryOptions: DeliveryOption[]) => void;
+  deliveryOptions: DeliveryOptionInternal[];
+  onChange: (deliveryOptions: DeliveryOptionInternal[]) => void;
   onOptionRemoved?: (index: number) => void;
   errors: Record<string, string>;
 }
@@ -32,7 +32,7 @@ const DeliveryOptionsSection: React.FC<DeliveryOptionsSectionProps> = ({
   };
   
   // Handle delivery option field changes
-  const handleOptionChange = (index: number, field: keyof DeliveryOption, value: any) => {
+  const handleOptionChange = (index: number, field: keyof DeliveryOptionInternal, value: any) => {
     const newOptions = [...deliveryOptions];
     newOptions[index] = {
       ...newOptions[index],

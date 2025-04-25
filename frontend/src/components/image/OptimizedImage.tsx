@@ -139,7 +139,6 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           className
         )}
         style={{ objectFit }}
-        fetchPriority={priority ? 'high' : 'auto'}
       />
       
       {hasError && (

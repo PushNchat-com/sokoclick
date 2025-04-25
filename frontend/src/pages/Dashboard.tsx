@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import { useLanguage } from '../store/LanguageContext';
 import { Navigate } from 'react-router-dom';
 import ProductForm from '../components/seller/ProductForm';
@@ -11,7 +11,8 @@ import { Modal } from '../components/ui/Modal';
 const PRODUCTS_PER_PAGE = 6; // Number of products to show per page
 
 const Dashboard: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, session } = useUnifiedAuth();
+  const isAuthenticated = !!session && !!user;
   const { t } = useLanguage();
   const [showProductForm, setShowProductForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,7 +53,6 @@ const Dashboard: React.FC = () => {
       console.error('Dashboard error details:', {
         error,
         userId: user?.id,
-        metadata: user?.user_metadata,
         retryCount
       });
     }
@@ -69,9 +69,6 @@ const Dashboard: React.FC = () => {
 
   // Total pages calculation
   const totalPages = Math.ceil((count || 0) / PRODUCTS_PER_PAGE);
-
-  // Check if user is verified
-  const isUserVerified = user?.user_metadata?.is_verified === true;
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
@@ -137,7 +134,7 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">
-            {t(text.welcome)}, {user?.user_metadata?.full_name || ''}
+            {t(text.welcome)}, {user?.name || user?.firstName || ''}
           </h1>
           <h2 className="text-xl font-semibold mt-4 mb-1">
             {t(text.yourProducts)}

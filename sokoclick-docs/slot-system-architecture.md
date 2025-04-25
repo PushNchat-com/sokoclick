@@ -14,8 +14,9 @@ The slot system is the core feature of the SokoClick platform, providing a struc
 6. [Frontend Display](#6-frontend-display)
 7. [Approval Workflow](#7-approval-workflow)
 8. [Analytics Integration](#8-analytics-integration)
-9. [Architecture Patterns](#9-architecture-patterns)
-10. [Special Features](#10-special-features)
+9. [Slot-Based Storage System](#9-slot-based-storage-system)
+10. [Architecture Patterns](#10-architecture-patterns)
+11. [Special Features](#11-special-features)
 
 ## 1. Database Schema
 
@@ -160,7 +161,7 @@ Assigns a product to a slot with thorough validation checks:
 async removeProductFromSlot(slotId): Promise<ServiceResponse>
 ```
 
-Removes a product from a slot and resets slot properties, maintaining bidirectional relationship integrity.
+Removes a product from a slot, resets slot properties, and automatically clears any images stored in the slot folder.
 
 #### Statistics Retrieval
 
@@ -249,6 +250,15 @@ The slot system is primarily managed through several admin components that provi
 - Undo capability for operations using the `useUndo` hook
 - Bulk operations on slots
 - Detailed error handling and user feedback
+
+### StorageInitializer Component
+
+`frontend/src/components/admin/StorageInitializer.tsx` provides tools for managing the slot-based storage system:
+
+- Initialize all 25 slot folders in storage
+- Clear images from specific slot folders
+- Display success/error messages for operations
+- Integrated with admin dashboard
 
 ## 5. Product-Slot Integration
 
@@ -355,7 +365,85 @@ The `AnalyticsComponent` in `frontend/src/components/admin/AnalyticsComponent.ts
 - Allows filtering by date range and slot
 - Shows conversion metrics for business intelligence
 
-## 9. Architecture Patterns
+## 9. Slot-Based Storage System
+
+The slot system includes a dedicated storage architecture that organizes product images by slot number.
+
+### Storage Structure
+
+- Each slot has a dedicated folder in Supabase storage
+- Folder naming follows the pattern: `slot-{slotNumber}`
+- Images for a given product are stored only in its assigned slot's folder
+- When products change slots, their images are moved or recreated in the new slot's folder
+
+### Implementation Components
+
+#### Slot Storage Utilities
+
+The `slotStorage.ts` utility provides core functions for slot-based storage:
+
+```typescript
+// Initialize all 25 slot folders
+initializeSlotFolders(): Promise<{ success: boolean; message: string }>
+
+// Clear all images from a slot's folder
+clearSlotImages(slotNumber: number): Promise<{ success: boolean; message: string }>
+
+// Generate a standardized path for a slot image
+getSlotImagePath(slotNumber: number, file: File, productId: string): string
+```
+
+#### FileUploadService Extensions
+
+The `fileUpload.ts` service is extended to support slot-based uploads:
+
+```typescript
+// Add slot-aware parameters to the core upload method
+uploadFile(file: File, bucket: string, path: string, options: { 
+  slotNumber?: number, 
+  onProgress?: (progress: number) => void 
+}): Promise<ImageUploadResult>
+
+// Add a dedicated method for slot uploads
+uploadToSlot(file: File, slotNumber: number, productId: string, options: {}): Promise<ImageUploadResult>
+```
+
+#### Automatic Cleanup
+
+When a product is removed from a slot (via `removeProductFromSlot`), the system automatically:
+
+1. Clears all images from the slot's folder
+2. Preserves the folder structure with an empty `.folder` file
+3. Logs the cleanup operation for audit purposes
+
+### Admin Interface
+
+The `StorageInitializer` component provides admin tools for the slot storage system:
+
+- One-click initialization of the entire 25-slot folder structure
+- Interface to clear images from specific slots
+- Error handling and feedback for all operations
+- Integrated with the admin dashboard
+
+### SEO Benefits
+
+The slot-based organization provides several SEO advantages:
+
+- Consistent URL patterns for images (`https://[storage-url]/product-images/slot-{slotNumber}/{filename}`)
+- Stable URLs for slots that gain authority over time 
+- Clear semantic relationship between images and their slot position
+- Simplified content management when products change
+
+### Direct Image Upload
+
+Admins can upload images directly to specific slot folders:
+
+- Select a slot number
+- Upload files directly to that slot's folder
+- Preview existing images in the slot folder
+- Delete individual images from the slot folder
+
+## 10. Architecture Patterns
 
 The slot system follows several architectural patterns to ensure maintainability and performance.
 
@@ -387,7 +475,7 @@ Layered components from presentation to connected data:
 - `SlotGridConnected` handles data fetching
 - `SlotManagement` provides complete workflow
 
-## 10. Special Features
+## 11. Special Features
 
 The slot system includes several special features that enhance its flexibility and usability.
 
@@ -425,6 +513,14 @@ Products are displayed for specific time periods:
 - Start and end times control visibility
 - Countdown timers show time remaining
 - Automated removal when time expires
+
+### Image Storage Integration
+
+The slot system is tightly integrated with the storage system:
+- Images are organized by slot number
+- When products expire or are removed, images are automatically cleaned up
+- Admins can directly upload images to specific slot folders
+- SEO benefits from consistent image URL patterns
 
 ### Search & Filtering
 

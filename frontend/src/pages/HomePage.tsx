@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react';
 import { useLanguage } from '../store/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import ProductCard from '../components/product/ProductCard';
 import EmptySlotCard from '../components/product/EmptySlotCard';
 import SortingSelector from '../components/ui/SortingSelector';
@@ -14,6 +14,7 @@ import { useDebugSlots } from '../services/debugSlots';
 import { Helmet } from 'react-helmet-async';
 import SeoComponent from '../components/seo/SeoComponent';
 import { generateWebsiteSchema } from '../utils/schemaMarkup';
+import { toast } from '../utils/toast';
 
 interface HomePageProps {
   promotionalBanner?: {
@@ -40,12 +41,15 @@ const MemoizedProductCard = memo(ProductCard);
 const MemoizedEmptySlotCard = memo(EmptySlotCard);
 
 const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin } = useUnifiedAuth();
   const { language, t } = useLanguage();
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>(SortCriteria.NEWEST);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   // Detect reduced motion preference
   useEffect(() => {
@@ -63,7 +67,7 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
   const debugSlots = useDebugSlots();
   
   // Use either normal or debug hook results
-  const { slots, loading: slotsLoading, error: slotsError } = debugMode ? debugSlots : normalSlots;
+  const { slots, loading: slotsLoading, error: slotsError, refresh: refreshSlots } = debugMode ? debugSlots : normalSlots;
   
   // Admin-only debug logging
   useEffect(() => {
@@ -119,6 +123,26 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
     retryButton: {
       en: 'Retry',
       fr: 'Réessayer'
+    },
+    searchPlaceholder: {
+      en: "What are you looking for today?",
+      fr: "Que cherchez-vous aujourd'hui?"
+    },
+    searchButton: {
+      en: "Search",
+      fr: "Rechercher"
+    },
+    searching: {
+      en: "Searching...",
+      fr: "Recherche en cours..."
+    },
+    searchResults: {
+      en: "Search Results",
+      fr: "Résultats de recherche"
+    },
+    clearSearch: {
+      en: "Clear Search",
+      fr: "Effacer la recherche"
     }
   };
 
@@ -129,6 +153,35 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
 
   const handleSortChange = useCallback((newSortCriteria: SortCriteria) => {
     setSortCriteria(newSortCriteria);
+  }, []);
+
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  // Handle search form submission
+  const handleSearchSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setIsSearching(true);
+      
+      // Simulate search loading for better UX
+      setTimeout(() => {
+        setIsSearching(false);
+      }, 500);
+    }
+  }, [searchQuery]);
+
+  // Handle clearing search
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setIsSearching(false);
+    
+    // Focus the search input after clearing
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   }, []);
 
   // Create grid items from slots
@@ -150,6 +203,47 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
       filteredSlots = filteredSlots.filter(slot => {
         const category = slot.product?.category;
         return category && ('id' in category) && String(category.id) === String(filterCategory);
+      });
+    }
+    
+    // Apply search filter when search query exists and not in searching state
+    if (searchQuery.trim() && !isSearching) {
+      const normalizedQuery = searchQuery.trim().toLowerCase();
+      
+      filteredSlots = filteredSlots.filter(slot => {
+        if (!slot.product) return false;
+        
+        // Fields to search in
+        const nameEn = slot.product.name_en?.toLowerCase() || '';
+        const nameFr = slot.product.name_fr?.toLowerCase() || '';
+        const descEn = slot.product.description_en?.toLowerCase() || '';
+        const descFr = slot.product.description_fr?.toLowerCase() || '';
+        
+        // Safely access properties that might not be in the Product interface
+        const productAny = slot.product as any;
+        const locationLower = typeof productAny.location === 'string' 
+          ? productAny.location.toLowerCase() 
+          : '';
+        
+        // Handle tags which could be array or string
+        let tagsLower = '';
+        if (productAny.tags) {
+          if (Array.isArray(productAny.tags)) {
+            tagsLower = productAny.tags.join(' ').toLowerCase();
+          } else if (typeof productAny.tags === 'string') {
+            tagsLower = productAny.tags.toLowerCase();
+          }
+        }
+        
+        // Check if any field matches the search query
+        return (
+          nameEn.includes(normalizedQuery) ||
+          nameFr.includes(normalizedQuery) ||
+          descEn.includes(normalizedQuery) ||
+          descFr.includes(normalizedQuery) ||
+          locationLower.includes(normalizedQuery) ||
+          tagsLower.includes(normalizedQuery)
+        );
       });
     }
     
@@ -200,10 +294,20 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
     if (isAdmin && debugMode) {
       const productCount = items.filter(item => item.type === 'product').length;
       console.log(`[Admin] Final grid items: ${productCount} products, ${items.length - productCount} empty slots`);
+      
+      // Log search filter results 
+      if (searchQuery.trim()) {
+        console.log(`[Admin] Search results for "${searchQuery}": ${productCount} matches`);
+      }
     }
     
     return items;
-  }, [slots, filterCategory, sortCriteria, isAdmin, debugMode]);
+  }, [slots, filterCategory, sortCriteria, isAdmin, debugMode, searchQuery, isSearching]);
+
+  // Get only products from grid items for display
+  const productItems = useMemo(() => {
+    return gridItems.filter(item => item.type === 'product');
+  }, [gridItems]);
 
   // Website schema for homepage
   const websiteSchema = useMemo(() => {
@@ -241,19 +345,46 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
                 {t(text.tagline)}
               </p>
               
-              {/* Search bar - styled but non-functional unless you want to implement search */}
-              <div className="relative max-w-lg mx-auto">
+              {/* Search bar - now fully functional */}
+              <form onSubmit={handleSearchSubmit} className="relative max-w-lg mx-auto">
                 <input
                   type="text"
-                  placeholder={t({ en: "What are you looking for today?", fr: "Que cherchez-vous aujourd'hui?" })}
-                  className="w-full px-6 py-4 rounded-full shadow-md border-0 focus:ring-2 focus:ring-indigo-400 focus:outline-none text-gray-600"
+                  ref={searchInputRef}
+                  placeholder={t(text.searchPlaceholder)}
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="w-full px-6 py-4 pr-16 rounded-full shadow-md border-0 focus:ring-2 focus:ring-indigo-400 focus:outline-none text-gray-600"
+                  disabled={isSearching}
                 />
-                <button className="absolute right-2 top-2 bg-indigo-700 text-white p-2 rounded-full hover:bg-indigo-800 transition duration-150">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                {searchQuery ? (
+                  <button 
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="absolute right-14 top-3 text-gray-400 hover:text-gray-600 transition"
+                    aria-label={t(text.clearSearch)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                ) : null}
+                <button 
+                  type="submit"
+                  className="absolute right-2 top-2 bg-indigo-700 text-white p-2 rounded-full hover:bg-indigo-800 transition duration-150 disabled:opacity-70"
+                  disabled={isSearching || !searchQuery.trim()}
+                >
+                  {isSearching ? (
+                    <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
                 </button>
-              </div>
+              </form>
               
               {/* Admin debug mode toggle - keeping it for admins */}
               {isAdmin && (
@@ -298,6 +429,20 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
         </div>
       </div>
 
+      {/* Search Results Label */}
+      {searchQuery.trim() && !isSearching && (
+        <div className="mb-6">
+          <h2 className="text-xl font-medium text-gray-700">
+            {t(text.searchResults)}: "{searchQuery}"
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              ({productItems.length} {productItems.length === 1 
+                ? t({en: 'result', fr: 'résultat'}) 
+                : t({en: 'results', fr: 'résultats'})})
+            </span>
+          </h2>
+        </div>
+      )}
+
       {/* Debug Info Section - Only visible to admins in debug mode */}
       {isAdmin && debugMode && !slotsLoading && !slotsError && (
         <div className="mb-8 p-4 border border-orange-300 bg-orange-50 rounded-lg">
@@ -336,10 +481,17 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
           
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => refreshSlots()}
               className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md"
             >
-              Refresh Page
+              Refresh Slots
+            </button>
+            
+            <button
+              onClick={() => window.location.reload()}
+              className="px-3 py-1 text-sm bg-gray-600 text-white rounded-md"
+            >
+              Reload Page
             </button>
           </div>
         </div>
@@ -347,9 +499,13 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
 
       {/* Product Grid */}
       <section>
-        <h2 className="text-2xl font-semibold mb-6">{t(text.productGridHeading)}</h2>
+        <h2 className="text-2xl font-semibold mb-6">
+          {searchQuery.trim() && !isSearching 
+            ? t(text.searchResults) 
+            : t(text.productGridHeading)}
+        </h2>
         
-        {slotsLoading ? (
+        {slotsLoading || isSearching ? (
           // Skeleton loading state
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {Array.from({ length: 25 }).map((_, index) => (
@@ -367,7 +523,7 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">{t(text.errorMessage)}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => refreshSlots()}
               className="bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-600"
             >
               {t(text.retryButton)}
@@ -375,28 +531,28 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
           </div>
         ) : (
           // Product grid or empty state
-          gridItems.filter(item => item.type === 'product').length > 0 ? (
+          productItems.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {gridItems.map(item => (
-                item.type === 'product' && item.product ? (
-                  <MemoizedProductCard
-                    key={`product-${item.slotNumber}`}
-                    product={item.product}
-                    isAdmin={isAdmin}
-                  />
-                ) : (
-                  <MemoizedEmptySlotCard
-                    key={`empty-${item.slotNumber}`}
-                    slotNumber={item.slotNumber}
-                    isAdmin={isAdmin}
-                  />
-                )
+              {productItems.map(item => (
+                <MemoizedProductCard
+                  key={`product-${item.slotNumber}`}
+                  product={item.product!}
+                  isAdmin={isAdmin}
+                />
               ))}
             </div>
           ) : (
             // No products found state
-            <div className="text-center py-12">
-              <p className="text-gray-600">{t(text.noProductsFound)}</p>
+            <div className="text-center py-16 border border-gray-200 rounded-lg">
+              <p className="text-gray-600 mb-4">{t(text.noProductsFound)}</p>
+              {searchQuery && (
+                <button
+                  onClick={handleClearSearch}
+                  className="bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-600"
+                >
+                  {t(text.clearSearch)}
+                </button>
+              )}
             </div>
           )
         )}

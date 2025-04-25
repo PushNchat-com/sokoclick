@@ -46,7 +46,7 @@ export const generateProductSchema = (
   };
   
   // Build the structured data
-  const schema = {
+  const schema: any = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     productID: product.id,
@@ -64,7 +64,7 @@ export const generateProductSchema = (
   
   // Add offer data if price exists
   if (product.price) {
-    schema['offers'] = {
+    schema.offers = {
       '@type': 'Offer',
       price: product.price,
       priceCurrency: product.currency || 'XAF',

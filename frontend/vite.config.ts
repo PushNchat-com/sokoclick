@@ -26,8 +26,16 @@ export default defineConfig({
     open: true,
   },
   build: {
-    sourcemap: true,
+    sourcemap: 'hidden',
     cssCodeSplit: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false,
+        passes: 2,
+        ecma: 2020,
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks: {

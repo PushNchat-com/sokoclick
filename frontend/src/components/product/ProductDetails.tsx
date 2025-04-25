@@ -1,5 +1,5 @@
 import React from 'react';
-import { CountdownTimer } from './CountdownTimer';
+import CountdownTimer from './CountdownTimer';
 import ImageGallery from './ImageGallery';
 
 interface SellerInfo {

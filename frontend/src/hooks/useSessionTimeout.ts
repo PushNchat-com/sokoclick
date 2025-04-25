@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useAdminAuth } from '../contexts/AdminAuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import { useLanguage } from '../store/LanguageContext';
 
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
@@ -28,7 +28,7 @@ const messages: TimeoutMessages = {
 };
 
 export const useSessionTimeout = () => {
-  const { signOut } = useAdminAuth();
+  const { signOut } = useUnifiedAuth();
   const { t } = useLanguage();
   const timeoutId = useRef<NodeJS.Timeout>();
   const warningId = useRef<NodeJS.Timeout>();

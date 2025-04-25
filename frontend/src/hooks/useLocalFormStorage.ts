@@ -43,6 +43,11 @@ export const useLocalFormStorage = ({
         return null;
       }
 
+      // Ensure imageFiles is always an array
+      if (!Array.isArray(parsedState.imageFiles)) {
+        parsedState.imageFiles = [{ file: null, preview: undefined, url: undefined, progress: 0, error: null }];
+      }
+
       return parsedState;
     } catch (error) {
       console.error('Error loading stored form state:', error);

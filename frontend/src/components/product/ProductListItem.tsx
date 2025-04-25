@@ -4,7 +4,7 @@ import { useLanguage } from '../../store/LanguageContext';
 import { Product } from '../../services/products';
 import { useConfirmDialog } from '../ui/ConfirmDialog';
 import { toast } from '../../utils/toast';
-import supabase from '../../services/supabase';
+import { supabase } from '../../services/supabase';
 
 interface ProductListItemProps {
   product: Product;

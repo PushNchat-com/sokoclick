@@ -3,7 +3,7 @@ import { Outlet, Link } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
 import LanguageToggle from '../components/ui/LanguageToggle';
 import { useLanguage } from '../store/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import logoImage from '../assets/images/logo.svg';
 
 interface MainLayoutProps {
@@ -16,7 +16,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   children 
 }) => {
   const { t } = useLanguage();
-  const { isAuthenticated, signOut, user } = useAuth();
+  const { user, session, signOut } = useUnifiedAuth();
+  const isAuthenticated = !!session && !!user;
 
   // Localized content
   const navText = {
@@ -67,7 +68,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                   to="/dashboard" 
                   className="text-sm font-medium text-gray-700 hover:text-indigo-600"
                 >
-                  {user?.user_metadata?.full_name || t(navText.profile)}
+                  {user?.name || user?.firstName || t(navText.profile)}
                 </Link>
                 <button
                   onClick={() => signOut()}

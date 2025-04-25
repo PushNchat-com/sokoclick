@@ -1,17 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseClient';
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase environment variables not set. Please check your .env file.');
-}
-
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || ''
-);
+// Re-export the supabase client
+export { supabase };
 
 // Helper function to check if the user is authenticated
 export const isAuthenticated = async () => {
@@ -24,6 +14,3 @@ export const getCurrentUser = async () => {
   const { data } = await supabase.auth.getUser();
   return data.user;
 };
-
-// Add default export for backward compatibility
-export default supabase;

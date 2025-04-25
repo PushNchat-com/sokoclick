@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../store/LanguageContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
 import { toast } from '../../utils/toast';
 import { useSlots, getAvailableSlotsForProductForm } from '../../services/slots';
 import { useProductForm } from '../../hooks/useProductForm';
 import { useLocalFormStorage } from '../../hooks/useLocalFormStorage';
-import { UserProfile, UserRole } from '../../types/auth';
+import { UserRole, UserProfile } from '../../types/auth';
 
 // Import form steps
 import BasicInfoStep from './form-steps/BasicInfoStep';
-import ImageUploadStep from './form-steps/ImageUploadStep';
 import DeliveryOptionsStep from './form-steps/DeliveryOptionsStep';
 import FormActionButtons from './form-actions/FormActionButtons';
 
@@ -31,7 +30,7 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
   onUpload
 }) => {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialSlotId = searchParams.get('slot');
@@ -48,11 +47,11 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
   const userProfile: UserProfile | null = user ? {
     id: user.id,
     email: user.email || '',
-    role: user.user_metadata?.role || UserRole.SELLER,
-    firstName: user.user_metadata?.firstName,
-    lastName: user.user_metadata?.lastName,
-    name: user.user_metadata?.name,
-    phone: user.user_metadata?.phone,
+    role: user.role || UserRole.SELLER,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    name: user.name,
+    phone: user.phone,
   } : null;
   
   // Get available slots for assignment (for admin context)
@@ -140,42 +139,10 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
     onSuccess: handleSuccess
   });
   
-  // Load stored form state on mount
-  useEffect(() => {
-    if (!initialized && !isLoading) {
-      const storedState = checkStoredState();
-      if (storedState) {
-        setFormData(storedState.formData);
-        setImageFiles(storedState.imageFiles);
-        setDeliveryOptions(storedState.deliveryOptions);
-        setCurrentStep(storedState.currentStep);
-        
-        toast.info(t({
-          en: 'Restored your previous progress',
-          fr: 'Progression précédente restaurée'
-        }));
-      }
-      setInitialized(true);
-    }
-  }, [initialized, isLoading]);
-  
-  // Save form state on changes
-  useEffect(() => {
-    if (initialized && !isLoading && !isSubmitting) {
-      saveFormState({
-        formData,
-        imageFiles,
-        deliveryOptions,
-        currentStep
-      });
-    }
-  }, [formData, imageFiles, deliveryOptions, currentStep, initialized, isLoading, isSubmitting]);
-  
   // Text content
   const text = {
     step1Title: { en: 'Basic Information', fr: 'Informations de base' },
-    step2Title: { en: 'Product Images', fr: 'Images du produit' },
-    step3Title: { en: 'Delivery Options', fr: 'Options de livraison' },
+    step2Title: { en: 'Delivery Options', fr: 'Options de livraison' },
     loading: { en: 'Loading product data...', fr: 'Chargement des données du produit...' },
     confirmCancel: { en: 'Cancel product creation?', fr: 'Annuler la création du produit?' },
     confirmCancelMessage: { en: 'Your unsaved changes will be lost.', fr: 'Vos modifications non enregistrées seront perdues.' },
@@ -186,9 +153,13 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
   // Cancel and go back with cleanup
   const handleCancel = () => {
     const hasChanges = Object.values(formData).some(val => val !== '' && val !== null && val !== undefined) ||
-      imageFiles.length > 1 || 
-      imageFiles[0].file !== null || 
-      imageFiles[0].preview !== null;
+      deliveryOptions.some(option => 
+        option.name_en || 
+        option.name_fr || 
+        (option.areas && option.areas.length > 0) || 
+        option.estimated_days || 
+        option.fee
+      );
     
     if (hasChanges) {
       setShowCancelDialog(true);
@@ -207,18 +178,8 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
   // Step titles for progress bar - memoized to prevent unnecessary re-renders
   const steps = useMemo(() => [
     { id: '1', name: text.step1Title, number: 1 },
-    { id: '2', name: text.step2Title, number: 2 },
-    { id: '3', name: text.step3Title, number: 3 }
-  ], [text.step1Title, text.step2Title, text.step3Title]);
-  
-  // Image transformation for ImageUploadStep - memoized to prevent unnecessary re-renders
-  const transformedImages = useMemo(() => imageFiles.map(img => ({
-    url: img.url || '',
-    preview: img.preview || '',
-    progress: img.progress,
-    error: img.error,
-    file: img.file
-  })), [imageFiles]);
+    { id: '2', name: text.step2Title, number: 2 }
+  ], [text.step1Title, text.step2Title]);
   
   // Show loading state
   if (isLoading) {
@@ -246,16 +207,6 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
         )}
         
         {currentStep === 2 && (
-          <ImageUploadStep
-            images={transformedImages}
-            onChange={handleImagesChange}
-            errors={errors}
-            productId={productId}
-            isSaving={isSaving}
-          />
-        )}
-        
-        {currentStep === 3 && (
           <DeliveryOptionsStep
             options={deliveryOptions}
             onChange={handleDeliveryOptionsChange}
@@ -280,7 +231,7 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
         {/* Add form action buttons */}
         <FormActionButtons
           currentStep={currentStep}
-          totalSteps={3}
+          totalSteps={2}
           isSubmitting={isSubmitting}
           isSaving={isSaving}
           isSubmitDisabled={Object.keys(errors).length > 0}

@@ -78,7 +78,7 @@ const ProductApprovalWorkflow: React.FC<ProductApprovalWorkflowProps> = ({ class
       const { data, error } = await getPendingProducts();
       if (error) throw new Error(error);
       
-      setPendingProducts(data);
+      setPendingProducts(data || []);
     } catch (err) {
       console.error('Error loading pending products:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');

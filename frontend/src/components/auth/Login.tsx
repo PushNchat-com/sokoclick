@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
+import { useLanguage } from '../../store/LanguageContext';
+import ResponsiveImage from '../ui/ResponsiveImage';
 import logoImage from '../../assets/images/logo.svg';
 
 interface LocationState {
@@ -9,7 +11,7 @@ interface LocationState {
 }
 
 const Login: React.FC = () => {
-  const { signIn, isAuthenticated } = useAuth();
+  const { signIn, user } = useUnifiedAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as LocationState;
@@ -26,10 +28,10 @@ const Login: React.FC = () => {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, navigate]);
+  }, [user, navigate]);
 
   // Text content
   const text = {
@@ -111,7 +113,7 @@ const Login: React.FC = () => {
 
     try {
       setLoading(true);
-      const { user, error } = await signIn(email, password, rememberMe);
+      const { user, error } = await signIn(email, password);
       
       if (error) {
         setFormError(error);

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
 import { useLanguage } from '../../store/LanguageContext';
 import { validatePasswordStrength, validateResetToken, trackSecurityEvent } from '../../utils/securityUtils';
-import supabase from '../../services/supabase';
+import { supabase } from '../../services/supabase';
 
 const ResetPassword: React.FC = () => {
   const { t } = useLanguage();
-  const { updateUser, loading, error, clearError } = useAuth();
+  const { updateUser, loading, error, clearError } = useUnifiedAuth();
   const navigate = useNavigate();
   const location = useLocation();
   

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import supabase from './supabase';
+import { supabase } from './supabase';
 import type { PostgrestError } from '@supabase/postgrest-js';
 
 export interface Category {

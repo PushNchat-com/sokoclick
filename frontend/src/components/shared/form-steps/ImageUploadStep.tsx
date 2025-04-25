@@ -127,10 +127,14 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
       )}
       
       <BaseImageUpload
-        images={images.map((img, index) => ({
+        images={Array.isArray(images) ? images.map((img, index) => ({
           ...img,
-          progress: uploadProgress[index] !== undefined ? uploadProgress[index] : img.progress
-        }))}
+          progress: uploadProgress[index] !== undefined ? uploadProgress[index] : img?.progress || 0,
+          url: img?.url,
+          preview: img?.preview,
+          error: img?.error,
+          file: img?.file
+        })) : []}
         onChange={handleImageChange}
         disabled={isSaving || isUploading}
         showPreview={true}

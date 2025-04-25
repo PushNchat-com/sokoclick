@@ -318,7 +318,19 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
                     y: {
                       beginAtZero: true
                     }
-                  }
+                  },
+                  plugins: {
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          const label = context.dataset.label || '';
+                          const value = context.parsed.y;
+                          return `${label}: ${value}`;
+                        }
+                      }
+                    }
+                  },
+                  animation: false
                 }}
               />
             </div>
@@ -341,7 +353,19 @@ const AnalyticsComponent: React.FC<AnalyticsComponentProps> = ({
                     y: {
                       beginAtZero: true
                     }
-                  }
+                  },
+                  plugins: {
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          const label = context.dataset.label || '';
+                          const value = context.parsed.y;
+                          return `${label}: ${value}`;
+                        }
+                      }
+                    }
+                  },
+                  animation: false
                 }}
               />
             </div>

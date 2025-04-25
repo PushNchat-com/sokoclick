@@ -1,23 +1,32 @@
-import supabase from './supabase';
-import { UserProfile } from '../types/auth';
+import { supabase } from './supabase';
+import { handleServiceError, ServiceResponse, withRetry } from './serviceUtils';
 
+// Enums for consistent audit logging
 export enum AuditAction {
-  LOGIN = 'login',
-  LOGOUT = 'logout',
   CREATE = 'create',
   UPDATE = 'update',
   DELETE = 'delete',
-  VIEW = 'view',
   APPROVE = 'approve',
-  REJECT = 'reject'
+  REJECT = 'reject',
+  ASSIGN = 'assign',
+  UNASSIGN = 'unassign',
+  LOGIN = 'login',
+  LOGOUT = 'logout',
+  UPLOAD = 'upload',
+  DOWNLOAD = 'download',
+  VIEW = 'view'
 }
 
 export enum AuditResource {
-  ADMIN = 'admin',
-  USER = 'user',
   PRODUCT = 'product',
   SLOT = 'slot',
-  SETTING = 'setting'
+  DELIVERY_OPTION = 'delivery_option',
+  USER = 'user',
+  IMAGE = 'image',
+  ORDER = 'order',
+  SETTING = 'setting',
+  CUSTOMER = 'customer',
+  ADMIN = 'admin'
 }
 
 export interface AuditLogEntry {
@@ -26,8 +35,93 @@ export interface AuditLogEntry {
   action: string;
   resource: string;
   resource_id?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   created_at?: string;
+}
+
+/**
+ * Fetches audit logs with pagination and filtering options
+ */
+export async function fetchAuditLogs(options: {
+  page?: number;
+  pageSize?: number;
+  resource?: string;
+  action?: string;
+  userId?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<ServiceResponse<{ logs: AuditLogEntry[]; count: number }>> {
+  try {
+    const {
+      page = 1,
+      pageSize = 20,
+      resource,
+      action,
+      userId,
+      startDate,
+      endDate
+    } = options;
+
+    // Calculate pagination
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+
+    // Start building the query
+    let query = supabase
+      .from('admin_audit_logs')
+      .select('*', { count: 'exact' });
+
+    // Apply filters
+    if (resource) {
+      query = query.eq('resource', resource);
+    }
+
+    if (action) {
+      query = query.eq('action', action);
+    }
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    // Apply pagination and order
+    query = query
+      .order('created_at', { ascending: false })
+      .range(start, end);
+
+    // Execute the query with retry
+    const result = await withRetry(() => {
+      return Promise.resolve(query).then((response) => {
+        return {
+          data: response.data as AuditLogEntry[] | null,
+          error: response.error,
+          count: response.count
+        };
+      });
+    });
+
+    if (result.error) {
+      return handleServiceError(result.error, 'fetchAuditLogs');
+    }
+
+    return {
+      success: true,
+      data: {
+        logs: result.data || [],
+        count: result.count || 0
+      }
+    };
+  } catch (error) {
+    return handleServiceError(error, 'fetchAuditLogs');
+  }
 }
 
 /**
@@ -35,9 +129,9 @@ export interface AuditLogEntry {
  */
 export const logAdminAction = async (
   action: string,
-  resource: string,
+  resource: string = AuditResource.ADMIN, // Default resource to ADMIN to prevent null
   resourceId?: string,
-  details?: Record<string, any>
+  details?: Record<string, unknown>
 ): Promise<void> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
@@ -48,32 +142,33 @@ export const logAdminAction = async (
       return;
     }
 
+    // Ensure resource is never undefined/null by using a fallback value
+    const safeResource = resource || AuditResource.ADMIN;
+    
     const logEntry: AuditLogEntry = {
       user_id: userId,
       action,
-      resource,
+      resource: safeResource,
       resource_id: resourceId,
       details,
       created_at: new Date().toISOString()
     };
 
-    // To avoid recursion issues, we use the RPC method instead of direct table access
-    // This bypasses the problematic RLS policy
-    const { error } = await supabase.rpc('log_admin_action', {
-      log_entry: logEntry
-    });
-
+    // Just directly insert into the table instead of using RPC
+    // This is simpler and avoids the 404 error when the RPC doesn't exist
+    const { error } = await supabase
+      .from('admin_audit_logs')
+      .insert(logEntry);
+    
     if (error) {
-      // Fallback: If RPC method doesn't exist or fails, try direct insert with additional param to break recursion
-      const fallbackResult = await supabase
-        .from('admin_audit_logs')
-        .insert({ ...logEntry, skip_rls_check: true });
+      // Log any errors but don't block the UI
+      console.warn('Error logging admin action:', error);
       
-      if (fallbackResult.error) {
-        // If we still get an error, log it but don't block the UI
-        console.warn('Error logging admin action:', fallbackResult.error);
-        console.info('Admin Audit Log (not saved):', logEntry);
-      }
+      // If the table exists but we can't insert due to RLS, 
+      // log the information for debugging but don't break the app
+      console.info('Admin Audit Log (not saved):', logEntry);
+      
+      // Silence the error for the UI - audit logging should not block functionality
     }
   } catch (error) {
     // Log error but don't block UI functionality
@@ -115,5 +210,6 @@ export const getAuditLogs = async (
 
 export default {
   logAdminAction,
-  getAuditLogs
+  getAuditLogs,
+  fetchAuditLogs
 }; 

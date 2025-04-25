@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { useUsers, userService } from '../../services/users';
+import React, { useState, useEffect } from 'react';
+import { toast } from '../../utils/toast';
+import { getAllUsers, updateUserRole, deactivateUser, reactivateUser } from '../../services/users';
+import { useLanguage } from '../../store/LanguageContext';
+import { UserRole } from '../../types/auth';
 import BackToDashboard from './BackToDashboard';
 import UserMigrationHelper from './UserMigrationHelper';
 import rpcFunctions from '../../services/rpcFunctions';
-import { UserRole } from '../../services/auth';
 
 const UserManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');

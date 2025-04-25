@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import supabase from './supabase';
+import { supabase } from './supabase';
 import { PostgrestError } from '@supabase/postgrest-js';
 import { Product } from './products';
 import { Slot, SlotStatus } from './slots';

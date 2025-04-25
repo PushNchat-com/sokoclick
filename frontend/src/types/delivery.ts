@@ -9,6 +9,7 @@ export interface DeliveryOption {
 
 export interface DeliveryOptionInternal extends DeliveryOption {
   id?: string;
+  product_id?: string;
 }
 
 // Delivery status enum

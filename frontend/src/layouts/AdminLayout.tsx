@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import AdminErrorBoundary from '../components/admin/AdminErrorBoundary';
 import { useSessionTimeout } from '../hooks/useSessionTimeout';
-import { useAdminAuth } from '../contexts/AdminAuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import { logAdminAction, AuditAction, AuditResource } from '../services/auditLog';
 
-const AdminLayout: React.FC = () => {
-  const { user } = useAdminAuth();
+interface AdminLayoutProps {
+  children?: ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+  const { user } = useUnifiedAuth();
   
   // Initialize session timeout
   useSessionTimeout();
@@ -15,7 +19,6 @@ const AdminLayout: React.FC = () => {
   React.useEffect(() => {
     if (user) {
       logAdminAction(
-        user,
         AuditAction.VIEW,
         AuditResource.ADMIN,
         undefined,
@@ -27,7 +30,7 @@ const AdminLayout: React.FC = () => {
   return (
     <AdminErrorBoundary>
       <div className="min-h-screen bg-gray-100">
-              <Outlet />
+        {children || <Outlet />}
       </div>
     </AdminErrorBoundary>
   );

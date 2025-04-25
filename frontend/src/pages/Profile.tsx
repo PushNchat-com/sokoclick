@@ -1,10 +1,11 @@
 import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import { useLanguage } from '../store/LanguageContext';
 import { Navigate } from 'react-router-dom';
 
 const Profile: React.FC = () => {
-  const { user, loading, isAuthenticated, signOut } = useAuth();
+  const { user, loading, session, signOut } = useUnifiedAuth();
+  const isAuthenticated = !!session && !!user;
   const { t } = useLanguage();
 
   // Text content

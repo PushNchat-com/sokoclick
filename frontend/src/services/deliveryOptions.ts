@@ -1,4 +1,4 @@
-import supabase from './supabase';
+import { supabase } from './supabase';
 import { DeliveryOptionInternal } from '../types/delivery';
 
 // Helper function to create delivery options

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import supabase from './supabase';
+import { supabase } from './supabase';
 import type { PostgrestError } from '@supabase/postgrest-js';
 import { Product as BaseProduct } from '../types/product';
 import { DEFAULT_BUCKET } from './fileUpload';

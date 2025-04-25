@@ -30,6 +30,7 @@ export interface Product {
   condition: 'new' | 'used' | 'refurbished';
   image_urls: string[];
   slot_id?: string;
+  auction_slot_id?: number;
   seller_id: string;
   status: ProductStatus;
   created_at: string;

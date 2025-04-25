@@ -1,8 +1,7 @@
 import React, { Suspense, lazy, ComponentType } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './store/LanguageContext';
-import { AuthProvider } from './contexts/AuthContext';
-import { AdminAuthProvider } from './contexts/AdminAuthContext';
+import { UnifiedAuthProvider } from './contexts/UnifiedAuthContext';
 import { HelmetProvider } from 'react-helmet-async';
 import MainLayout from './layouts/MainLayout';
 import AdminLayout from './layouts/AdminLayout';
@@ -23,6 +22,7 @@ const AdminProductsPage = lazy(() => import('./pages/AdminProductsPage')) as Com
 const AboutPage = lazy(() => import('./pages/AboutPage')) as ComponentType;
 const FaqPage = lazy(() => import('./pages/FaqPage')) as ComponentType;
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage')) as ComponentType;
+const SlotUploadsPage = lazy(() => import('./pages/admin/SlotUploadsPage')) as ComponentType;
 
 // Auth Components - these are smaller and can be imported directly
 import Login from './components/auth/Login';
@@ -87,83 +87,98 @@ const AdminUnauthorizedPage = () => (
 // Define the App component
 const App: React.FC = () => {
   return (
-    <HelmetProvider>
-      <LanguageProvider>
-        <ErrorBoundary>
-          <Router>
-            <AuthProvider>
-              <AdminAuthProvider>
-                {/* Wrap everything in a single Suspense */}
-                <Suspense fallback={<LoadingFallback />}>
-                  {/* Combine all routes into a single Routes component */}
-                  <Routes>
-                    {/* User Routes */}
-                    <Route path="/" element={<MainLayout />}>
-                      <Route index element={<HomePage />} />
-                      <Route path="login" element={<Login />} />
-                      <Route path="signup" element={<Signup />} />
-                      <Route path="forgot-password" element={<ForgotPassword />} />
-                      <Route path="reset-password" element={<ResetPassword />} />
-                      {/* New public pages */}
-                      <Route path="about" element={<AboutPage />} />
-                      <Route path="faq" element={<FaqPage />} />
-                      <Route path="how-it-works" element={<HowItWorksPage />} />
-                      <Route
-                        path="dashboard"
-                        element={
-                          <PrivateRoute>
-                            <Dashboard />
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route
-                        path="profile"
-                        element={
-                          <PrivateRoute>
-                            <Profile />
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route path="product/:id" element={<ProductPage />} />
-                    </Route>
-                    
-                    {/* Admin login - standalone route */}
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    
-                    {/* Admin Routes */}
+    <ErrorBoundary componentName="App">
+      <HelmetProvider>
+        <LanguageProvider>
+          <UnifiedAuthProvider>
+            <Router>
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                  {/* User Routes */}
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<HomePage />} />
+                    <Route path="login" element={<Login />} />
+                    <Route path="signup" element={<Signup />} />
+                    <Route path="forgot-password" element={<ForgotPassword />} />
+                    <Route path="reset-password" element={<ResetPassword />} />
+                    {/* New public pages */}
+                    <Route path="about" element={<AboutPage />} />
+                    <Route path="faq" element={<FaqPage />} />
+                    <Route path="how-it-works" element={<HowItWorksPage />} />
                     <Route
-                      path="/admin"
+                      path="dashboard"
                       element={
-                        <AdminRoute>
-                          <AdminLayout />
-                        </AdminRoute>
+                        <PrivateRoute>
+                          <Dashboard />
+                        </PrivateRoute>
                       }
-                    >
-                      <Route index element={<AdminDashboard />} />
-                      <Route path="slots" element={<SlotManagement />} />
-                      <Route path="users" element={<UserManagement />} />
-                      <Route path="products" element={<AdminProductsPage />} />
-                      <Route path="products/create" element={<ProductForm />} />
-                      <Route path="products/new" element={<Navigate to="/admin/products/create" replace />} />
-                      <Route path="products/:id/edit" element={<ProductForm isEditing />} />
-                    </Route>
-                    
-                    {/* Error Pages */}
-                    <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                    <Route path="/admin/unauthorized" element={<AdminUnauthorizedPage />} />
-                    <Route path="*" element={<NotFoundPage />} />
-                  </Routes>
-                </Suspense>
-                
-                <Toast position="bottom-right" />
-              </AdminAuthProvider>
-            </AuthProvider>
-          </Router>
-        </ErrorBoundary>
-      </LanguageProvider>
-    </HelmetProvider>
+                    />
+                    <Route
+                      path="profile"
+                      element={
+                        <PrivateRoute>
+                          <Profile />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route path="product/:id" element={<ProductPage />} />
+                  </Route>
+                  
+                  {/* Admin login - standalone route */}
+                  <Route path="/admin/login" element={<AdminLogin />} />
+                  
+                  {/* Admin Routes with AdminRoute protection */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <AdminRoute>
+                        <AdminLayout />
+                      </AdminRoute>
+                    }
+                  >
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="slots" element={<SlotManagement />} />
+                    <Route path="slots/uploads" element={<SlotUploadsPage />} />
+                    <Route path="users" element={<UserManagement />} />
+                    <Route path="products" element={<AdminProductsPage />} />
+                    <Route path="products/create" element={<ProductForm />} />
+                    <Route path="products/new" element={<Navigate to="/admin/products/create" replace />} />
+                    <Route path="products/:id/edit" element={<ProductForm isEditing />} />
+                  </Route>
+                  
+                  {/* Error Pages */}
+                  <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                  <Route path="/admin/unauthorized" element={<AdminUnauthorizedPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </Suspense>
+              
+              <Toast position="bottom-right" />
+            </Router>
+          </UnifiedAuthProvider>
+        </LanguageProvider>
+      </HelmetProvider>
+    </ErrorBoundary>
   );
 };
+
+// Global unhandled error handler
+window.addEventListener('error', (event) => {
+  console.error('Unhandled error:', event.error);
+  // Display a toast for unhandled errors in production
+  if (process.env.NODE_ENV === 'production') {
+    toast.error('An unexpected error occurred. Please try again or contact support if the problem persists.');
+  }
+});
+
+// Global unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  // Display a toast for unhandled promise rejections in production
+  if (process.env.NODE_ENV === 'production') {
+    toast.error('An unexpected error occurred. Please try again or contact support if the problem persists.');
+  }
+});
 
 // Explicit default export
 export default App;

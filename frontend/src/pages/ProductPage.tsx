@@ -443,7 +443,7 @@ const ProductPage: React.FC<ProductPageProps> = ({ isAdmin = false }) => {
           ogType="product"
           ogImage={product.images[0].url}
           ogImageAlt={product.images[0].alt || product.title[language as 'en' | 'fr']}
-          jsonLd={productSchema}
+          jsonLd={productSchema || undefined}
         />
       )}
       
@@ -482,17 +482,17 @@ const ProductPage: React.FC<ProductPageProps> = ({ isAdmin = false }) => {
           {/* Status Badges */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {isNewListing && (
-              <Badge variant="primary" size="md">
+              <Badge variant="primary">
                 {language === 'en' ? 'New Listing' : 'Nouvelle Annonce'}
               </Badge>
             )}
             {isEndingSoon && (
-              <Badge variant="secondary" size="md">
+              <Badge variant="secondary">
                 {language === 'en' ? 'Ending Soon' : 'Se Termine Bientôt'}
               </Badge>
             )}
             {product.category && (
-              <Badge variant="info" size="md">
+              <Badge variant="outline">
                 {product.category}
               </Badge>
             )}
@@ -501,8 +501,7 @@ const ProductPage: React.FC<ProductPageProps> = ({ isAdmin = false }) => {
                 ? 'success' 
                 : product.condition === 'used' 
                   ? 'warning' 
-                  : 'info'} 
-              size="md"
+                  : 'default'} 
             >
               {localizedTexts.conditionTypes[product.condition][language as 'en' | 'fr']}
             </Badge>

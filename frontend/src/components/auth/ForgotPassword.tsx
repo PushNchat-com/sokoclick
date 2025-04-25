@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
 import { useLanguage } from '../../store/LanguageContext';
 
 const ForgotPassword: React.FC = () => {
   const { t } = useLanguage();
-  const { resetPassword, loading, error, clearError } = useAuth();
+  const { resetPassword, loading, error, clearError } = useUnifiedAuth();
   const [email, setEmail] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [formError, setFormError] = useState('');

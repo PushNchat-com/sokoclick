@@ -5,13 +5,15 @@ import SlotGridConnected from '../components/admin/SlotGridConnected';
 import ProductApprovalWorkflow from '../components/admin/ProductApprovalWorkflow';
 import AnalyticsComponent from '../components/admin/AnalyticsComponent';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-import { useAdminAuth } from '../contexts/AdminAuthContext';
+import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
 import { analyticsService } from '../services/analytics';
 import { toast } from '../utils/toast';
+import StorageInitializer from '../components/admin/StorageInitializer';
+import SlotImageUploader from '../components/admin/SlotImageUploader';
 
 const AdminDashboard: React.FC = () => {
   const { t } = useLanguage();
-  const { user } = useAdminAuth();
+  const { user } = useUnifiedAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'approvals' | 'analytics' | 'products'>('overview');
   
@@ -54,7 +56,8 @@ const AdminDashboard: React.FC = () => {
     },
     error: {
       loadingMetrics: { en: 'Error loading metrics', fr: 'Erreur lors du chargement des métriques' }
-    }
+    },
+    adminTools: { en: 'Admin Tools', fr: 'Outils d\'administration' }
   };
   
   // Mock activity data
@@ -307,6 +310,20 @@ const AdminDashboard: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Admin Tools Section */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">{t(text.adminTools)}</h2>
+        
+        {/* Storage Management Tool */}
+        <StorageInitializer />
+        
+        {/* Slot Image Uploader */}
+        <SlotImageUploader />
+        
+        {/* Other admin tools */}
+        {/* ... */}
+      </div>
     </div>
   );
 };

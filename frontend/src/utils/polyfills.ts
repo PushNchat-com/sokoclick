@@ -1,21 +1,25 @@
 // Type augmentations for window object
 interface Window {
-  IntersectionObserver?: typeof IntersectionObserver;
-  ResizeObserver?: typeof ResizeObserver;
+  IntersectionObserver: typeof IntersectionObserver;
+  ResizeObserver: typeof ResizeObserver;
 }
+
+// Import polyfills statically instead of dynamically
+import IntersectionObserverPolyfill from 'intersection-observer';
+import ResizeObserverPolyfill from 'resize-observer-polyfill';
 
 // IntersectionObserver polyfill
 if (typeof window !== 'undefined' && !('IntersectionObserver' in window)) {
-  import('intersection-observer').then(() => {
-    console.log('IntersectionObserver polyfill loaded');
-  });
+  // Load polyfill synchronously
+  (window as any).IntersectionObserver = IntersectionObserverPolyfill;
+  console.log('IntersectionObserver polyfill loaded');
 }
 
 // ResizeObserver polyfill
 if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
-  import('resize-observer-polyfill').then(() => {
-    console.log('ResizeObserver polyfill loaded');
-  });
+  // Load polyfill synchronously
+  (window as any).ResizeObserver = ResizeObserverPolyfill;
+  console.log('ResizeObserver polyfill loaded');
 }
 
 // closest polyfill with proper typing
