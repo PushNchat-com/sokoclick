@@ -1,7 +1,13 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+} from "react";
 
 // Define supported languages
-export type Language = 'en' | 'fr';
+export type Language = "en" | "fr";
 
 // Define text translation object type
 export type TranslationObject = {
@@ -19,7 +25,7 @@ interface LanguageContextType {
 
 // Create context with default values
 const LanguageContext = createContext<LanguageContextType>({
-  language: 'en',
+  language: "en",
   setLanguage: () => {},
   toggleLanguage: () => {},
   t: (textObj: TranslationObject) => textObj.en,
@@ -32,53 +38,53 @@ interface LanguageProviderProps {
 }
 
 // Language Provider component
-export const LanguageProvider: React.FC<LanguageProviderProps> = ({ 
-  children, 
-  defaultLanguage = 'en' 
+export const LanguageProvider: React.FC<LanguageProviderProps> = ({
+  children,
+  defaultLanguage = "en",
 }) => {
   // Get language from localStorage or use default
   const [language, setLanguageState] = useState<Language>(() => {
-    if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('language') as Language;
+    if (typeof window !== "undefined") {
+      const savedLanguage = localStorage.getItem("language") as Language;
       return savedLanguage || defaultLanguage;
     }
     return defaultLanguage;
   });
-  
+
   // Set language and save to localStorage
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('language', lang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("language", lang);
     }
   };
-  
+
   // Add toggle language function
   const toggleLanguage = () => {
-    const newLanguage: Language = language === 'en' ? 'fr' : 'en';
+    const newLanguage: Language = language === "en" ? "fr" : "en";
     setLanguage(newLanguage);
   };
-  
+
   // Translation function
   const t = (textObj: TranslationObject): string => {
-    if (!textObj) return '';
-    return textObj[language] || textObj.en || '';
+    if (!textObj) return "";
+    return textObj[language] || textObj.en || "";
   };
-  
+
   // Update document lang attribute when language changes
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       document.documentElement.lang = language;
     }
   }, [language]);
-  
+
   const value = {
     language,
     setLanguage,
     toggleLanguage,
     t,
   };
-  
+
   return (
     <LanguageContext.Provider value={value}>
       {children}
@@ -90,9 +96,24 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
   if (context === undefined) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
+    throw new Error("useLanguage must be used within a LanguageProvider");
   }
   return context;
 };
 
-export default LanguageContext; 
+// Helper functions for getting text in current language
+export const getCurrentLanguage = (): Language => {
+  if (typeof window !== "undefined") {
+    const savedLanguage = localStorage.getItem("language") as Language;
+    return savedLanguage || "en";
+  }
+  return "en";
+};
+
+export const getCurrentLanguageText = (textObj: TranslationObject): string => {
+  const lang = getCurrentLanguage();
+  if (!textObj) return "";
+  return textObj[lang] || textObj.en || "";
+};
+
+export default LanguageContext;

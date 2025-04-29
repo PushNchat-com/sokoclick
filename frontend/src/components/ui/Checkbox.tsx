@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -7,7 +7,7 @@ interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 const Checkbox: React.FC<CheckboxProps> = ({
   label,
-  className = '',
+  className = "",
   id,
   ...props
 }) => {
@@ -20,7 +20,10 @@ const Checkbox: React.FC<CheckboxProps> = ({
         {...props}
       />
       {label && (
-        <label htmlFor={id} className="ml-2 block text-sm text-gray-700 cursor-pointer">
+        <label
+          htmlFor={id}
+          className="ml-2 block text-sm text-gray-700 cursor-pointer"
+        >
           {label}
         </label>
       )}
@@ -28,4 +31,4 @@ const Checkbox: React.FC<CheckboxProps> = ({
   );
 };
 
-export default Checkbox; 
+export default Checkbox;

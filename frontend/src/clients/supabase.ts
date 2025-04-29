@@ -1,7 +1,7 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from "../services/supabase";
 
 // Re-export the supabase client
 export { supabase };
 
 // For testing purposes
-export const getSupabaseClient = () => supabase; 
+export const getSupabaseClient = () => supabase;

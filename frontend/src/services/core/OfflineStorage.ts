@@ -1,15 +1,20 @@
-import { ServiceResponse, ServiceErrorType, createSuccessResponse, createErrorResponse } from './ServiceResponse';
-import { networkStatus } from './NetworkStatus';
-import React, { useEffect } from 'react';
+import {
+  ServiceResponse,
+  ServiceErrorType,
+  createSuccessResponse,
+  createErrorResponse,
+} from "./ServiceResponse";
+import { networkStatus } from "./NetworkStatus";
+import React, { useEffect } from "react";
 
 /**
  * Pending operation types
  */
 export enum PendingOperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  BATCH = 'batch'
+  CREATE = "create",
+  UPDATE = "update",
+  DELETE = "delete",
+  BATCH = "batch",
 }
 
 /**
@@ -42,13 +47,13 @@ interface OfflineStorageOptions {
  * Default options
  */
 const DEFAULT_OPTIONS: OfflineStorageOptions = {
-  dbName: 'sokoclick_offline',
+  dbName: "sokoclick_offline",
   version: 1,
-  pendingOperationsStore: 'pendingOperations',
+  pendingOperationsStore: "pendingOperations",
   entityStores: [
-    { name: 'slots', keyPath: 'id' },
-    { name: 'products', keyPath: 'id' }
-  ]
+    { name: "slots", keyPath: "id" },
+    { name: "products", keyPath: "id" },
+  ],
 };
 
 /**
@@ -83,8 +88,8 @@ class OfflineStorageService {
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Failed to initialize offline storage',
-        error
+        "Failed to initialize offline storage",
+        error,
       );
     }
   }
@@ -121,7 +126,7 @@ class OfflineStorageService {
       const request = indexedDB.open(this.options.dbName, this.options.version);
 
       request.onerror = () => {
-        reject(new Error('Failed to open offline database'));
+        reject(new Error("Failed to open offline database"));
       };
 
       request.onsuccess = () => {
@@ -132,12 +137,16 @@ class OfflineStorageService {
         const db = request.result;
 
         // Create the pending operations store
-        if (!db.objectStoreNames.contains(this.options.pendingOperationsStore)) {
-          db.createObjectStore(this.options.pendingOperationsStore, { keyPath: 'id' });
+        if (
+          !db.objectStoreNames.contains(this.options.pendingOperationsStore)
+        ) {
+          db.createObjectStore(this.options.pendingOperationsStore, {
+            keyPath: "id",
+          });
         }
 
         // Create the entity stores
-        this.options.entityStores.forEach(store => {
+        this.options.entityStores.forEach((store) => {
           if (!db.objectStoreNames.contains(store.name)) {
             db.createObjectStore(store.name, { keyPath: store.keyPath });
           }
@@ -151,7 +160,7 @@ class OfflineStorageService {
    */
   async storeEntity<T>(
     storeName: string,
-    data: T
+    data: T,
   ): Promise<ServiceResponse<T>> {
     if (!this.db) {
       await this.initialize();
@@ -160,13 +169,13 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(storeName, 'readwrite');
+        const transaction = this.db!.transaction(storeName, "readwrite");
         const store = transaction.objectStore(storeName);
         const request = store.put(data);
 
@@ -175,17 +184,19 @@ class OfflineStorageService {
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            `Failed to store ${storeName} data`
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              `Failed to store ${storeName} data`,
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
         `Error storing ${storeName} data`,
-        error
+        error,
       );
     }
   }
@@ -195,7 +206,7 @@ class OfflineStorageService {
    */
   async getEntity<T>(
     storeName: string,
-    id: string | number
+    id: string | number,
   ): Promise<ServiceResponse<T>> {
     if (!this.db) {
       await this.initialize();
@@ -204,13 +215,13 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(storeName, 'readonly');
+        const transaction = this.db!.transaction(storeName, "readonly");
         const store = transaction.objectStore(storeName);
         const request = store.get(id);
 
@@ -218,25 +229,29 @@ class OfflineStorageService {
           if (request.result) {
             resolve(createSuccessResponse(request.result));
           } else {
-            resolve(createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              `${storeName} with id ${id} not found in offline storage`
-            ));
+            resolve(
+              createErrorResponse(
+                ServiceErrorType.NOT_FOUND,
+                `${storeName} with id ${id} not found in offline storage`,
+              ),
+            );
           }
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            `Failed to retrieve ${storeName} data`
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              `Failed to retrieve ${storeName} data`,
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
         `Error retrieving ${storeName} data`,
-        error
+        error,
       );
     }
   }
@@ -252,13 +267,13 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(storeName, 'readonly');
+        const transaction = this.db!.transaction(storeName, "readonly");
         const store = transaction.objectStore(storeName);
         const request = store.getAll();
 
@@ -267,17 +282,19 @@ class OfflineStorageService {
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            `Failed to retrieve all ${storeName} data`
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              `Failed to retrieve all ${storeName} data`,
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
         `Error retrieving all ${storeName} data`,
-        error
+        error,
       );
     }
   }
@@ -286,7 +303,7 @@ class OfflineStorageService {
    * Store a pending operation
    */
   async storePendingOperation<T>(
-    operation: Omit<PendingOperation<T>, 'id' | 'timestamp' | 'retryCount'>
+    operation: Omit<PendingOperation<T>, "id" | "timestamp" | "retryCount">,
   ): Promise<ServiceResponse<PendingOperation<T>>> {
     if (!this.db) {
       await this.initialize();
@@ -295,7 +312,7 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
@@ -303,13 +320,18 @@ class OfflineStorageService {
       ...operation,
       id: `${operation.entityType}_${operation.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
-      retryCount: 0
+      retryCount: 0,
     };
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(this.options.pendingOperationsStore, 'readwrite');
-        const store = transaction.objectStore(this.options.pendingOperationsStore);
+        const transaction = this.db!.transaction(
+          this.options.pendingOperationsStore,
+          "readwrite",
+        );
+        const store = transaction.objectStore(
+          this.options.pendingOperationsStore,
+        );
         const request = store.add(pendingOp);
 
         request.onsuccess = () => {
@@ -317,17 +339,19 @@ class OfflineStorageService {
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            'Failed to store pending operation'
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              "Failed to store pending operation",
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Error storing pending operation',
-        error
+        "Error storing pending operation",
+        error,
       );
     }
   }
@@ -343,34 +367,43 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(this.options.pendingOperationsStore, 'readonly');
-        const store = transaction.objectStore(this.options.pendingOperationsStore);
+        const transaction = this.db!.transaction(
+          this.options.pendingOperationsStore,
+          "readonly",
+        );
+        const store = transaction.objectStore(
+          this.options.pendingOperationsStore,
+        );
         const request = store.getAll();
 
         request.onsuccess = () => {
           // Sort by timestamp (oldest first)
-          const operations = request.result.sort((a, b) => a.timestamp - b.timestamp);
+          const operations = request.result.sort(
+            (a, b) => a.timestamp - b.timestamp,
+          );
           resolve(createSuccessResponse(operations));
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            'Failed to retrieve pending operations'
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              "Failed to retrieve pending operations",
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Error retrieving pending operations',
-        error
+        "Error retrieving pending operations",
+        error,
       );
     }
   }
@@ -386,14 +419,19 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(this.options.pendingOperationsStore, 'readwrite');
-        const store = transaction.objectStore(this.options.pendingOperationsStore);
+        const transaction = this.db!.transaction(
+          this.options.pendingOperationsStore,
+          "readwrite",
+        );
+        const store = transaction.objectStore(
+          this.options.pendingOperationsStore,
+        );
         const request = store.delete(id);
 
         request.onsuccess = () => {
@@ -401,17 +439,19 @@ class OfflineStorageService {
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            'Failed to delete pending operation'
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              "Failed to delete pending operation",
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Error deleting pending operation',
-        error
+        "Error deleting pending operation",
+        error,
       );
     }
   }
@@ -420,7 +460,7 @@ class OfflineStorageService {
    * Update a pending operation (e.g., to increment retry count)
    */
   async updatePendingOperation<T>(
-    operation: PendingOperation<T>
+    operation: PendingOperation<T>,
   ): Promise<ServiceResponse<PendingOperation<T>>> {
     if (!this.db) {
       await this.initialize();
@@ -429,14 +469,19 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(this.options.pendingOperationsStore, 'readwrite');
-        const store = transaction.objectStore(this.options.pendingOperationsStore);
+        const transaction = this.db!.transaction(
+          this.options.pendingOperationsStore,
+          "readwrite",
+        );
+        const store = transaction.objectStore(
+          this.options.pendingOperationsStore,
+        );
         const request = store.put(operation);
 
         request.onsuccess = () => {
@@ -444,17 +489,19 @@ class OfflineStorageService {
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            'Failed to update pending operation'
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              "Failed to update pending operation",
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Error updating pending operation',
-        error
+        "Error updating pending operation",
+        error,
       );
     }
   }
@@ -467,7 +514,7 @@ class OfflineStorageService {
     if (!networkStatus.isOnline()) {
       return createErrorResponse(
         ServiceErrorType.OFFLINE_ERROR,
-        'Cannot sync while offline'
+        "Cannot sync while offline",
       );
     }
 
@@ -475,7 +522,7 @@ class OfflineStorageService {
     if (this.pendingSync) {
       return createErrorResponse(
         ServiceErrorType.VALIDATION_ERROR,
-        'Sync already in progress'
+        "Sync already in progress",
       );
     }
 
@@ -483,35 +530,41 @@ class OfflineStorageService {
 
     try {
       const pendingOpsResponse = await this.getPendingOperations();
-      
-      if (!pendingOpsResponse.success || !pendingOpsResponse.data || pendingOpsResponse.data.length === 0) {
+
+      if (
+        !pendingOpsResponse.success ||
+        !pendingOpsResponse.data ||
+        pendingOpsResponse.data.length === 0
+      ) {
         this.pendingSync = false;
         return createSuccessResponse();
       }
 
       const pendingOps = pendingOpsResponse.data;
-      
+
       // Process each pending operation
       // For now, just log them - in a real implementation,
       // you'd send these to your API and handle success/failure
-      console.log('Syncing pending operations:', pendingOps);
-      
+      console.log("Syncing pending operations:", pendingOps);
+
       for (const operation of pendingOps) {
         // This would be replaced with actual API calls
-        console.log(`Processing operation: ${operation.type} for ${operation.entityType}`);
-        
+        console.log(
+          `Processing operation: ${operation.type} for ${operation.entityType}`,
+        );
+
         // Example implementation (pseudo-code)
         try {
           // Simulate API call
           // const result = await apiClient.syncOperation(operation);
-          
+
           // If successful, remove the operation
           await this.deletePendingOperation(operation.id);
         } catch (error) {
           // If failed, increment retry count
           operation.retryCount++;
           await this.updatePendingOperation(operation);
-          
+
           // Stop processing if we encounter an error
           break;
         }
@@ -523,8 +576,8 @@ class OfflineStorageService {
       this.pendingSync = false;
       return createErrorResponse(
         ServiceErrorType.UNKNOWN_ERROR,
-        'Error during sync process',
-        error
+        "Error during sync process",
+        error,
       );
     }
   }
@@ -540,13 +593,13 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       return await new Promise((resolve) => {
-        const transaction = this.db!.transaction(storeName, 'readwrite');
+        const transaction = this.db!.transaction(storeName, "readwrite");
         const store = transaction.objectStore(storeName);
         const request = store.clear();
 
@@ -555,17 +608,19 @@ class OfflineStorageService {
         };
 
         request.onerror = () => {
-          resolve(createErrorResponse(
-            ServiceErrorType.STORAGE_ERROR,
-            `Failed to clear ${storeName} store`
-          ));
+          resolve(
+            createErrorResponse(
+              ServiceErrorType.STORAGE_ERROR,
+              `Failed to clear ${storeName} store`,
+            ),
+          );
         };
       });
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
         `Error clearing ${storeName} store`,
-        error
+        error,
       );
     }
   }
@@ -581,25 +636,25 @@ class OfflineStorageService {
     if (!this.db) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Offline database not available'
+        "Offline database not available",
       );
     }
 
     try {
       // Clear pending operations
       await this.clearEntityStore(this.options.pendingOperationsStore);
-      
+
       // Clear all entity stores
       for (const store of this.options.entityStores) {
         await this.clearEntityStore(store.name);
       }
-      
+
       return createSuccessResponse();
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
-        'Error clearing all offline data',
-        error
+        "Error clearing all offline data",
+        error,
       );
     }
   }
@@ -609,14 +664,14 @@ class OfflineStorageService {
    */
   async getPendingOperationCount(): Promise<ServiceResponse<number>> {
     const response = await this.getPendingOperations();
-    
+
     if (!response.success) {
       return createErrorResponse(
         response.error?.type || ServiceErrorType.UNKNOWN_ERROR,
-        response.error?.message || 'Failed to get pending operation count'
+        response.error?.message || "Failed to get pending operation count",
       );
     }
-    
+
     return createSuccessResponse(response.data?.length || 0);
   }
 }
@@ -634,4 +689,4 @@ export function useOfflineStorage() {
   }, []);
 
   return offlineStorage;
-} 
+}

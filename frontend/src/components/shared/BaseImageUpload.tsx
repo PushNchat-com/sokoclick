@@ -1,7 +1,7 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { useLanguage } from '../../store/LanguageContext';
-import { ImageFile, IMAGE_CONSTRAINTS, validateImage } from '../../types/image';
-import { compressImage } from '../../utils/imageCompression';
+import React, { useCallback, useRef, useState } from "react";
+import { useLanguage } from "../../store/LanguageContext";
+import { ImageFile, IMAGE_CONSTRAINTS, validateImage } from "../../types/image";
+import { compressImage } from "../../utils/imageTools";
 
 interface BaseImageUploadProps {
   images: ImageFile[];
@@ -22,29 +22,43 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
   maxImages = IMAGE_CONSTRAINTS.maxImages,
   disabled = false,
   showPreview = true,
-  className = '',
+  className = "",
   onUpload,
   maxRetries = 3,
   onRetry,
-  retryLabel
+  retryLabel,
 }) => {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [retryQueue, setRetryQueue] = useState<{ file: File; retries: number }[]>([]);
+  const [retryQueue, setRetryQueue] = useState<
+    { file: File; retries: number }[]
+  >([]);
   const [retrying, setRetrying] = useState<number | null>(null);
 
   // Text content
   const text = {
-    dragHere: { en: 'Drag & drop images here or click to browse', fr: 'Glissez-déposez des images ici ou cliquez pour parcourir' },
-    addImage: { en: 'Add Image', fr: 'Ajouter une image' },
-    maxSizeInfo: { en: `Max file size: ${IMAGE_CONSTRAINTS.maxSize / (1024 * 1024)}MB`, fr: `Taille maximale: ${IMAGE_CONSTRAINTS.maxSize / (1024 * 1024)}Mo` },
-    supportedFormats: { en: 'Supported formats: JPG, PNG, WebP', fr: 'Formats supportés: JPG, PNG, WebP' },
-    uploadingImage: { en: 'Uploading...', fr: 'Téléchargement...' },
-    retrying: { en: 'Retrying...', fr: 'Nouvelle tentative...' },
-    retry: { en: 'Retry', fr: 'Réessayer' },
-    remove: { en: 'Remove', fr: 'Supprimer' },
-    compressionError: { en: 'Error compressing image', fr: 'Erreur de compression de l\'image' }
+    dragHere: {
+      en: "Drag & drop images here or click to browse",
+      fr: "Glissez-déposez des images ici ou cliquez pour parcourir",
+    },
+    addImage: { en: "Add Image", fr: "Ajouter une image" },
+    maxSizeInfo: {
+      en: `Max file size: ${IMAGE_CONSTRAINTS.maxSize / (1024 * 1024)}MB`,
+      fr: `Taille maximale: ${IMAGE_CONSTRAINTS.maxSize / (1024 * 1024)}Mo`,
+    },
+    supportedFormats: {
+      en: "Supported formats: JPG, PNG, WebP",
+      fr: "Formats supportés: JPG, PNG, WebP",
+    },
+    uploadingImage: { en: "Uploading...", fr: "Téléchargement..." },
+    retrying: { en: "Retrying...", fr: "Nouvelle tentative..." },
+    retry: { en: "Retry", fr: "Réessayer" },
+    remove: { en: "Remove", fr: "Supprimer" },
+    compressionError: {
+      en: "Error compressing image",
+      fr: "Erreur de compression de l'image",
+    },
   };
 
   // Process upload queue
@@ -56,11 +70,13 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
 
     if (nextItem.retries >= maxRetries) {
       // Update image with error
-      onChange(images.map(img => 
-        img.file === nextItem.file 
-          ? { ...img, error: 'Max retries exceeded', progress: 0 }
-          : img
-      ));
+      onChange(
+        images.map((img) =>
+          img.file === nextItem.file
+            ? { ...img, error: "Max retries exceeded", progress: 0 }
+            : img,
+        ),
+      );
       return;
     }
 
@@ -68,87 +84,106 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
       // Attempt upload
       if (onUpload) {
         const { url } = await onUpload(nextItem.file);
-        onChange(images.map(img =>
-          img.file === nextItem.file
-            ? { ...img, url, progress: 100, error: null }
-            : img
-        ));
+        onChange(
+          images.map((img) =>
+            img.file === nextItem.file
+              ? { ...img, url, progress: 100, error: null }
+              : img,
+          ),
+        );
       }
     } catch (error) {
       // Add back to queue with incremented retry count
-      setRetryQueue([...remainingQueue, { ...nextItem, retries: nextItem.retries + 1 }]);
+      setRetryQueue([
+        ...remainingQueue,
+        { ...nextItem, retries: nextItem.retries + 1 },
+      ]);
     }
   }, [retryQueue, maxRetries, onUpload, images, onChange]);
 
   // Handle file selection
-  const handleFileSelect = useCallback(async (files: FileList | null) => {
-    if (!files || disabled) return;
+  const handleFileSelect = useCallback(
+    async (files: FileList | null) => {
+      if (!files || disabled) return;
 
-    const newFiles = Array.from(files);
-    if (images.length + newFiles.length > maxImages) {
-      alert(t({
-        en: `You can upload a maximum of ${maxImages} images`,
-        fr: `Vous pouvez télécharger un maximum de ${maxImages} images`
-      }));
-      return;
-    }
-
-    // Process each file
-    for (const file of newFiles) {
-      const validation = validateImage(file);
-      if (!validation.valid) {
-        alert(t({ en: validation.error!, fr: validation.error! }));
-        continue;
+      const newFiles = Array.from(files);
+      if (images.length + newFiles.length > maxImages) {
+        alert(
+          t({
+            en: `You can upload a maximum of ${maxImages} images`,
+            fr: `Vous pouvez télécharger un maximum de ${maxImages} images`,
+          }),
+        );
+        return;
       }
 
-      try {
-        // Compress image before upload
-        const compressedFile = await compressImage(file, {
-          maxSizeMB: IMAGE_CONSTRAINTS.maxSize / (1024 * 1024),
-          maxWidthOrHeight: 1920
-        });
-
-        // Create preview URL
-        const preview = URL.createObjectURL(compressedFile);
-        const newImage: ImageFile = {
-          file: compressedFile,
-          preview,
-          progress: 0,
-          error: null
-        };
-
-        const updatedImages = [...images, newImage];
-        onChange(updatedImages);
-
-        // Attempt upload if handler provided
-        if (onUpload) {
-          try {
-            const { url } = await onUpload(compressedFile);
-            onChange(updatedImages.map(img =>
-              img === newImage
-                ? { ...img, url, progress: 100 }
-                : img
-            ));
-          } catch (error) {
-            // Add to retry queue
-            setRetryQueue(prev => [...prev, { file: compressedFile, retries: 0 }]);
-            onChange(updatedImages.map(img =>
-              img === newImage
-                ? { ...img, error: 'Upload failed, retrying...', progress: 0 }
-                : img
-            ));
-          }
+      // Process each file
+      for (const file of newFiles) {
+        const validation = validateImage(file);
+        if (!validation.valid) {
+          alert(t({ en: validation.error!, fr: validation.error! }));
+          continue;
         }
-      } catch (error) {
-        alert(t(text.compressionError));
+
+        try {
+          // Compress image before upload
+          const compressedFile = await compressImage(file, {
+            maxSizeMB: IMAGE_CONSTRAINTS.maxSize / (1024 * 1024),
+            maxWidthOrHeight: 1920,
+          });
+
+          // Create preview URL
+          const preview = URL.createObjectURL(compressedFile);
+          const newImage: ImageFile = {
+            file: compressedFile,
+            preview,
+            progress: 0,
+            error: null,
+          };
+
+          const updatedImages = [...images, newImage];
+          onChange(updatedImages);
+
+          // Attempt upload if handler provided
+          if (onUpload) {
+            try {
+              const { url } = await onUpload(compressedFile);
+              onChange(
+                updatedImages.map((img) =>
+                  img === newImage ? { ...img, url, progress: 100 } : img,
+                ),
+              );
+            } catch (error) {
+              // Add to retry queue
+              setRetryQueue((prev) => [
+                ...prev,
+                { file: compressedFile, retries: 0 },
+              ]);
+              onChange(
+                updatedImages.map((img) =>
+                  img === newImage
+                    ? {
+                        ...img,
+                        error: "Upload failed, retrying...",
+                        progress: 0,
+                      }
+                    : img,
+                ),
+              );
+            }
+          }
+        } catch (error) {
+          alert(t(text.compressionError));
+        }
       }
-    }
-  }, [images, maxImages, disabled, onChange, onUpload, t]);
+    },
+    [images, maxImages, disabled, onChange, onUpload, t],
+  );
 
   // Handle manual retry
   const handleRetryClick = async (index: number) => {
     if (!onRetry || retrying !== null || disabled) return;
-    
+
     setRetrying(index);
     try {
       await onRetry(index);
@@ -161,45 +196,53 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+
+    if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type === "dragleave") {
       setDragActive(false);
     }
   }, []);
 
   // Handle drop
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelect(e.dataTransfer.files);
-    }
-  }, [handleFileSelect]);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFileSelect(e.dataTransfer.files);
+      }
+    },
+    [handleFileSelect],
+  );
 
   // Handle remove image
-  const handleRemoveImage = useCallback((index: number) => {
-    if (disabled) return;
+  const handleRemoveImage = useCallback(
+    (index: number) => {
+      if (disabled) return;
 
-    const newImages = [...images];
-    const image = newImages[index];
+      const newImages = [...images];
+      const image = newImages[index];
 
-    // Revoke object URL to prevent memory leaks
-    if (image.preview && image.preview.startsWith('blob:')) {
-      URL.revokeObjectURL(image.preview);
-    }
+      // Revoke object URL to prevent memory leaks
+      if (image.preview && image.preview.startsWith("blob:")) {
+        URL.revokeObjectURL(image.preview);
+      }
 
-    // Remove from retry queue if present
-    if (image.file) {
-      setRetryQueue(prev => prev.filter(item => item.file !== image.file));
-    }
+      // Remove from retry queue if present
+      if (image.file) {
+        setRetryQueue((prev) =>
+          prev.filter((item) => item.file !== image.file),
+        );
+      }
 
-    newImages.splice(index, 1);
-    onChange(newImages);
-  }, [images, disabled, onChange]);
+      newImages.splice(index, 1);
+      onChange(newImages);
+    },
+    [images, disabled, onChange],
+  );
 
   // Process retry queue when it changes
   React.useEffect(() => {
@@ -211,8 +254,8 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
   // Cleanup on unmount
   React.useEffect(() => {
     return () => {
-      images.forEach(image => {
-        if (image.preview && image.preview.startsWith('blob:')) {
+      images.forEach((image) => {
+        if (image.preview && image.preview.startsWith("blob:")) {
           URL.revokeObjectURL(image.preview);
         }
       });
@@ -233,7 +276,10 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
                 <>
                   <img
                     src={image.preview || image.url!}
-                    alt={t({ en: `Image ${index + 1}`, fr: `Image ${index + 1}` })}
+                    alt={t({
+                      en: `Image ${index + 1}`,
+                      fr: `Image ${index + 1}`,
+                    })}
                     className="w-full h-full object-cover"
                   />
                   {image.progress > 0 && image.progress < 100 && (
@@ -255,7 +301,9 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
                           disabled={disabled || retrying === index}
                           className="px-3 py-1 bg-white text-red-600 rounded text-xs font-medium hover:bg-red-50 focus:outline-none disabled:opacity-50"
                         >
-                          {retrying === index ? t(text.retrying) : retryLabel || t(text.retry)}
+                          {retrying === index
+                            ? t(text.retrying)
+                            : retryLabel || t(text.retry)}
                         </button>
                       )}
                     </div>
@@ -280,8 +328,8 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
       {images.length < maxImages && (
         <div
           className={`border-2 border-dashed rounded-lg p-6 text-center ${
-            dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
+          } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
@@ -294,7 +342,7 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
             ref={fileInputRef}
             type="file"
             multiple
-            accept={IMAGE_CONSTRAINTS.allowedTypes.join(',')}
+            accept={IMAGE_CONSTRAINTS.allowedTypes.join(",")}
             className="hidden"
             onChange={(e) => handleFileSelect(e.target.files)}
             disabled={disabled}
@@ -310,4 +358,4 @@ export const BaseImageUpload: React.FC<BaseImageUploadProps> = ({
   );
 };
 
-export default BaseImageUpload; 
+export default BaseImageUpload;

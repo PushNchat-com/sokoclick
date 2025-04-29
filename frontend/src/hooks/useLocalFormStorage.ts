@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ProductFormData } from '../types/product';
-import { ImageFile } from '../types/image';
-import { DeliveryOptionInternal } from '../types/delivery';
+import { useState, useEffect } from "react";
+import { ProductFormData } from "../types/product";
+import { ImageFile } from "../types/image";
+import { DeliveryOptionInternal } from "../types/delivery";
 
-const STORAGE_KEY_PREFIX = 'sokoclick_product_form';
+const STORAGE_KEY_PREFIX = "sokoclick_product_form";
 
 interface StoredFormState {
   formData: ProductFormData;
@@ -22,7 +22,7 @@ interface UseLocalFormStorageProps {
 export const useLocalFormStorage = ({
   formId,
   isEditing,
-  expirationHours = 24
+  expirationHours = 24,
 }: UseLocalFormStorageProps) => {
   const storageKey = `${STORAGE_KEY_PREFIX}_${formId}`;
   const [initialized, setInitialized] = useState(false);
@@ -34,7 +34,7 @@ export const useLocalFormStorage = ({
       if (!stored) return null;
 
       const parsedState = JSON.parse(stored) as StoredFormState;
-      
+
       // Check if stored state has expired
       const now = Date.now();
       const expirationTime = expirationHours * 60 * 60 * 1000; // Convert hours to milliseconds
@@ -45,26 +45,34 @@ export const useLocalFormStorage = ({
 
       // Ensure imageFiles is always an array
       if (!Array.isArray(parsedState.imageFiles)) {
-        parsedState.imageFiles = [{ file: null, preview: undefined, url: undefined, progress: 0, error: null }];
+        parsedState.imageFiles = [
+          {
+            file: null,
+            preview: undefined,
+            url: undefined,
+            progress: 0,
+            error: null,
+          },
+        ];
       }
 
       return parsedState;
     } catch (error) {
-      console.error('Error loading stored form state:', error);
+      console.error("Error loading stored form state:", error);
       return null;
     }
   };
 
   // Save current form state
-  const saveFormState = (state: Omit<StoredFormState, 'lastUpdated'>) => {
+  const saveFormState = (state: Omit<StoredFormState, "lastUpdated">) => {
     try {
       const stateToStore: StoredFormState = {
         ...state,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
       };
       localStorage.setItem(storageKey, JSON.stringify(stateToStore));
     } catch (error) {
-      console.error('Error saving form state:', error);
+      console.error("Error saving form state:", error);
     }
   };
 
@@ -73,7 +81,7 @@ export const useLocalFormStorage = ({
     try {
       localStorage.removeItem(storageKey);
     } catch (error) {
-      console.error('Error clearing stored form state:', error);
+      console.error("Error clearing stored form state:", error);
     }
   };
 
@@ -81,7 +89,7 @@ export const useLocalFormStorage = ({
   const checkStoredState = (): StoredFormState | null => {
     // Don't restore state for editing existing products
     if (isEditing) return null;
-    
+
     return loadStoredState();
   };
 
@@ -92,7 +100,7 @@ export const useLocalFormStorage = ({
         const now = Date.now();
         const expirationTime = expirationHours * 60 * 60 * 1000;
 
-        Object.keys(localStorage).forEach(key => {
+        Object.keys(localStorage).forEach((key) => {
           if (key.startsWith(STORAGE_KEY_PREFIX)) {
             try {
               const stored = localStorage.getItem(key);
@@ -109,7 +117,7 @@ export const useLocalFormStorage = ({
           }
         });
       } catch (error) {
-        console.error('Error cleaning up expired states:', error);
+        console.error("Error cleaning up expired states:", error);
       }
     };
 
@@ -121,6 +129,6 @@ export const useLocalFormStorage = ({
     clearStoredState,
     checkStoredState,
     initialized,
-    setInitialized
+    setInitialized,
   };
-}; 
+};

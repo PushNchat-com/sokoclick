@@ -1,130 +1,169 @@
-import React from 'react';
-import { twMerge } from 'tailwind-merge';
-import { InfoIcon, RefreshIcon } from './Icons';
-import { Button } from './Button';
+import React from "react";
+import { twMerge } from "tailwind-merge";
+import { useLanguage } from "../../store/LanguageContext";
+import {
+  formatErrorMessage,
+  translateTechnicalError,
+} from "../../utils/formatMessage";
+
+// Icons
+export const InfoIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+    {...props}
+  >
+    <path
+      fillRule="evenodd"
+      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+
+export const RefreshIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+    {...props}
+  >
+    <path
+      fillRule="evenodd"
+      d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
 
 export interface ErrorMessageProps {
   /**
-   * Error message to display
+   * Error message or error object to display
    */
-  message: string;
-  
+  message: string | Error;
+
   /**
-   * Optional callback to retry the failed operation
+   * Optional title to display above the error message
+   */
+  title?: string;
+
+  /**
+   * Callback when retry button is clicked
    */
   onRetry?: () => void;
-  
+
   /**
-   * Optional custom classname for styling
+   * CSS class name for the error message container
    */
   className?: string;
-  
+
   /**
    * Variant of the error message
    */
-  variant?: 'inline' | 'block' | 'toast';
-  
-  /**
-   * Title for the error message (only used in block variant)
-   */
-  title?: string;
+  variant?: "inline" | "toast" | "banner";
 }
 
 /**
- * Reusable error message component that displays an error with optional retry functionality
+ * Standardized error message component that follows the pattern:
+ * [What happened] because [Why]. To fix, [How].
  */
 const ErrorMessage: React.FC<ErrorMessageProps> = ({
   message,
+  title,
   onRetry,
   className,
-  variant = 'inline',
-  title = 'Error',
+  variant = "inline",
 }) => {
-  // Inline variant (simple text with icon)
-  if (variant === 'inline') {
+  const { t } = useLanguage();
+
+  // Convert Error object to string if needed
+  const errorMessage = message instanceof Error ? message.message : message;
+
+  // Determine error type and get standardized message
+  const errorType = translateTechnicalError(errorMessage);
+  const formattedMessage = t(formatErrorMessage(errorType));
+
+  // If it's an inline error (form field, etc.)
+  if (variant === "inline") {
     return (
-      <div 
-        className={twMerge(
-          "text-red-600 text-sm flex items-center gap-1.5",
-          className
-        )}
-        role="alert"
-      >
-        <InfoIcon className="w-4 h-4" />
-        <span>{message}</span>
-        {onRetry && (
-          <button
-            onClick={onRetry}
-            className="ml-2 text-red-700 hover:text-red-900 hover:underline flex items-center gap-1"
-            aria-label="Retry"
-          >
-            <RefreshIcon className="w-3 h-3" />
-            <span>Retry</span>
-          </button>
-        )}
+      <div className={twMerge("text-sm text-red-600", className)} role="alert">
+        {formattedMessage}
       </div>
     );
   }
-  
-  // Block variant (for section errors)
-  if (variant === 'block') {
+
+  // If it's a banner error (page-level)
+  if (variant === "banner") {
     return (
-      <div 
+      <div
         className={twMerge(
-          "bg-red-50 border border-red-200 rounded-md p-4",
-          className
+          "bg-red-50 border-l-4 border-red-400 p-4",
+          className,
         )}
         role="alert"
       >
+        {title && (
+          <h3 className="text-lg font-medium text-red-800 mb-2">{title}</h3>
+        )}
+
         <div className="flex items-start">
-          <InfoIcon className="w-5 h-5 text-red-500 mt-0.5" />
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">{title}</h3>
-            <div className="mt-1 text-sm text-red-700">{message}</div>
+          <InfoIcon className="w-5 h-5 text-red-400 mt-0.5 mr-3" />
+          <div>
+            <p className="text-sm text-red-700">{formattedMessage}</p>
+
             {onRetry && (
-              <div className="mt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRetry}
-                  className="inline-flex items-center"
-                >
-                  <RefreshIcon className="w-4 h-4 mr-1.5" />
-                  Try again
-                </Button>
-              </div>
+              <button
+                onClick={onRetry}
+                className="mt-3 inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <RefreshIcon
+                  className="-ml-1 mr-2 h-4 w-4"
+                  aria-hidden="true"
+                />
+                {t({
+                  en: "Try again",
+                  fr: "Réessayer",
+                })}
+              </button>
             )}
           </div>
         </div>
       </div>
     );
   }
-  
+
   // Toast variant (for notification errors)
   return (
-    <div 
+    <div
       className={twMerge(
         "bg-white shadow-md border-l-4 border-red-500 rounded-r-md p-3",
-        className
+        className,
       )}
       role="alert"
     >
       <div className="flex items-center">
-        <InfoIcon className="w-5 h-5 text-red-500" />
-        <p className="ml-2 text-sm text-gray-800">{message}</p>
+        <InfoIcon className="w-5 h-5 text-red-500 mr-2" />
+        <p className="text-sm text-gray-800">{formattedMessage}</p>
       </div>
       {onRetry && (
         <button
           onClick={onRetry}
           className="mt-2 text-xs text-red-600 hover:text-red-800 hover:underline flex items-center"
-          aria-label="Retry"
+          aria-label={t({
+            en: "Try again",
+            fr: "Réessayer",
+          })}
         >
           <RefreshIcon className="w-3 h-3 mr-1" />
-          Try again
+          {t({
+            en: "Try again",
+            fr: "Réessayer",
+          })}
         </button>
       )}
     </div>
   );
 };
 
-export default ErrorMessage; 
+export default ErrorMessage;

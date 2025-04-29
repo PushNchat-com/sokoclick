@@ -1,19 +1,19 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { Product } from '../types/Product';
-import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
-import { useDeleteProduct } from '../hooks/useDeleteProduct';
-import { formatCurrency } from '../utils/formatters';
-import { toast } from 'react-hot-toast';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { Product } from "../types/Product";
+import { Badge } from "./ui/Badge";
+import { Button } from "./ui/Button";
+import { useDeleteProduct } from "../hooks/useDeleteProduct";
+import { formatCurrency } from "../utils/formatters";
+import { toast } from "react-hot-toast";
 
 interface AdminProductListProps {
   products: Product[];
   onRefresh: () => void;
 }
 
-export const AdminProductList: React.FC<AdminProductListProps> = ({ 
+export const AdminProductList: React.FC<AdminProductListProps> = ({
   products,
   onRefresh,
 }) => {
@@ -29,10 +29,10 @@ export const AdminProductList: React.FC<AdminProductListProps> = ({
     try {
       setDeletingId(productId);
       await deleteProduct(productId);
-      toast.success('Product deleted successfully');
+      toast.success("Product deleted successfully");
       onRefresh();
     } catch (_error) {
-      toast.error('Failed to delete product');
+      toast.error("Failed to delete product");
     } finally {
       setDeletingId(null);
     }
@@ -43,11 +43,36 @@ export const AdminProductList: React.FC<AdminProductListProps> = ({
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inventory</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Product
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Status
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Price
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Inventory
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -57,9 +82,9 @@ export const AdminProductList: React.FC<AdminProductListProps> = ({
                 <div className="flex items-center">
                   <div className="h-10 w-10 rounded-md bg-gray-100 flex-shrink-0">
                     {product.images && product.images.length > 0 ? (
-                      <img 
-                        src={product.images[0]} 
-                        alt={product.name} 
+                      <img
+                        src={product.images[0]}
+                        alt={product.name}
                         className="h-10 w-10 rounded-md object-cover"
                       />
                     ) : (
@@ -69,16 +94,18 @@ export const AdminProductList: React.FC<AdminProductListProps> = ({
                     )}
                   </div>
                   <div className="ml-4">
-                    <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {product.name}
+                    </div>
                     <div className="text-sm text-gray-500">{product.id}</div>
                   </div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <Badge 
-                  variant={product.status === 'active' ? 'success' : 'warning'}
+                <Badge
+                  variant={product.status === "active" ? "success" : "warning"}
                 >
-                  {product.status === 'active' ? 'Active' : 'Draft'}
+                  {product.status === "active" ? "Active" : "Draft"}
                 </Badge>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -89,7 +116,7 @@ export const AdminProductList: React.FC<AdminProductListProps> = ({
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex space-x-2">
-                  <Button 
+                  <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEdit(product.id)}
@@ -114,4 +141,4 @@ export const AdminProductList: React.FC<AdminProductListProps> = ({
       </table>
     </div>
   );
-}; 
+};

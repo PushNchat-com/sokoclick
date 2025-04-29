@@ -2,15 +2,15 @@
  * Standard error types for service operations
  */
 export enum ServiceErrorType {
-  NOT_FOUND = 'NOT_FOUND',
-  ALREADY_EXISTS = 'ALREADY_EXISTS',
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  PERMISSION_DENIED = 'PERMISSION_DENIED',
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  DATABASE_ERROR = 'DATABASE_ERROR',
-  STORAGE_ERROR = 'STORAGE_ERROR',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
-  OFFLINE_ERROR = 'OFFLINE_ERROR'
+  NOT_FOUND = "NOT_FOUND",
+  ALREADY_EXISTS = "ALREADY_EXISTS",
+  VALIDATION_ERROR = "VALIDATION_ERROR",
+  PERMISSION_DENIED = "PERMISSION_DENIED",
+  NETWORK_ERROR = "NETWORK_ERROR",
+  DATABASE_ERROR = "DATABASE_ERROR",
+  STORAGE_ERROR = "STORAGE_ERROR",
+  UNKNOWN_ERROR = "UNKNOWN_ERROR",
+  OFFLINE_ERROR = "OFFLINE_ERROR",
 }
 
 /**
@@ -49,17 +49,17 @@ export interface BatchOperationResult<T = void, I = number> {
  * Create a standardized error response
  */
 export function createErrorResponse<T = void>(
-  type: ServiceErrorType, 
+  type: ServiceErrorType,
   message: string,
-  details?: unknown
+  details?: unknown,
 ): ServiceResponse<T> {
   return {
     success: false,
     error: {
       type,
       message,
-      details
-    }
+      details,
+    },
   };
 }
 
@@ -68,12 +68,12 @@ export function createErrorResponse<T = void>(
  */
 export function createSuccessResponse<T = void>(
   data?: T,
-  pendingSync: boolean = false
+  pendingSync: boolean = false,
 ): ServiceResponse<T> {
   return {
     success: true,
     data,
-    pendingSync
+    pendingSync,
   };
 }
 
@@ -85,14 +85,14 @@ export interface BaseService {
    * Check if the service is online
    */
   isOnline(): boolean;
-  
+
   /**
    * Initialize the service
    */
   initialize(): Promise<ServiceResponse>;
-  
+
   /**
    * Clear any cached data
    */
   clearCache?(): Promise<ServiceResponse>;
-} 
+}

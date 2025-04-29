@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Category } from '../types/category';
+import { useState, useEffect } from "react";
+import { Category } from "../types/category";
 
 export const useCategories = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -10,11 +10,13 @@ export const useCategories = () => {
     const fetchCategories = async () => {
       try {
         // TODO: Replace with actual API call
-        const response = await fetch('/api/categories');
+        const response = await fetch("/api/categories");
         const data = await response.json();
         setCategories(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch categories');
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch categories",
+        );
       } finally {
         setLoading(false);
       }
@@ -24,4 +26,4 @@ export const useCategories = () => {
   }, []);
 
   return { categories, loading, error };
-}; 
+};

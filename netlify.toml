@@ -17,7 +17,7 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://www.google-analytics.com; frame-src 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com/@babel/ https://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.supabase.io https://identitytoolkit.googleapis.com https://www.google-analytics.com; frame-src 'self'"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 # Cache static assets

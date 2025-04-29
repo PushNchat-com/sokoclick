@@ -1,37 +1,37 @@
-import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import React from "react";
+import { twMerge } from "tailwind-merge";
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   className?: string;
-  variant?: 'light' | 'dark';
+  variant?: "light" | "dark";
   fullScreen?: boolean;
   text?: string;
 }
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
-  size = 'md',
-  className = '',
-  variant = 'dark',
+  size = "md",
+  className = "",
+  variant = "dark",
   fullScreen = false,
-  text
+  text,
 }) => {
   const sizeClasses = {
-    sm: 'h-4 w-4',
-    md: 'h-8 w-8',
-    lg: 'h-12 w-12'
+    sm: "h-4 w-4",
+    md: "h-8 w-8",
+    lg: "h-12 w-12",
   };
 
   const variantClasses = {
-    light: 'text-white',
-    dark: 'text-gray-600'
+    light: "text-white",
+    dark: "text-gray-600",
   };
 
   const spinnerClasses = twMerge(
-    'animate-spin',
+    "animate-spin",
     sizeClasses[size],
     variantClasses[variant],
-    className
+    className,
   );
 
   const spinner = (
@@ -77,4 +77,4 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   );
 };
 
-export default LoadingSpinner; 
+export default LoadingSpinner;

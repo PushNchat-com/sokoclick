@@ -1,24 +1,24 @@
-import React from 'react';
+import React from "react";
 
 interface SpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   color?: string;
   className?: string;
 }
 
 const Spinner: React.FC<SpinnerProps> = ({
-  size = 'md',
-  color = 'currentColor',
-  className = '',
+  size = "md",
+  color = "currentColor",
+  className = "",
 }) => {
   const sizeMap = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8',
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
   };
 
   const sizeClass = sizeMap[size] || sizeMap.md;
-  
+
   return (
     <svg
       className={`animate-spin ${sizeClass} ${className}`}
@@ -43,4 +43,4 @@ const Spinner: React.FC<SpinnerProps> = ({
   );
 };
 
-export default Spinner; 
+export default Spinner;

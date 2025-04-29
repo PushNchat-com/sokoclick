@@ -13,10 +13,11 @@
 
 /* Shimmer loading effect for image placeholders */
 .shimmer-placeholder {
-  background: linear-gradient(90deg, 
-    rgba(0,0,0,0.06) 0%, 
-    rgba(0,0,0,0.12) 50%, 
-    rgba(0,0,0,0.06) 100%
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 0%,
+    rgba(0, 0, 0, 0.12) 50%,
+    rgba(0, 0, 0, 0.06) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -132,4 +133,4 @@
 
 .lazy-image.loaded {
   opacity: 1;
-} 
+}

@@ -1,16 +1,15 @@
-import { supabase } from '../lib/supabaseClient';
+/**
+ * @deprecated This file is deprecated. Use the centralized client from './supabase/index.ts'.
+ *
+ * Re-exporting from the new centralized location to maintain backward compatibility.
+ * This file will be removed in a future update.
+ */
 
-// Re-export the supabase client
-export { supabase };
-
-// Helper function to check if the user is authenticated
-export const isAuthenticated = async () => {
-  const { data } = await supabase.auth.getSession();
-  return !!data.session;
-};
-
-// Helper to get current user
-export const getCurrentUser = async () => {
-  const { data } = await supabase.auth.getUser();
-  return data.user;
-};
+export {
+  supabase,
+  isAuthenticated,
+  getCurrentUser,
+  testConnection,
+  checkConnectionHealth,
+  monitorConnection,
+} from "./supabase/index";

@@ -1,11 +1,10 @@
-@import '@styles/variables.css';
+@import "@styles/variables.css";
+/* Import custom styles */
+@import "styles/imageStyles.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import custom styles */
-@import 'styles/imageStyles.css';
 
 @layer base {
   :root {
@@ -31,17 +30,17 @@
   }
 
   /* Touch-friendly input styles */
-  input, 
-  button, 
-  select, 
+  input,
+  button,
+  select,
   textarea {
     @apply focus:outline-none;
     touch-action: manipulation;
   }
 
   /* Ensure large enough tap targets for mobile */
-  button, 
-  a, 
+  button,
+  a,
   [role="button"] {
     min-height: 44px;
     min-width: 44px;
@@ -78,7 +77,9 @@
 @layer utilities {
   /* Prevent content jump on fade in */
   .min-h-screen-safe {
-    min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: calc(
+      100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
   }
 
   /* Responsive container for auth forms */
@@ -95,34 +96,76 @@
 
 /* Animation keyframes */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes slideInRight {
-  from { transform: translateX(20px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes slideInLeft {
-  from { transform: translateX(-20px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes slideDown {
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-5px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(5px);
+  }
 }
 
 /* Dark mode support */
@@ -130,11 +173,11 @@
   .dark\:bg-gray-900 {
     @apply bg-gray-900;
   }
-  
+
   .dark\:text-white {
     @apply text-white;
   }
-  
+
   .dark\:border-gray-700 {
     @apply border-gray-700;
   }

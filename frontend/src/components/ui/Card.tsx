@@ -1,52 +1,83 @@
-import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import React from "react";
+import { twMerge } from "tailwind-merge";
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
 export const Card: React.FC<CardProps> = ({ className, ...props }) => (
-  <div className={twMerge('rounded-lg border border-gray-200 bg-white shadow-sm', className)} {...props} />
+  <div
+    className={twMerge(
+      "rounded-lg border border-gray-200 bg-white shadow-sm",
+      className,
+    )}
+    {...props}
+  />
 );
 
 export interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({ className, ...props }) => (
-  <div className={twMerge('flex flex-col space-y-1.5 p-6', className)} {...props} />
+export const CardHeader: React.FC<CardHeaderProps> = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={twMerge("flex flex-col space-y-1.5 p-6", className)}
+    {...props}
+  />
 );
 
-export interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
+export interface CardTitleProps
+  extends React.HTMLAttributes<HTMLHeadingElement> {
   className?: string;
 }
 
-export const CardTitle: React.FC<CardTitleProps> = ({ className, ...props }) => (
-  <h3 className={twMerge('text-xl font-semibold leading-none tracking-tight', className)} {...props} />
+export const CardTitle: React.FC<CardTitleProps> = ({
+  className,
+  ...props
+}) => (
+  <h3
+    className={twMerge(
+      "text-xl font-semibold leading-none tracking-tight",
+      className,
+    )}
+    {...props}
+  />
 );
 
-export interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {
+export interface CardDescriptionProps
+  extends React.HTMLAttributes<HTMLParagraphElement> {
   className?: string;
 }
 
-export const CardDescription: React.FC<CardDescriptionProps> = ({ className, ...props }) => (
-  <p className={twMerge('text-sm text-gray-500', className)} {...props} />
-);
+export const CardDescription: React.FC<CardDescriptionProps> = ({
+  className,
+  ...props
+}) => <p className={twMerge("text-sm text-gray-500", className)} {...props} />;
 
 export interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
-export const CardContent: React.FC<CardContentProps> = ({ className, ...props }) => (
-  <div className={twMerge('p-6 pt-0', className)} {...props} />
-);
+export const CardContent: React.FC<CardContentProps> = ({
+  className,
+  ...props
+}) => <div className={twMerge("p-6 pt-0", className)} {...props} />;
 
 export interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
-export const CardFooter: React.FC<CardFooterProps> = ({ className, ...props }) => (
-  <div className={twMerge('flex items-center p-6 pt-0', className)} {...props} />
+export const CardFooter: React.FC<CardFooterProps> = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={twMerge("flex items-center p-6 pt-0", className)}
+    {...props}
+  />
 );
 
 // ProductCard specific component (based on Card)
@@ -64,19 +95,22 @@ const ProductCard: React.FC<ProductCardProps> = ({
   price,
   imageUrl,
   onClick,
-  className = '',
+  className = "",
   badges,
 }) => {
   return (
-    <Card 
-      className={twMerge('flex flex-col h-full overflow-hidden shadow-md hover:shadow-lg', className)}
+    <Card
+      className={twMerge(
+        "flex flex-col h-full overflow-hidden shadow-md hover:shadow-lg",
+        className,
+      )}
       onClick={onClick}
     >
       <div className="relative h-48 overflow-hidden">
-        <img 
-          src={imageUrl} 
-          alt={title} 
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+        <img
+          src={imageUrl}
+          alt={title}
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
         {badges && badges.length > 0 && (
           <div className="absolute top-2 left-2 flex flex-wrap gap-1">
@@ -90,9 +124,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <h3 className="text-base font-medium mb-1 line-clamp-2">{title}</h3>
         <div className="mt-auto">
           <p className="text-lg font-bold text-green-600">
-            {typeof price === 'number' 
-              ? `₦${price.toLocaleString()}`
-              : price}
+            {typeof price === "number" ? `₦${price.toLocaleString()}` : price}
           </p>
         </div>
       </div>

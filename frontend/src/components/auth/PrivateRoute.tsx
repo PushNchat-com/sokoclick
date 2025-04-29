@@ -1,7 +1,7 @@
-import React, { ReactElement } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
-import { UserRole } from '../../types/auth';
+import React, { ReactElement } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { useUnifiedAuth } from "../../contexts/UnifiedAuthContext";
+import { UserRole } from "../../types/auth";
 
 interface PrivateRouteProps {
   children: ReactElement;
@@ -17,11 +17,11 @@ interface PrivateRouteProps {
  * @param redirectTo - Custom redirect path for unauthorized users (defaults to /login)
  * @param fallback - Custom loading component (uses default if not provided)
  */
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ 
-  children, 
+const PrivateRoute: React.FC<PrivateRouteProps> = ({
+  children,
   requiredRoles = [],
-  redirectTo = '/login',
-  fallback
+  redirectTo = "/login",
+  fallback,
 }): ReactElement => {
   const { user, isAuthenticated, loading } = useUnifiedAuth();
   const location = useLocation();
@@ -31,7 +31,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
     if (fallback) {
       return fallback;
     }
-    
+
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
@@ -45,13 +45,15 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   // Redirect if not authenticated
   if (!isAuthenticated) {
     // Save the location they were trying to visit for redirection after login
-    return <Navigate to={redirectTo} state={{ from: location.pathname }} replace />;
+    return (
+      <Navigate to={redirectTo} state={{ from: location.pathname }} replace />
+    );
   }
 
   // Check if specific roles are required and if user has one of them
   if (requiredRoles.length > 0 && user) {
     const hasRequiredRole = requiredRoles.includes(user.role);
-    
+
     if (!hasRequiredRole) {
       // Redirect to unauthorized page for authenticated users without required role
       return <Navigate to="/unauthorized" replace />;
@@ -61,4 +63,4 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   return children;
 };
 
-export default PrivateRoute; 
+export default PrivateRoute;

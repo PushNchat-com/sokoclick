@@ -1,6 +1,5 @@
 export default {
   plugins: {
-    'tailwindcss': {},
     'postcss-import': {},
     'postcss-preset-env': {
       features: {
@@ -9,6 +8,7 @@ export default {
         'media-query-ranges': true,
       },
     },
+    'tailwindcss': {},
     'autoprefixer': {},
     ...(process.env.NODE_ENV === 'production'
       ? {

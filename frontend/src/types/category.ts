@@ -1,4 +1,4 @@
-import { Product } from './product';
+import { Product } from "./product";
 
 export interface Category {
   id: string;
@@ -14,4 +14,4 @@ export interface CategoryWithProducts extends Category {
   products?: Product[];
 }
 
-export type CategoryId = Category['id']; 
+export type CategoryId = Category["id"];

@@ -1,4 +1,5 @@
-import { Session } from '@supabase/supabase-js';
+import { Session } from "@supabase/supabase-js";
+import { Tables, Enums } from "./supabase-types";
 
 export interface LocalizedMessage {
   en: string;
@@ -6,46 +7,56 @@ export interface LocalizedMessage {
 }
 
 export enum UserRole {
-  CUSTOMER = 'customer',
-  SELLER = 'seller',
-  ADMIN = 'admin',
-  SUPER_ADMIN = 'super_admin',
-  CONTENT_MODERATOR = 'content_moderator',
-  ANALYTICS_VIEWER = 'analytics_viewer',
-  CUSTOMER_SUPPORT = 'customer_support'
+  SUPER_ADMIN = "super_admin",
+  ADMIN = "admin",
+  SELLER = "seller",
+  CUSTOMER = "customer"
 }
 
-export interface UserProfile {
-  id: string;
-  email: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  role: UserRole;
-  permissions?: string[];
-  lastLogin?: Date;
-  isAdmin?: boolean; // Flag to easily identify admin vs regular user
-}
+export type AuthUserProfile = Pick<
+  Tables<"users">,
+  | "id"
+  | "email"
+  | "name"
+  | "whatsapp_number"
+  | "role"
+  | "is_verified"
+  | "verification_level"
+>;
 
 export interface UserMetadata {
-  firstName?: string;
-  lastName?: string;
   name?: string;
-  phone?: string;
-  role?: UserRole;
+  whatsapp_number?: string;
+  role?: Tables<"users">["role"];
 }
 
 export interface AuthResponse {
-  user: UserProfile | null;
+  user: AuthUserProfile | null;
   session: Session | null;
   error: string | null;
 }
 
-export type AuthStateChangeCallback = (session: Session | null, user: UserProfile | null) => void;
+export type AuthStateChangeCallback = (
+  event: "SIGNED_IN" | "SIGNED_OUT" | "TOKEN_REFRESHED" | null,
+  session: Session | null,
+) => void | Promise<void>;
+
+export interface AuthState {
+  user: AuthUserProfile | null;
+  session: Session | null;
+  loading: boolean;
+  error: string | null;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+}
 
 export interface SecurityEvent {
-  event_type: 'login' | 'logout' | 'password_reset' | 'signup' | 'password_change';
+  event_type:
+    | "login"
+    | "logout"
+    | "password_reset"
+    | "signup"
+    | "password_change";
   timestamp: string;
   metadata: Record<string, any>;
 }
@@ -68,4 +79,4 @@ export interface ResetPasswordToken {
   email: string;
   expires_at: Date;
   used: boolean;
-} 
+}

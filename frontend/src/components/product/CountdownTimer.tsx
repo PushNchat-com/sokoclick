@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ClockIcon } from '../ui/Icons';
+import React, { useState, useEffect } from "react";
+import { ClockIcon } from "../ui/Icons";
 
 interface CountdownTimerProps {
   endTime: Date;
@@ -10,7 +10,7 @@ interface CountdownTimerProps {
 const CountdownTimer: React.FC<CountdownTimerProps> = ({
   endTime,
   onComplete,
-  className = '',
+  className = "",
 }) => {
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
@@ -18,19 +18,19 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     minutes: number;
     seconds: number;
   }>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  
+
   const [isCompleted, setIsCompleted] = useState(false);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
       const difference = endTime.getTime() - new Date().getTime();
-      
+
       if (difference <= 0) {
         setIsCompleted(true);
         if (onComplete) onComplete();
         return { days: 0, hours: 0, minutes: 0, seconds: 0 };
       }
-      
+
       return {
         days: Math.floor(difference / (1000 * 60 * 60 * 24)),
         hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
@@ -41,16 +41,18 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
     // Initial calculation
     setTimeLeft(calculateTimeLeft());
-    
+
     // Update every second
     const timer = setInterval(() => {
       const newTimeLeft = calculateTimeLeft();
       setTimeLeft(newTimeLeft);
-      
-      if (newTimeLeft.days === 0 && 
-          newTimeLeft.hours === 0 && 
-          newTimeLeft.minutes === 0 && 
-          newTimeLeft.seconds === 0) {
+
+      if (
+        newTimeLeft.days === 0 &&
+        newTimeLeft.hours === 0 &&
+        newTimeLeft.minutes === 0 &&
+        newTimeLeft.seconds === 0
+      ) {
         clearInterval(timer);
       }
     }, 1000);
@@ -81,15 +83,19 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
         <span className="text-xs ml-1">h</span>
       </div>
       <div className="flex items-center">
-        <span className="font-semibold">{formatTimeUnit(timeLeft.minutes)}</span>
+        <span className="font-semibold">
+          {formatTimeUnit(timeLeft.minutes)}
+        </span>
         <span className="text-xs ml-1">m</span>
       </div>
       <div className="flex items-center">
-        <span className="font-semibold">{formatTimeUnit(timeLeft.seconds)}</span>
+        <span className="font-semibold">
+          {formatTimeUnit(timeLeft.seconds)}
+        </span>
         <span className="text-xs ml-1">s</span>
       </div>
     </div>
   );
 };
 
-export default CountdownTimer; 
+export default CountdownTimer;

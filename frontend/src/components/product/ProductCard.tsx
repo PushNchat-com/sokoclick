@@ -1,124 +1,192 @@
-import React from 'react';
-import { useLanguage } from '../../store/LanguageContext';
-import { Product } from '../../services/products';
+import React from "react";
+import { useLanguage } from "@/store/LanguageContext";
+import { Slot } from "@/services/slots";
+import { focusStyles } from "@/components/ui/design-system/accessibility";
+import ProductCategoryIcon from "./ProductCategoryIcon";
+import { ClockIcon, LocationIcon } from "@/components/ui/Icons";
+import { formatDistanceToNowStrict } from "date-fns";
+import { enUS, fr } from "date-fns/locale";
 
 interface ProductCardProps {
-  product: Product;
+  slot: Slot;
   isAdmin?: boolean;
   className?: string;
-  currentLanguage?: 'en' | 'fr';
+  currentLanguage?: "en" | "fr";
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
-  product,
+  slot,
   isAdmin = false,
-  className = '',
-  currentLanguage
+  className = "",
+  currentLanguage,
 }) => {
   const { language: contextLanguage, t } = useLanguage();
   const language = currentLanguage || contextLanguage;
 
-  const mainImage = product.image_urls[0] || '/placeholder-product.jpg';
-  const title = language === 'en' ? product.name_en : product.name_fr;
-  const description = language === 'en' ? product.description_en : product.description_fr;
+  const mainImage =
+    slot.live_product_image_urls?.[0] || "/placeholder-product.jpg";
+  const title =
+    language === "en" ? slot.live_product_name_en : slot.live_product_name_fr;
+  const description =
+    language === "en"
+      ? slot.live_product_description_en
+      : slot.live_product_description_fr;
+  const categoryName = slot.live_product_categories?.[0] || "";
+  const categoryIdForIcon = categoryName;
 
-  // Format end date
   const formatTimeRemaining = () => {
-    if (!product.end_date) return '';
-    
+    if (!slot.end_time) return "";
+
     const now = new Date();
-    const endDate = new Date(product.end_date);
+    const endDate = new Date(slot.end_time);
     const diffMs = endDate.getTime() - now.getTime();
-    
+
     if (diffMs <= 0) {
       return t({
-        en: 'Ended',
-        fr: 'Terminé'
+        en: "Ended",
+        fr: "Terminé",
       });
     }
-    
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (diffHours > 0) {
-      return t({
-        en: `${diffHours}h ${diffMinutes}m left`,
-        fr: `${diffHours}h ${diffMinutes}m restant`
+
+    try {
+      return formatDistanceToNowStrict(endDate, {
+        addSuffix: true,
+        locale: language === "fr" ? fr : enUS,
       });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date";
     }
-    return t({
-      en: `${diffMinutes}m left`,
-      fr: `${diffMinutes}m restant`
-    });
   };
 
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log("Edit slot:", slot.id);
+  };
+
+  const handleCardKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      console.log("Navigate to slot detail:", slot.id);
+    }
+  };
+
+  const sellerName =
+    slot.live_product_seller?.name ||
+    t({ en: "Unknown Seller", fr: "Vendeur Inconnu" });
+
   return (
-    <div 
+    <div
       className={`
-        product-card relative flex flex-col
+        product-card relative flex flex-col h-full
         bg-white rounded-lg shadow-sm border border-gray-200
         overflow-hidden transition-shadow hover:shadow-md
+        focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
         ${className}
       `}
+      tabIndex={0}
+      role="article"
+      aria-label={title || "Product Card"}
+      onKeyDown={handleCardKeyPress}
+      style={focusStyles.keyboard}
     >
-      <div className="relative aspect-w-4 aspect-h-3">
+      {categoryName && (
+        <div className="absolute top-2 left-2 z-10">
+          <ProductCategoryIcon
+            categoryId={categoryIdForIcon}
+            categoryName={categoryName}
+            size="sm"
+          />
+        </div>
+      )}
+
+      <div className="relative aspect-w-4 aspect-h-3 flex-shrink-0">
         <img
           src={mainImage}
-          alt={title}
+          alt={
+            title ||
+            t({
+              en: "Product image",
+              fr: "Image du produit",
+            })
+          }
           className="object-cover w-full h-full"
           loading="lazy"
         />
-        {product.is_featured && (
+        {slot.featured && (
           <div className="absolute top-2 right-2">
-            <span className="bg-secondary-500 text-white px-2 py-1 rounded-md text-sm font-medium">
+            <span
+              className="bg-secondary-500 text-white px-2 py-1 rounded-md text-sm font-medium"
+              aria-label={t({
+                en: "Featured product",
+                fr: "Produit en vedette",
+              })}
+            >
               {t({
-                en: 'Featured',
-                fr: 'En vedette'
+                en: "Featured",
+                fr: "En vedette",
               })}
             </span>
           </div>
         )}
       </div>
 
-      <div className="p-4 flex-grow">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
-          {title}
-        </h3>
-        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-          {description}
+      <div className="p-4 flex flex-col flex-grow">
+        <div className="flex justify-between items-start mb-1">
+          <h3 className="text-base font-semibold text-gray-900 line-clamp-2 flex-1 mr-2">
+            {title || t({ en: "[No Title]", fr: "[Sans Titre]" })}
+          </h3>
+
+          {isAdmin && (
+            <button
+              className="ml-auto flex-shrink-0 bg-primary-500 text-white p-1 rounded-full shadow-sm hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              aria-label={t({
+                en: "Edit Product",
+                fr: "Modifier le Produit",
+              })}
+              onClick={handleEditClick}
+              style={focusStyles.keyboard}
+            >
+              <ClockIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-500 mb-2">
+          {t({ en: "By", fr: "Par" })} {sellerName}
         </p>
-        <div className="flex items-center justify-between">
-          <div className="text-lg font-bold text-primary-600">
-            {product.price.toLocaleString()} {product.currency}
+
+        <div className="flex-grow"></div>
+
+        <div className="mt-auto pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
+            <div className="text-base font-bold text-primary-600">
+              {slot.live_product_price?.toLocaleString() || "N/A"}{" "}
+              {slot.live_product_currency || ""}
+            </div>
           </div>
-          {product.seller && (
-            <div className="text-sm text-gray-500">
-              {product.seller.location}
+
+          {slot.end_time && (
+            <div
+              className="mt-1 text-xs font-medium flex items-center"
+              style={{
+                color:
+                  new Date(slot.end_time).getTime() - new Date().getTime() <
+                  24 * 60 * 60 * 1000
+                    ? "#EF4444"
+                    : "#6B7280",
+              }}
+              aria-label={t({
+                en: `Time remaining: ${formatTimeRemaining()}`,
+                fr: `Temps restant: ${formatTimeRemaining()}`,
+              })}
+            >
+              <ClockIcon className="w-3 h-3 mr-1" />
+              {formatTimeRemaining()}
             </div>
           )}
         </div>
-        {product.end_date && (
-          <div className="mt-2 text-sm text-gray-500">
-            {formatTimeRemaining()}
-          </div>
-        )}
       </div>
-
-      {isAdmin && (
-        <div className="absolute top-2 left-2">
-          <button
-            className="bg-primary-500 text-white p-1 rounded-full shadow-sm hover:bg-primary-600"
-            aria-label={t({
-              en: 'Edit Product',
-              fr: 'Modifier le Produit'
-            })}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-        </div>
-      )}
     </div>
   );
 };

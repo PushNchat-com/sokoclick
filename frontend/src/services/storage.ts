@@ -1,23 +1,28 @@
-import { supabase } from './supabase';
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from "@/services/supabase";
+import { v4 as uuidv4 } from "uuid";
 
 // Allowed image types
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 const MAX_IMAGE_SIZE_MB = 5; // 5MB max file size
 
 // Image dimensions for different purposes
 export enum ImageSize {
-  THUMBNAIL = 'thumbnail',
-  MEDIUM = 'medium',
-  FULL = 'full'
+  THUMBNAIL = "thumbnail",
+  MEDIUM = "medium",
+  FULL = "full",
 }
 
 // Storage buckets
 enum StorageBucket {
-  PRODUCTS = 'product-images',
-  AVATARS = 'avatars',
-  CATEGORIES = 'categories',
-  GENERAL = 'general'
+  PRODUCTS = "product-images",
+  AVATARS = "avatars",
+  CATEGORIES = "categories",
+  GENERAL = "general",
 }
 
 // Result interface
@@ -32,12 +37,14 @@ interface UploadResult {
  * @param file File to validate
  * @returns Validation result
  */
-export const validateImage = (file: File): { valid: boolean; error: string | null } => {
+export const validateImage = (
+  file: File,
+): { valid: boolean; error: string | null } => {
   // Check file type
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     return {
       valid: false,
-      error: `Invalid file type. Allowed: ${ALLOWED_IMAGE_TYPES.join(', ')}`
+      error: `Invalid file type. Allowed: ${ALLOWED_IMAGE_TYPES.join(", ")}`,
     };
   }
 
@@ -46,7 +53,7 @@ export const validateImage = (file: File): { valid: boolean; error: string | nul
   if (file.size > maxSizeBytes) {
     return {
       valid: false,
-      error: `File size exceeds ${MAX_IMAGE_SIZE_MB}MB limit`
+      error: `File size exceeds ${MAX_IMAGE_SIZE_MB}MB limit`,
     };
   }
 
@@ -59,7 +66,7 @@ export const validateImage = (file: File): { valid: boolean; error: string | nul
  * @returns Unique filename
  */
 const generateUniqueFilename = (originalName: string): string => {
-  const extension = originalName.split('.').pop() || 'jpg';
+  const extension = originalName.split(".").pop() || "jpg";
   const timestamp = Date.now();
   const uuid = uuidv4().substring(0, 8);
   return `${timestamp}-${uuid}.${extension}`;
@@ -75,26 +82,27 @@ export const storageService = {
    * @param productId Product ID for organization (optional)
    * @returns Upload result
    */
-  uploadProductImage: async (file: File, productId?: string): Promise<UploadResult> => {
+  uploadProductImage: async (
+    file: File,
+    productId?: string,
+  ): Promise<UploadResult> => {
     try {
       // Validate image
       const validation = validateImage(file);
       if (!validation.valid) {
-        return { path: '', url: '', error: validation.error };
+        return { path: "", url: "", error: validation.error };
       }
 
       // Generate path
       const filename = generateUniqueFilename(file.name);
-      const path = productId
-        ? `${productId}/${filename}`
-        : `new/${filename}`;
+      const path = productId ? `${productId}/${filename}` : `new/${filename}`;
 
       // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from(StorageBucket.PRODUCTS)
         .upload(path, file, {
-          cacheControl: '3600',
-          upsert: false
+          cacheControl: "3600",
+          upsert: false,
         });
 
       if (error) {
@@ -109,14 +117,15 @@ export const storageService = {
       return {
         path: data.path,
         url: urlData.publicUrl,
-        error: null
+        error: null,
       };
     } catch (error) {
-      console.error('Error uploading product image:', error);
+      console.error("Error uploading product image:", error);
       return {
-        path: '',
-        url: '',
-        error: error instanceof Error ? error.message : 'Failed to upload image'
+        path: "",
+        url: "",
+        error:
+          error instanceof Error ? error.message : "Failed to upload image",
       };
     }
   },
@@ -132,19 +141,19 @@ export const storageService = {
       // Validate image
       const validation = validateImage(file);
       if (!validation.valid) {
-        return { path: '', url: '', error: validation.error };
+        return { path: "", url: "", error: validation.error };
       }
 
       // Generate path - avatars are stored with user ID as filename
-      const extension = file.name.split('.').pop() || 'jpg';
+      const extension = file.name.split(".").pop() || "jpg";
       const path = `${userId}.${extension}`;
 
       // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from(StorageBucket.AVATARS)
         .upload(path, file, {
-          cacheControl: '3600',
-          upsert: true // Overwrite if exists
+          cacheControl: "3600",
+          upsert: true, // Overwrite if exists
         });
 
       if (error) {
@@ -159,14 +168,15 @@ export const storageService = {
       return {
         path: data.path,
         url: urlData.publicUrl,
-        error: null
+        error: null,
       };
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      console.error("Error uploading avatar:", error);
       return {
-        path: '',
-        url: '',
-        error: error instanceof Error ? error.message : 'Failed to upload avatar'
+        path: "",
+        url: "",
+        error:
+          error instanceof Error ? error.message : "Failed to upload avatar",
       };
     }
   },
@@ -177,24 +187,27 @@ export const storageService = {
    * @param categorySlug Category slug for organization
    * @returns Upload result
    */
-  uploadCategoryImage: async (file: File, categorySlug: string): Promise<UploadResult> => {
+  uploadCategoryImage: async (
+    file: File,
+    categorySlug: string,
+  ): Promise<UploadResult> => {
     try {
       // Validate image
       const validation = validateImage(file);
       if (!validation.valid) {
-        return { path: '', url: '', error: validation.error };
+        return { path: "", url: "", error: validation.error };
       }
 
       // Generate path
-      const extension = file.name.split('.').pop() || 'jpg';
+      const extension = file.name.split(".").pop() || "jpg";
       const path = `${categorySlug}.${extension}`;
 
       // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from(StorageBucket.CATEGORIES)
         .upload(path, file, {
-          cacheControl: '3600',
-          upsert: true // Overwrite if exists
+          cacheControl: "3600",
+          upsert: true, // Overwrite if exists
         });
 
       if (error) {
@@ -209,14 +222,15 @@ export const storageService = {
       return {
         path: data.path,
         url: urlData.publicUrl,
-        error: null
+        error: null,
       };
     } catch (error) {
-      console.error('Error uploading category image:', error);
+      console.error("Error uploading category image:", error);
       return {
-        path: '',
-        url: '',
-        error: error instanceof Error ? error.message : 'Failed to upload image'
+        path: "",
+        url: "",
+        error:
+          error instanceof Error ? error.message : "Failed to upload image",
       };
     }
   },
@@ -227,26 +241,27 @@ export const storageService = {
    * @param folder Folder to store in (optional)
    * @returns Upload result
    */
-  uploadGeneralImage: async (file: File, folder?: string): Promise<UploadResult> => {
+  uploadGeneralImage: async (
+    file: File,
+    folder?: string,
+  ): Promise<UploadResult> => {
     try {
       // Validate image
       const validation = validateImage(file);
       if (!validation.valid) {
-        return { path: '', url: '', error: validation.error };
+        return { path: "", url: "", error: validation.error };
       }
 
       // Generate path
       const filename = generateUniqueFilename(file.name);
-      const path = folder
-        ? `${folder}/${filename}`
-        : filename;
+      const path = folder ? `${folder}/${filename}` : filename;
 
       // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from(StorageBucket.GENERAL)
         .upload(path, file, {
-          cacheControl: '3600',
-          upsert: false
+          cacheControl: "3600",
+          upsert: false,
         });
 
       if (error) {
@@ -261,14 +276,15 @@ export const storageService = {
       return {
         path: data.path,
         url: urlData.publicUrl,
-        error: null
+        error: null,
       };
     } catch (error) {
-      console.error('Error uploading general image:', error);
+      console.error("Error uploading general image:", error);
       return {
-        path: '',
-        url: '',
-        error: error instanceof Error ? error.message : 'Failed to upload image'
+        path: "",
+        url: "",
+        error:
+          error instanceof Error ? error.message : "Failed to upload image",
       };
     }
   },
@@ -279,11 +295,12 @@ export const storageService = {
    * @param path Image path
    * @returns Success or error message
    */
-  deleteImage: async (bucket: StorageBucket, path: string): Promise<{ success: boolean; error: string | null }> => {
+  deleteImage: async (
+    bucket: StorageBucket,
+    path: string,
+  ): Promise<{ success: boolean; error: string | null }> => {
     try {
-      const { error } = await supabase.storage
-        .from(bucket)
-        .remove([path]);
+      const { error } = await supabase.storage.from(bucket).remove([path]);
 
       if (error) {
         throw error;
@@ -291,10 +308,11 @@ export const storageService = {
 
       return { success: true, error: null };
     } catch (error) {
-      console.error('Error deleting image:', error);
+      console.error("Error deleting image:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete image'
+        error:
+          error instanceof Error ? error.message : "Failed to delete image",
       };
     }
   },
@@ -309,7 +327,7 @@ export const storageService = {
   getSignedUrl: async (
     bucket: StorageBucket,
     path: string,
-    expiresIn: number = 3600
+    expiresIn: number = 3600,
   ): Promise<{ url: string; error: string | null }> => {
     try {
       const { data, error } = await supabase.storage
@@ -322,20 +340,25 @@ export const storageService = {
 
       return { url: data.signedUrl, error: null };
     } catch (error) {
-      console.error('Error getting signed URL:', error);
+      console.error("Error getting signed URL:", error);
       return {
-        url: '',
-        error: error instanceof Error ? error.message : 'Failed to generate signed URL'
+        url: "",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate signed URL",
       };
     }
   },
-  
+
   /**
    * Get all images for a product
    * @param productId Product ID
    * @returns List of image URLs or error
    */
-  getProductImages: async (productId: string): Promise<{ urls: string[]; error: string | null }> => {
+  getProductImages: async (
+    productId: string,
+  ): Promise<{ urls: string[]; error: string | null }> => {
     try {
       const { data, error } = await supabase.storage
         .from(StorageBucket.PRODUCTS)
@@ -346,7 +369,7 @@ export const storageService = {
       }
 
       // Get public URLs for all files
-      const urls = data.map(file => {
+      const urls = data.map((file) => {
         const { data: urlData } = supabase.storage
           .from(StorageBucket.PRODUCTS)
           .getPublicUrl(`${productId}/${file.name}`);
@@ -355,11 +378,14 @@ export const storageService = {
 
       return { urls, error: null };
     } catch (error) {
-      console.error('Error getting product images:', error);
+      console.error("Error getting product images:", error);
       return {
         urls: [],
-        error: error instanceof Error ? error.message : 'Failed to get product images'
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get product images",
       };
     }
-  }
-}; 
+  },
+};

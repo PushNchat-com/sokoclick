@@ -1,97 +1,78 @@
-import { supabase } from '../supabase';
-import { BaseServiceImpl } from '../core/BaseService';
-import { ServiceResponse, createSuccessResponse, createErrorResponse, ServiceErrorType } from '../core/ServiceResponse';
-import { Session, User } from '@supabase/supabase-js';
-import { 
-  UserRole, 
-  UserProfile, 
-  AuthResponse, 
-  AuthStateChangeCallback 
-} from '../../types/auth';
-
-// Define error messages in both English and French
-export const AUTH_ERROR_MESSAGES = {
-  invalidCredentials: {
-    en: 'Invalid email or password',
-    fr: 'Email ou mot de passe invalide'
-  },
-  emailAlreadyInUse: {
-    en: 'Email is already in use',
-    fr: 'Cet email est déjà utilisé'
-  },
-  weakPassword: {
-    en: 'Password is too weak. It should be at least 8 characters long',
-    fr: 'Le mot de passe est trop faible. Il doit comporter au moins 8 caractères'
-  },
-  invalidEmail: {
-    en: 'Please enter a valid email address',
-    fr: 'Veuillez entrer une adresse email valide'
-  },
-  emailNotConfirmed: {
-    en: 'Please confirm your email before logging in',
-    fr: 'Veuillez confirmer votre email avant de vous connecter'
-  },
-  networkError: {
-    en: 'Network error. Please check your connection',
-    fr: 'Erreur réseau. Veuillez vérifier votre connexion'
-  },
-  serverError: {
-    en: 'Server error. Please try again later',
-    fr: 'Erreur serveur. Veuillez réessayer plus tard'
-  },
-  sessionExpired: {
-    en: 'Your session has expired. Please log in again',
-    fr: 'Votre session a expiré. Veuillez vous reconnecter'
-  },
-  unauthorizedAccess: {
-    en: 'You do not have permission to access this resource',
-    fr: 'Vous n\'avez pas la permission d\'accéder à cette ressource'
-  }
-};
+import { Session } from "@supabase/supabase-js";
+import { supabase } from "../supabase";
+import { AuthConfig } from "./AuthConfig";
+import { AdminAuthService } from "./AdminAuthService";
+import { SecureSessionManager } from "./SecureSessionManager";
+import { RateLimiter } from "./RateLimiter";
+import {
+  UserProfile,
+  AuthResponse,
+  UserRole,
+  AuthStateChangeCallback,
+} from "../../types/auth";
+import { userProfileService } from "./UserProfileService";
 
 /**
- * UnifiedAuthService providing authentication functionality for all user types
+ * Unified authentication service that coordinates between specialized auth services
  */
-class UnifiedAuthService extends BaseServiceImpl {
-  private authStateSubscribers: AuthStateChangeCallback[] = [];
-  private currentUser: UserProfile | null = null;
-  private currentSession: Session | null = null;
-  private supabaseSubscription: { unsubscribe: () => void } | null = null;
+class UnifiedAuthService {
+  private static instance: UnifiedAuthService;
+  private readonly sessionManager: SecureSessionManager;
+  private readonly rateLimiter: RateLimiter;
+  private readonly adminService: AdminAuthService;
+  private readonly subscribers: Set<AuthStateChangeCallback>;
+  private currentUser: UserProfile | null;
+  private currentSession: Session | null;
+  private initialized: boolean;
 
-  constructor() {
-    super('UnifiedAuthService', 'auth');
+  private constructor() {
+    this.sessionManager = SecureSessionManager.getInstance();
+    this.rateLimiter = RateLimiter.getInstance();
+    this.adminService = AdminAuthService.getInstance();
+    this.subscribers = new Set();
+    this.currentUser = null;
+    this.currentSession = null;
+    this.initialized = false;
+
+    // Initialize configuration
+    AuthConfig.init();
   }
 
   /**
-   * Initialize the auth service
+   * Get singleton instance
    */
-  async initialize(): Promise<ServiceResponse> {
-    if (this.initialized) {
-      return createSuccessResponse();
+  static getInstance(): UnifiedAuthService {
+    if (!this.instance) {
+      this.instance = new UnifiedAuthService();
     }
+    return this.instance;
+  }
+
+  /**
+   * Initialize the service
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
 
     try {
-      // Initialize base service
-      const baseResponse = await super.initialize();
-      if (!baseResponse.success) {
-        return baseResponse;
-      }
+      // Configure Supabase client
+      // No longer needed, supabase client initializes itself
+      // await supabase.auth.initialize();
 
-      // Set up auth state change listener
-      this.setupAuthStateListener();
-
-      // Try to get the current session
-      const session = await this.getSession();
-      if (session) {
-        // Get user profile if we have a session
-        this.currentSession = session;
-        this.currentUser = await this.getUserProfile(session.user.id);
+      // Try to restore session
+      this.currentSession = await this.sessionManager.getStoredSession();
+      if (this.currentSession?.user) {
+        // Fetch profile using the service
+        this.currentUser = await userProfileService.getProfile(
+          this.currentSession.user.id,
+          this.currentSession.user.email,
+        );
       }
 
       this.initialized = true;
-      return createSuccessResponse();
     } catch (error) {
-      return this.processError('initialize', error);
+      console.error("[UnifiedAuthService] Initialization error:", error);
+      throw error;
     }
   }
 
@@ -99,138 +80,284 @@ class UnifiedAuthService extends BaseServiceImpl {
    * Subscribe to auth state changes
    */
   onAuthStateChange(callback: AuthStateChangeCallback): () => void {
-    this.authStateSubscribers.push(callback);
-    
-    // If we already have a user/session, notify immediately
+    this.subscribers.add(callback);
+
+    // Notify immediately if we have a session
     if (this.currentSession || this.currentUser) {
       setTimeout(() => {
-        callback(this.currentSession, this.currentUser);
+        callback(this.currentSession ? "SIGNED_IN" : null, this.currentSession);
       }, 0);
     }
-    
-    // Return unsubscribe function
+
     return () => {
-      this.authStateSubscribers = this.authStateSubscribers.filter(sub => sub !== callback);
+      this.subscribers.delete(callback);
     };
   }
 
   /**
-   * Set up Supabase auth state change listener
+   * Notify subscribers of auth state changes
    */
-  private setupAuthStateListener(): void {
-    // Clean up existing subscription if any
-    if (this.supabaseSubscription) {
-      this.supabaseSubscription.unsubscribe();
-    }
-    
-    // Set up new subscription
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_, session) => {
-        this.currentSession = session;
-        
-        let user: UserProfile | null = null;
-        if (session?.user) {
-          user = await this.getUserProfile(session.user.id);
-        }
-        
-        this.currentUser = user;
-        
-        // Notify all subscribers
-        this.authStateSubscribers.forEach(sub => sub(session, user));
+  private notifySubscribers(
+    event: "SIGNED_IN" | "SIGNED_OUT" | "TOKEN_REFRESHED" | null,
+    session: Session | null,
+  ): void {
+    this.subscribers.forEach((callback) => {
+      try {
+        callback(event, session);
+      } catch (error) {
+        console.error(
+          "[UnifiedAuthService] Subscriber notification error:",
+          error,
+        );
       }
-    );
-    
-    this.supabaseSubscription = subscription;
+    });
   }
 
   /**
-   * Get user profile from database
+   * Get user profile (delegated to UserProfileService)
+   * This method is now simpler and primarily for internal use or explicit fetches.
    */
-  async getUserProfile(userId: string): Promise<UserProfile | null> {
+  async getUserProfile(
+    userId: string,
+    userEmail?: string,
+  ): Promise<UserProfile | null> {
+    // Delegate to the centralized profile service
+    return userProfileService.getProfile(userId, userEmail);
+  }
+
+  /**
+   * Sign in with email and password
+   */
+  async signIn(email: string, password: string): Promise<AuthResponse> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    // Check if this might be an admin login
+    if (email.endsWith("@sokoclick.com") || AuthConfig.isTrustedAdmin(email)) {
+      // Admin sign-in attempt - use AdminAuthService
+      const adminResponse = await this.adminService.signIn(email, password);
+      if (adminResponse.user && adminResponse.session) {
+        // Successfully logged in as admin
+        this.currentSession = adminResponse.session;
+        this.currentUser = adminResponse.user;
+        await this.sessionManager.storeSession(adminResponse.session);
+        this.notifySubscribers("SIGNED_IN", adminResponse.session);
+      }
+      return adminResponse;
+    }
+
+    // Check rate limiting
+    if (this.rateLimiter.isRateLimited(email)) {
+      const timeRemaining = this.rateLimiter.getTimeRemaining(email);
+      return {
+        user: null,
+        session: null,
+        error: `${AuthConfig.getError("RATE_LIMIT_EXCEEDED")}. Try again in ${Math.ceil(timeRemaining / 1000)} seconds.`,
+      };
+    }
+
     try {
-      // Get user email from auth
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) return null;
-      
-      console.log('[UnifiedAuthService] Getting user profile for:', user.email);
-
-      // Special handling for known admin emails
-      const trustedAdmins = ['sokoclick.com@gmail.com', 'pushns24@gmail.com'];
-      if (trustedAdmins.includes(user.email.toLowerCase())) {
-        console.log('[UnifiedAuthService] Trusted admin detected, creating profile');
+      // Record attempt
+      if (!this.rateLimiter.recordAttempt(email)) {
         return {
-          id: userId,
-          email: user.email,
-          role: UserRole.SUPER_ADMIN,
-          name: user.email.split('@')[0],
-          permissions: this.getDefaultPermissions(UserRole.SUPER_ADMIN),
-          isAdmin: true
+          user: null,
+          session: null,
+          error: AuthConfig.getError("RATE_LIMIT_EXCEEDED"),
         };
       }
 
-      // Try to get admin profile first
-      try {
-        const { data: adminData, error: adminError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('email', user.email)
-          .single();
-        
-        if (adminData && !adminError) {
-          console.log('[UnifiedAuthService] Found admin user in database');
-          return {
-            id: userId,
-            email: adminData.email,
-            name: adminData.name,
-            role: adminData.role as UserRole,
-            permissions: adminData.permissions || [],
-            lastLogin: adminData.last_login ? new Date(adminData.last_login) : undefined,
-            isAdmin: true
-          };
-        }
-      } catch (err) {
-        console.warn('[UnifiedAuthService] Admin profile fetch error, continuing with regular profile:', err);
+      // Attempt sign in
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { user: null, session: null, error: error.message };
       }
-      
-      // Try to get regular user profile
-      try {
-        const { data: userData, error: userError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-        
-        if (userData && !userError) {
-          console.log('[UnifiedAuthService] Found regular user profile');
-          return {
-            id: userData.id,
-            email: userData.email || '',
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            phone: userData.phone,
-            role: userData.role as UserRole || UserRole.CUSTOMER,
-            isAdmin: false
-          };
-        }
-      } catch (err) {
-        console.warn('[UnifiedAuthService] Regular profile fetch error:', err);
-      }
-      
-      // If no profile found, return minimal user object from auth
-      if (user) {
-        console.log('[UnifiedAuthService] Creating minimal user profile');
+
+      if (!data.user || !data.session) {
         return {
-          id: user.id,
-          email: user.email || '',
-          role: UserRole.CUSTOMER,
-          isAdmin: false
+          user: null,
+          session: null,
+          error: AuthConfig.getError("INVALID_CREDENTIALS"),
         };
       }
-      
-      return null;
+
+      // Get user profile using the service
+      const userProfile = await userProfileService.getProfile(
+        data.user.id,
+        data.user.email,
+      );
+      if (!userProfile) {
+        // Profile fetch/creation failed after successful login
+        await supabase.auth.signOut(); // Sign out to avoid inconsistent state
+        return {
+          user: null,
+          session: null,
+          error: AuthConfig.getError("PROFILE_NOT_FOUND", "en"), // Use new error
+        };
+      }
+
+      // Store session and user
+      this.currentSession = data.session;
+      this.currentUser = userProfile;
+      await this.sessionManager.storeSession(data.session);
+
+      // Reset rate limiting on successful login
+      this.rateLimiter.reset(email);
+
+      // Notify subscribers
+      this.notifySubscribers("SIGNED_IN", data.session);
+
+      return {
+        user: userProfile,
+        session: data.session,
+        error: null,
+      };
     } catch (error) {
-      console.error('[UnifiedAuthService] Error fetching user profile:', error);
+      console.error("[UnifiedAuthService] Sign in error:", error);
+      return {
+        user: null,
+        session: null,
+        error: AuthConfig.getError("SERVER_ERROR", "en"),
+      };
+    }
+  }
+
+  /**
+   * Sign out
+   */
+  async signOut(): Promise<{ success: boolean; error: string | null }> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const userId = this.currentUser?.id;
+      await supabase.auth.signOut();
+      this.currentSession = null;
+      this.currentUser = null;
+      this.sessionManager.clearSession();
+      if (userId) {
+        userProfileService.invalidateCache(userId); // Invalidate cache
+      }
+      this.notifySubscribers("SIGNED_OUT", null);
+      return { success: true, error: null };
+    } catch (error) {
+      console.error("[UnifiedAuthService] Sign out error:", error);
+      return {
+        success: false,
+        error: AuthConfig.getError("SERVER_ERROR", "en"),
+      };
+    }
+  }
+
+  /**
+   * Get current session
+   */
+  async getSession(): Promise<Session | null> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return data.session;
+    } catch (error) {
+      console.error("[UnifiedAuthService] Get session error:", error);
       return null;
+    }
+  }
+
+  /**
+   * Reset password
+   */
+  async resetPassword(
+    email: string,
+  ): Promise<{ success: boolean; error: string | null }> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      return {
+        success: !error,
+        error: error ? error.message : null,
+      };
+    } catch (error) {
+      console.error("[UnifiedAuthService] Reset password error:", error);
+      return {
+        success: false,
+        error: AuthConfig.getError("SERVER_ERROR", "en"),
+      };
+    }
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateUser(
+    updates: Partial<UserProfile>,
+  ): Promise<{ success: boolean; error: string | null }> {
+    if (!this.currentUser) {
+      return {
+        success: false,
+        error: AuthConfig.getError("SESSION_EXPIRED", "en"),
+      };
+    }
+
+    const userId = this.currentUser.id;
+
+    // Use admin service for admin users if it exists and has specific logic
+    // if (this.currentUser.isAdmin) { // Check if specific admin logic is needed
+    //   return this.adminService.updateProfile(updates); // Or delegate specific parts
+    // }
+
+    try {
+      // Update auth email if provided and changed
+      if (updates.email && updates.email !== this.currentUser.email) {
+        const { error: authError } = await supabase.auth.updateUser({
+          email: updates.email,
+        });
+        if (authError) throw authError;
+      }
+
+      // Prepare profile updates (handle snake_case conversion)
+      const profileUpdates: Record<string, any> = {};
+      if (updates.firstName !== undefined)
+        profileUpdates.first_name = updates.firstName;
+      if (updates.lastName !== undefined)
+        profileUpdates.last_name = updates.lastName;
+      if (updates.phone !== undefined) profileUpdates.phone = updates.phone;
+      // Role updates should likely be handled by specific admin actions, not general update
+      // if (updates.role !== undefined) profileUpdates.role = updates.role;
+      if (updates.email !== undefined) profileUpdates.email = updates.email; // Ensure email sync if changed
+
+      if (Object.keys(profileUpdates).length > 0) {
+        profileUpdates.updated_at = new Date().toISOString();
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update(profileUpdates)
+          .eq("id", userId);
+
+        if (profileError) throw profileError;
+      }
+
+      // Update local state and invalidate cache
+      this.currentUser = { ...this.currentUser, ...updates };
+      userProfileService.invalidateCache(userId); // Invalidate cache after update
+
+      return { success: true, error: null };
+    } catch (error: any) {
+      console.error("[UnifiedAuthService] Update user error:", error);
+      return {
+        success: false,
+        error: error.message || AuthConfig.getError("SERVER_ERROR", "en"),
+      };
     }
   }
 
@@ -243,359 +370,98 @@ class UnifiedAuthService extends BaseServiceImpl {
     userData: {
       firstName?: string;
       lastName?: string;
-      name?: string;
+      // name?: string; // Prefer firstName/lastName
       phone?: string;
-      role?: UserRole;
-    }
+      role?: UserRole; // Should default to customer, admin roles require specific flow
+    },
   ): Promise<AuthResponse> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
     try {
       // Create auth user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signUp({ email, password });
 
       if (error) {
         return { user: null, session: null, error: error.message };
       }
 
-      if (!data.user) {
-        return { user: null, session: null, error: AUTH_ERROR_MESSAGES.serverError.en };
+      if (!data.user || !data.session) {
+        return {
+          user: null,
+          session: null,
+          error: AuthConfig.getError("SERVER_ERROR", "en"),
+        };
       }
 
-      // Determine profile type based on role
-      const isAdmin = userData.role && [
-        UserRole.SUPER_ADMIN,
-        UserRole.CONTENT_MODERATOR,
-        UserRole.ANALYTICS_VIEWER,
-        UserRole.CUSTOMER_SUPPORT,
-        UserRole.ADMIN
-      ].includes(userData.role);
+      // Profile creation is now handled by the trigger `handle_new_user`
+      // We just need to fetch the newly created profile
+      const userProfile = await userProfileService.getProfile(
+        data.user.id,
+        data.user.email,
+      );
 
-      if (isAdmin) {
-        // Create admin profile
-        const { error: profileError } = await supabase
-          .from('admin_users')
-          .insert({
-            id: data.user.id,
-            email: email,
-            name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
-            role: userData.role,
-            permissions: this.getDefaultPermissions(userData.role),
-            last_login: new Date().toISOString(),
-          });
+      if (!userProfile) {
+        // This case indicates a problem with the trigger or RLS policy
+        console.error(
+          `[UnifiedAuthService] Profile not found/created for new user ${data.user.id}`,
+        );
+        await supabase.auth.admin.deleteUser(data.user.id); // Attempt cleanup
+        return {
+          user: null,
+          session: null,
+          error: AuthConfig.getError("PROFILE_NOT_FOUND", "en"),
+        };
+      }
 
-        if (profileError) {
-          console.error('[UnifiedAuthService] Admin profile creation error:', profileError);
-          return { user: null, session: null, error: profileError.message };
-        }
+      // Update profile with additional data if provided (handle_new_user creates basic profile)
+      const profileUpdates: Partial<UserProfile> = {};
+      if (userData.firstName) profileUpdates.firstName = userData.firstName;
+      if (userData.lastName) profileUpdates.lastName = userData.lastName;
+      if (userData.phone) profileUpdates.phone = userData.phone;
+      // Only allow non-admin roles during standard signup
+      if (
+        userData.role &&
+        userData.role !== UserRole.ADMIN &&
+        userData.role !== UserRole.SUPER_ADMIN
+      ) {
+        profileUpdates.role = userData.role;
+      }
+
+      if (Object.keys(profileUpdates).length > 0) {
+        await this.updateUser({ id: data.user.id, ...profileUpdates });
+        // Re-fetch profile to get updated data (or merge locally if preferred)
+        // const updatedProfile = await userProfileService.getProfile(data.user.id);
+        // this.currentUser = updatedProfile || userProfile; // Update local state
+        Object.assign(userProfile, profileUpdates); // Merge locally for now
       } else {
-        // Create regular user profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            email: email,
-            first_name: userData.firstName || '',
-            last_name: userData.lastName || '',
-            phone: userData.phone || '',
-            role: userData.role || UserRole.CUSTOMER,
-          });
-
-        if (profileError) {
-          console.error('[UnifiedAuthService] User profile creation error:', profileError);
-          return { user: null, session: null, error: profileError.message };
-        }
+        this.currentUser = userProfile;
       }
 
-      // Get the created user profile
-      const userProfile = await this.getUserProfile(data.user.id);
+      // Store session
+      this.currentSession = data.session;
+      // this.currentUser updated above
+      await this.sessionManager.storeSession(data.session);
+
+      // Notify subscribers
+      this.notifySubscribers("SIGNED_IN", data.session);
 
       return {
-        user: userProfile,
+        user: this.currentUser,
         session: data.session,
-        error: null
+        error: null,
       };
-    } catch (error) {
-      console.error('[UnifiedAuthService] Sign up error:', error);
+    } catch (error: any) {
+      console.error("[UnifiedAuthService] Sign up error:", error);
       return {
         user: null,
         session: null,
-        error: error instanceof Error ? error.message : String(error)
+        error: error.message || AuthConfig.getError("SERVER_ERROR", "en"),
       };
-    }
-  }
-
-  /**
-   * Sign in a user
-   */
-  async signIn(email: string, password: string): Promise<AuthResponse> {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        return { user: null, session: null, error: error.message };
-      }
-
-      if (!data.user) {
-        return { user: null, session: null, error: AUTH_ERROR_MESSAGES.serverError.en };
-      }
-
-      // Get the user profile
-      const userProfile = await this.getUserProfile(data.user.id);
-
-      // Update last login timestamp for admin users
-      if (userProfile?.isAdmin) {
-        await supabase
-          .from('admin_users')
-          .update({ last_login: new Date().toISOString() })
-          .eq('email', email);
-      }
-
-      return {
-        user: userProfile,
-        session: data.session,
-        error: null
-      };
-    } catch (error) {
-      console.error('[UnifiedAuthService] Sign in error:', error);
-      return {
-        user: null,
-        session: null,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * Sign out the current user
-   */
-  async signOut(): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        return { success: false, error: error.message };
-      }
-      
-      this.currentUser = null;
-      this.currentSession = null;
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('[UnifiedAuthService] Sign out error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * Get the current user's session
-   */
-  async getSession(): Promise<Session | null> {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error || !data.session) {
-        return null;
-      }
-      
-      return data.session;
-    } catch (error) {
-      console.error('[UnifiedAuthService] Get session error:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get the currently logged in user profile
-   */
-  async getCurrentUser(): Promise<UserProfile | null> {
-    if (this.currentUser) {
-      return this.currentUser;
-    }
-    
-    const session = await this.getSession();
-    if (!session?.user) {
-      return null;
-    }
-    
-    this.currentUser = await this.getUserProfile(session.user.id);
-    return this.currentUser;
-  }
-
-  /**
-   * Send a password reset email
-   */
-  async resetPassword(email: string): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
-      
-      if (error) {
-        return { success: false, error: error.message };
-      }
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('[UnifiedAuthService] Reset password error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * Update user information
-   */
-  async updateUser(updates: Partial<UserProfile>): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const currentUser = await this.getCurrentUser();
-      if (!currentUser) {
-        return { success: false, error: 'No user is currently logged in' };
-      }
-
-      // Update auth email if provided
-      if (updates.email && updates.email !== currentUser.email) {
-        const { error: authError } = await supabase.auth.updateUser({
-          email: updates.email
-        });
-        
-        if (authError) {
-          return { success: false, error: authError.message };
-        }
-      }
-
-      // Update profile based on user type
-      if (currentUser.isAdmin) {
-        // Update admin profile
-        const adminUpdates: Record<string, any> = {};
-        
-        if (updates.name) adminUpdates.name = updates.name;
-        if (updates.role) adminUpdates.role = updates.role;
-        if (updates.permissions) adminUpdates.permissions = updates.permissions;
-        if (updates.email) adminUpdates.email = updates.email;
-        
-        if (Object.keys(adminUpdates).length > 0) {
-          const { error: profileError } = await supabase
-            .from('admin_users')
-            .update(adminUpdates)
-            .eq('id', currentUser.id);
-          
-          if (profileError) {
-            return { success: false, error: profileError.message };
-          }
-        }
-      } else {
-        // Update regular user profile
-        const userUpdates: Record<string, any> = {};
-        
-        if (updates.firstName) userUpdates.first_name = updates.firstName;
-        if (updates.lastName) userUpdates.last_name = updates.lastName;
-        if (updates.phone) userUpdates.phone = updates.phone;
-        if (updates.role) userUpdates.role = updates.role;
-        if (updates.email) userUpdates.email = updates.email;
-        
-        if (Object.keys(userUpdates).length > 0) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update(userUpdates)
-            .eq('id', currentUser.id);
-          
-          if (profileError) {
-            return { success: false, error: profileError.message };
-          }
-        }
-      }
-
-      // Get updated user profile
-      this.currentUser = await this.getUserProfile(currentUser.id);
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('[UnifiedAuthService] Update user error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * Check if the current user has a specific permission
-   */
-  async hasPermission(permission: string): Promise<boolean> {
-    const user = await this.getCurrentUser();
-    
-    if (!user) {
-      return false;
-    }
-    
-    // Super admin has all permissions
-    if (user.role === UserRole.SUPER_ADMIN) {
-      return true;
-    }
-    
-    // Check user permissions
-    return user.permissions?.includes(permission) || false;
-  }
-
-  /**
-   * Get default permissions for a role
-   */
-  getDefaultPermissions(role?: UserRole): string[] {
-    switch (role) {
-      case UserRole.SUPER_ADMIN:
-        return ['*']; // All permissions
-      
-      case UserRole.ADMIN:
-        return [
-          'products:read', 'products:write',
-          'users:read', 'users:write',
-          'orders:read', 'orders:write',
-          'categories:read', 'categories:write'
-        ];
-      
-      case UserRole.CONTENT_MODERATOR:
-        return [
-          'products:read', 'products:write',
-          'categories:read', 'categories:write'
-        ];
-      
-      case UserRole.ANALYTICS_VIEWER:
-        return [
-          'analytics:read',
-          'products:read',
-          'users:read',
-          'orders:read'
-        ];
-      
-      case UserRole.CUSTOMER_SUPPORT:
-        return [
-          'users:read',
-          'orders:read', 'orders:write',
-          'products:read'
-        ];
-      
-      case UserRole.SELLER:
-        return [
-          'own-products:read', 'own-products:write',
-          'own-orders:read'
-        ];
-      
-      case UserRole.CUSTOMER:
-      default:
-        return [
-          'own-orders:read', 'own-orders:write'
-        ];
     }
   }
 }
 
 // Export singleton instance
-export const unifiedAuthService = new UnifiedAuthService(); 
+export const unifiedAuthService = UnifiedAuthService.getInstance();

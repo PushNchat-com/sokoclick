@@ -1,20 +1,38 @@
-import React, { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react';
-import { useLanguage } from '../store/LanguageContext';
-import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
-import ProductCard from '../components/product/ProductCard';
-import EmptySlotCard from '../components/product/EmptySlotCard';
-import SortingSelector from '../components/ui/SortingSelector';
-import CategoryFilter from '../components/ui/CategoryFilter';
-import LanguageToggle from '../components/ui/LanguageToggle';
-import Skeleton from '../components/ui/Skeleton';
-import { SortCriteria, useProducts, Product } from '../services/products';
-import { useCategories, Category } from '../services/categories';
-import { useSlots, SlotStatus, Slot } from '../services/slots';
-import { useDebugSlots } from '../services/debugSlots';
-import { Helmet } from 'react-helmet-async';
-import SeoComponent from '../components/seo/SeoComponent';
-import { generateWebsiteSchema } from '../utils/schemaMarkup';
-import { toast } from '../utils/toast';
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  memo,
+  useRef,
+} from "react";
+import { useLanguage } from "../store/LanguageContext";
+import { useUnifiedAuth } from "../contexts/UnifiedAuthContext";
+import ProductCard from "../components/product/ProductCard";
+import SortingSelector from "../components/ui/SortingSelector";
+import CategoryFilter from "../components/ui/CategoryFilter";
+import LanguageToggle from "../components/ui/LanguageToggle";
+import Skeleton from "../components/ui/Skeleton";
+import { SortCriteria } from "../types/product";
+import { useCategories } from "../services/categories";
+import { useSlots, Slot } from "../services/slots";
+import { useDebugSlots } from "../services/debugSlots";
+import SeoComponent from "../components/seo/SeoComponent";
+import { generateWebsiteSchema } from "../utils/schemaMarkup";
+import { toast } from "../utils/toast";
+import Container from "../components/ui/layout/Container";
+import { colors } from "../components/ui/design-system/tokens";
+import {
+  createAriaLabel,
+  createAriaLive,
+  createAriaBusy,
+  focusStyles,
+  keyboardHandlers,
+} from "../components/ui/design-system/accessibility";
+import {
+  useConnectionMonitoring,
+  ConnectionMonitoringState,
+} from "../hooks/useConnectionMonitoring";
 
 interface HomePageProps {
   promotionalBanner?: {
@@ -30,120 +48,113 @@ interface HomePageProps {
 }
 
 interface GridItem {
-  type: 'product' | 'empty';
+  type: "product" | "empty";
   slotNumber: number;
-  product?: Product;
-  status?: SlotStatus;
+  slot?: Slot;
 }
 
 // Memoized components
 const MemoizedProductCard = memo(ProductCard);
-const MemoizedEmptySlotCard = memo(EmptySlotCard);
 
-const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
+const HomePage: React.FC<HomePageProps> = (_props) => {
   const { isAdmin } = useUnifiedAuth();
-  const { language, t } = useLanguage();
-  const [sortCriteria, setSortCriteria] = useState<SortCriteria>(SortCriteria.NEWEST);
+  const { t, language } = useLanguage();
+  const [sortCriteria, setSortCriteria] = useState<SortCriteria>(
+    SortCriteria.NEWEST,
+  );
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] =
+    useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Detect reduced motion preference
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mediaQuery.matches);
-    
+
     const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
-  
+
   // Fetch slots with their associated products - conditionally use the debug hook
   const normalSlots = useSlots();
   const debugSlots = useDebugSlots();
-  
+
   // Use either normal or debug hook results
-  const { slots, loading: slotsLoading, error: slotsError, refresh: refreshSlots } = debugMode ? debugSlots : normalSlots;
-  
-  // Admin-only debug logging
-  useEffect(() => {
-    if (isAdmin && !slotsLoading && !slotsError) {
-      console.log('[Admin] Slots fetched:', slots?.length || 0);
-      console.log('[Admin] Slots with products:', slots?.filter(slot => slot.product_id).length || 0);
-      
-      // Log slot statuses
-      const statusCounts = slots?.reduce((acc, slot) => {
-        acc[slot.status] = (acc[slot.status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
-      
-      console.log('[Admin] Slot statuses:', statusCounts);
-      
-      // Log product statuses
-      const productStatuses = slots?.filter(slot => slot.product)
-        .reduce((acc, slot) => {
-          const status = slot.product?.status || 'unknown';
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>) || {};
-      
-      console.log('[Admin] Product statuses:', productStatuses);
-    }
-  }, [slots, slotsLoading, slotsError, isAdmin]);
-  
+  const {
+    slots,
+    loading: slotsLoading,
+    error: slotsError,
+    refresh: refreshSlots,
+  } = debugMode ? debugSlots : normalSlots;
+
   // Fetch categories
   const { categories } = useCategories();
-  
+
   // Text content with bilingual support
   const text = {
-    welcome: { 
-      en: 'Discover Today\'s Limited-Time Offers in Cameroon!', 
-      fr: 'Découvrez les Offres à Durée Limitée d\'Aujourd\'hui au Cameroun!' 
+    welcome: {
+      en: "Discover Today's Limited-Time Offers in Cameroon!",
+      fr: "Découvrez les Offres à Durée Limitée d'Aujourd'hui au Cameroun!",
     },
-    tagline: { 
-      en: 'Don\'t Miss Out! New Deals Drop Daily!',
-      fr: 'Ne Manquez Pas! De Nouvelles Offres Tombent Chaque Jour!'
+    tagline: {
+      en: "Don't Miss Out! New Deals Drop Daily!",
+      fr: "Ne Manquez Pas! De Nouvelles Offres Tombent Chaque Jour!",
     },
     productGridHeading: {
-      en: 'New Arrivals!',
-      fr: 'Nouveautés!'
+      en: "New Arrivals!",
+      fr: "Nouveautés!",
     },
     noProductsFound: {
-      en: 'No products found',
-      fr: 'Aucun produit trouvé'
+      en: "No products found",
+      fr: "Aucun produit trouvé",
     },
     errorMessage: {
-      en: 'Failed to load products. Please try again.',
-      fr: 'Échec du chargement des produits. Veuillez réessayer.'
+      en: "Failed to load products. Please try again.",
+      fr: "Échec du chargement des produits. Veuillez réessayer.",
     },
     retryButton: {
-      en: 'Retry',
-      fr: 'Réessayer'
+      en: "Retry",
+      fr: "Réessayer",
     },
-    searchPlaceholder: {
-      en: "What are you looking for today?",
-      fr: "Que cherchez-vous aujourd'hui?"
+    skipToContent: {
+      en: "Skip to main content",
+      fr: "Passer au contenu principal",
     },
-    searchButton: {
-      en: "Search",
-      fr: "Rechercher"
+    debugModeOn: {
+      en: "🔍 Debug Mode: ON",
+      fr: "🔍 Mode Débogage: ACTIVÉ",
     },
-    searching: {
-      en: "Searching...",
-      fr: "Recherche en cours..."
+    debugModeOff: {
+      en: "🔍 Debug Mode: OFF",
+      fr: "🔍 Mode Débogage: DÉSACTIVÉ",
     },
-    searchResults: {
-      en: "Search Results",
-      fr: "Résultats de recherche"
+    totalSlots: {
+      en: "Total Slots",
+      fr: "Emplacements Totaux",
     },
-    clearSearch: {
-      en: "Clear Search",
-      fr: "Effacer la recherche"
-    }
+    withProductId: {
+      en: "With Product ID",
+      fr: "Avec ID de Produit",
+    },
+    refreshSlots: {
+      en: "Refresh Slots",
+      fr: "Actualiser les Emplacements",
+    },
+    reloadPage: {
+      en: "Reload Page",
+      fr: "Recharger la Page",
+    },
+    debugInfo: {
+      en: "Debug Information",
+      fr: "Informations de Débogage",
+    },
+    slotsSummary: {
+      en: "Slots Summary",
+      fr: "Résumé des Emplacements",
+    },
   };
 
   // Make handlers use useCallback
@@ -155,409 +166,441 @@ const HomePage: React.FC<HomePageProps> = ({ promotionalBanner }) => {
     setSortCriteria(newSortCriteria);
   }, []);
 
-  // Handle search input change
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  }, []);
-
-  // Handle search form submission
-  const handleSearchSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setIsSearching(true);
-      
-      // Simulate search loading for better UX
-      setTimeout(() => {
-        setIsSearching(false);
-      }, 500);
+  // Admin-only debug logging
+  useEffect(() => {
+    if (isAdmin && !slotsLoading && !slotsError && slots) {
+      console.log("[Admin] Slots fetched:", slots.length);
+      console.log(
+        "[Admin] Slots with live products:",
+        slots.filter(
+          (slot) => slot.live_product_seller_id || slot.live_product_name_en,
+        ).length,
+      );
+      const statusCounts = slots.reduce(
+        (acc, slot) => {
+          acc[slot.slot_status] = (acc[slot.slot_status] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+      console.log("[Admin] Slot statuses:", statusCounts);
     }
-  }, [searchQuery]);
+  }, [slots, slotsLoading, slotsError, isAdmin]);
 
-  // Handle clearing search
-  const handleClearSearch = useCallback(() => {
-    setSearchQuery('');
-    setIsSearching(false);
-    
-    // Focus the search input after clearing
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, []);
+  // Use connection monitoring hook - Destructure state correctly
+  const connectionState: ConnectionMonitoringState = useConnectionMonitoring({
+    checkInterval: 30000,
+    showToasts: process.env.NODE_ENV === "production",
+    onStatusChange: (status) => {
+      if (!status.isConnected && isAdmin) {
+        console.log("[Admin] Connection lost:", status.error?.message);
+      }
+    },
+  });
 
   // Create grid items from slots
   const gridItems = useMemo<GridItem[]>(() => {
-    // Filter and sort slots based on criteria
-    let filteredSlots = [...(slots || [])];
-    
-    // Only show slots with approved products for non-admin users
+    const allSlotNumbers = Array.from({ length: 25 }, (_, i) => i + 1);
+    if (!slots)
+      return allSlotNumbers.map((n) => ({ type: "empty", slotNumber: n })); // Handle loading state
+
+    let displayableSlots = [...slots];
+
+    // Non-admins only see 'live' slots
     if (!isAdmin) {
-      filteredSlots = filteredSlots.filter(slot => 
-        slot.product?.status === 'approved' && 
-        slot.status === SlotStatus.OCCUPIED &&
-        slot.is_active
+      displayableSlots = displayableSlots.filter(
+        (slot) => slot.slot_status === "live",
       );
     }
-    
-    // Apply category filter
+    // Remove the invalid filter: Admins see all ('live', 'empty', 'maintenance')
+    // else {
+    //   displayableSlots = displayableSlots.filter(
+    //       (slot) => slot.slot_status !== 'draft' // INVALID: 'draft' is not a possible slot_status
+    //   );
+    // }
+
     if (filterCategory) {
-      filteredSlots = filteredSlots.filter(slot => {
-        const category = slot.product?.category;
-        return category && ('id' in category) && String(category.id) === String(filterCategory);
-      });
+      displayableSlots = displayableSlots.filter((slot) =>
+        slot.live_product_categories?.includes(filterCategory),
+      );
     }
-    
-    // Apply search filter when search query exists and not in searching state
-    if (searchQuery.trim() && !isSearching) {
-      const normalizedQuery = searchQuery.trim().toLowerCase();
-      
-      filteredSlots = filteredSlots.filter(slot => {
-        if (!slot.product) return false;
-        
-        // Fields to search in
-        const nameEn = slot.product.name_en?.toLowerCase() || '';
-        const nameFr = slot.product.name_fr?.toLowerCase() || '';
-        const descEn = slot.product.description_en?.toLowerCase() || '';
-        const descFr = slot.product.description_fr?.toLowerCase() || '';
-        
-        // Safely access properties that might not be in the Product interface
-        const productAny = slot.product as any;
-        const locationLower = typeof productAny.location === 'string' 
-          ? productAny.location.toLowerCase() 
-          : '';
-        
-        // Handle tags which could be array or string
-        let tagsLower = '';
-        if (productAny.tags) {
-          if (Array.isArray(productAny.tags)) {
-            tagsLower = productAny.tags.join(' ').toLowerCase();
-          } else if (typeof productAny.tags === 'string') {
-            tagsLower = productAny.tags.toLowerCase();
-          }
-        }
-        
-        // Check if any field matches the search query
-        return (
-          nameEn.includes(normalizedQuery) ||
-          nameFr.includes(normalizedQuery) ||
-          descEn.includes(normalizedQuery) ||
-          descFr.includes(normalizedQuery) ||
-          locationLower.includes(normalizedQuery) ||
-          tagsLower.includes(normalizedQuery)
-        );
-      });
-    }
-    
-    // Apply sorting
-    filteredSlots.sort((a, b) => {
-      if (!a.product || !b.product) return 0;
-      
+
+    displayableSlots.sort((a, b) => {
       switch (sortCriteria) {
-        case SortCriteria.NEWEST:
-          const dateA = a.product.created_at ? new Date(a.product.created_at).getTime() : 0;
-          const dateB = b.product.created_at ? new Date(b.product.created_at).getTime() : 0;
-          return dateB - dateA;
+        case SortCriteria.PRICE_ASC:
+          return (
+            (a.live_product_price ?? Infinity) -
+            (b.live_product_price ?? Infinity)
+          );
+        case SortCriteria.PRICE_DESC:
+          return (
+            (b.live_product_price ?? -Infinity) -
+            (a.live_product_price ?? -Infinity)
+          );
         case SortCriteria.ENDING_SOON:
-          const endA = a.end_time ? new Date(a.end_time).getTime() : Number.MAX_SAFE_INTEGER;
-          const endB = b.end_time ? new Date(b.end_time).getTime() : Number.MAX_SAFE_INTEGER;
-          return endA - endB;
-        case SortCriteria.PRICE_HIGH:
-          return (b.product.price || 0) - (a.product.price || 0);
-        case SortCriteria.PRICE_LOW:
-          return (a.product.price || 0) - (b.product.price || 0);
+          const dateA = a.end_time ? new Date(a.end_time).getTime() : Infinity;
+          const dateB = b.end_time ? new Date(b.end_time).getTime() : Infinity;
+          return dateA - dateB;
+        case SortCriteria.NEWEST:
         default:
-          return 0;
+          const startA = a.start_time
+            ? new Date(a.start_time).getTime()
+            : -Infinity;
+          const startB = b.start_time
+            ? new Date(b.start_time).getTime()
+            : -Infinity;
+          return startB - startA;
       }
     });
-    
-    // Create final grid items
-    const items = Array.from({ length: 25 }, (_, index) => {
-      const slotNumber = index + 1;
-      const slot = filteredSlots.find(s => s.id === slotNumber);
-      
-      if (slot?.product && 
-          slot.status === SlotStatus.OCCUPIED && 
-          (isAdmin || slot.product.status === 'approved')) {
+
+    const filledSlotsMap = new Map<number, Slot>();
+    displayableSlots.forEach((slot) => {
+      // Ensure slot ID is within the valid range 1-25
+      if (slot.id >= 1 && slot.id <= 25) {
+        filledSlotsMap.set(slot.id, slot);
+      }
+    });
+
+    const finalGridItems = allSlotNumbers.map((slotNumber) => {
+      const slotData = filledSlotsMap.get(slotNumber);
+      // Only map a slot as 'product' if it's actually 'live'
+      if (slotData && slotData.slot_status === "live") {
         return {
-          type: 'product' as const,
-          slotNumber,
-          product: slot.product
+          type: "product" as const,
+          slotNumber: slotData.id,
+          slot: slotData,
         };
       } else {
+        // All other slots (empty, maintenance, or filtered out) render as empty placeholders
         return {
-          type: 'empty' as const,
-          slotNumber,
-          status: slot?.status || SlotStatus.AVAILABLE
+          type: "empty" as const,
+          slotNumber: slotNumber,
         };
       }
     });
-    
-    if (isAdmin && debugMode) {
-      const productCount = items.filter(item => item.type === 'product').length;
-      console.log(`[Admin] Final grid items: ${productCount} products, ${items.length - productCount} empty slots`);
-      
-      // Log search filter results 
-      if (searchQuery.trim()) {
-        console.log(`[Admin] Search results for "${searchQuery}": ${productCount} matches`);
-      }
-    }
-    
-    return items;
-  }, [slots, filterCategory, sortCriteria, isAdmin, debugMode, searchQuery, isSearching]);
+
+    return finalGridItems;
+  }, [slots, filterCategory, sortCriteria, isAdmin]);
 
   // Get only products from grid items for display
   const productItems = useMemo(() => {
-    return gridItems.filter(item => item.type === 'product');
+    return gridItems.filter((item) => item.type === "product");
   }, [gridItems]);
 
   // Website schema for homepage
   const websiteSchema = useMemo(() => {
-    return generateWebsiteSchema(['en', 'fr']);
+    return generateWebsiteSchema(["en", "fr"]);
   }, []);
 
+  // Function to handle keyboard navigation for debug toggle
+  const handleDebugToggle = useCallback(() => {
+    setDebugMode(!debugMode);
+  }, [debugMode]);
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <SeoComponent
-        title={text.welcome}
-        description={text.tagline}
-        ogType="website"
-        ogImage="/images/sokoclick-social-card.jpg"
-        jsonLd={websiteSchema}
-      />
+    <>
+      {/* Skip link for keyboard users */}
+      <a
+        href="#main-content"
+        className="skip-link"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          borderWidth: 0,
+          ...focusStyles.keyboard,
+        }}
+        onFocus={(e) => {
+          // Apply focus styles manually on focus
+          const target = e.currentTarget;
+          target.style.position = "fixed";
+          target.style.top = "16px";
+          target.style.left = "16px";
+          target.style.width = "auto";
+          target.style.height = "auto";
+          target.style.padding = "8px 16px";
+          target.style.clip = "auto";
+          target.style.backgroundColor = colors.primary[500];
+          target.style.color = "white";
+          target.style.zIndex = "9999";
+          target.style.textDecoration = "none";
+          target.style.borderRadius = "4px";
+        }}
+        onBlur={(e) => {
+          // Reset styles on blur
+          const target = e.currentTarget;
+          target.style.position = "absolute";
+          target.style.width = "1px";
+          target.style.height = "1px";
+          target.style.padding = "0";
+          target.style.margin = "-1px";
+          target.style.overflow = "hidden";
+          target.style.clip = "rect(0, 0, 0, 0)";
+        }}
+      >
+        {t(text.skipToContent)}
+      </a>
 
-      {/* Header Section */}
-      <header className="mb-12 relative">
-        {/* Hero section with background gradient */}
-        <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl overflow-hidden">
-          <div className="absolute inset-0 opacity-20">
-            <svg className="h-full w-full" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
-              <g transform="translate(300,300)">
-                <path d="M125,-160.4C159.9,-146.7,184.6,-107.3,190.4,-67C196.2,-26.7,183.1,14.4,169.6,56.8C156.2,99.2,142.3,143,115.8,172C89.3,201.1,50.1,215.4,9.2,209.3C-31.7,203.2,-74.4,176.7,-104.3,147.7C-134.3,118.7,-151.5,87.1,-161.9,51.5C-172.3,15.9,-175.8,-23.7,-166.7,-61.7C-157.6,-99.7,-135.9,-136.2,-105.1,-153.9C-74.2,-171.6,-34.1,-170.6,5.7,-179C45.5,-187.4,90.1,-174.1,125,-160.4Z" fill="currentColor" />
-              </g>
-            </svg>
-          </div>
-          
-          <div className="container mx-auto px-6 py-16 md:py-24 relative z-10">
-            <div className="md:max-w-2xl text-center mx-auto">
-              <h1 className="text-3xl md:text-5xl font-bold mb-6 text-white leading-tight">
-                {t(text.welcome)}
-              </h1>
-              <p className="text-xl md:text-2xl font-medium text-indigo-100 mb-8">
-                {t(text.tagline)}
-              </p>
-              
-              {/* Search bar - now fully functional */}
-              <form onSubmit={handleSearchSubmit} className="relative max-w-lg mx-auto">
-                <input
-                  type="text"
-                  ref={searchInputRef}
-                  placeholder={t(text.searchPlaceholder)}
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  className="w-full px-6 py-4 pr-16 rounded-full shadow-md border-0 focus:ring-2 focus:ring-indigo-400 focus:outline-none text-gray-600"
-                  disabled={isSearching}
-                />
-                {searchQuery ? (
-                  <button 
-                    type="button"
-                    onClick={handleClearSearch}
-                    className="absolute right-14 top-3 text-gray-400 hover:text-gray-600 transition"
-                    aria-label={t(text.clearSearch)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                ) : null}
-                <button 
-                  type="submit"
-                  className="absolute right-2 top-2 bg-indigo-700 text-white p-2 rounded-full hover:bg-indigo-800 transition duration-150 disabled:opacity-70"
-                  disabled={isSearching || !searchQuery.trim()}
-                >
-                  {isSearching ? (
-                    <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  )}
-                </button>
-              </form>
-              
-              {/* Admin debug mode toggle - keeping it for admins */}
-              {isAdmin && (
-                <div className="mt-6">
-                  <button
-                    onClick={() => setDebugMode(!debugMode)}
-                    className={`px-3 py-1 text-sm font-medium border rounded-md ${
-                      debugMode 
-                        ? 'bg-orange-100 border-orange-300 text-orange-600' 
-                        : 'bg-white/80 border-white/30 text-white'
-                    }`}
-                  >
-                    {debugMode ? '🔍 Debug Mode: ON' : '🔍 Debug Mode: OFF'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Decorative elements */}
-          <div className="absolute bottom-0 left-0 right-0">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-12 md:h-16 text-gray-50">
-              <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V69.35C65.79,69.43,132.33,70.39,198,81.89,250,90.61,295.07,96.68,321.39,56.44Z" fill="currentColor"></path>
-            </svg>
-          </div>
-        </div>
-      </header>
-
-      {/* Filters Section */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <CategoryFilter
-          categories={categories || []}
-          selectedCategory={filterCategory}
-          onCategoryChange={handleCategoryChange}
+      <Container maxWidth="xl" padding={4} className="py-8">
+        <SeoComponent
+          title={text.welcome}
+          description={text.tagline}
+          ogType="website"
+          ogImage="/images/sokoclick-social-card.jpg"
+          jsonLd={websiteSchema}
         />
-        <div className="flex items-center gap-4">
-          <SortingSelector
-            value={sortCriteria}
-            onChange={handleSortChange}
-          />
-          <LanguageToggle compact />
-        </div>
-      </div>
 
-      {/* Search Results Label */}
-      {searchQuery.trim() && !isSearching && (
-        <div className="mb-6">
-          <h2 className="text-xl font-medium text-gray-700">
-            {t(text.searchResults)}: "{searchQuery}"
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              ({productItems.length} {productItems.length === 1 
-                ? t({en: 'result', fr: 'résultat'}) 
-                : t({en: 'results', fr: 'résultats'})})
-            </span>
-          </h2>
-        </div>
-      )}
-
-      {/* Debug Info Section - Only visible to admins in debug mode */}
-      {isAdmin && debugMode && !slotsLoading && !slotsError && (
-        <div className="mb-8 p-4 border border-orange-300 bg-orange-50 rounded-lg">
-          <h3 className="text-lg font-medium text-orange-800 mb-3">Debug Information</h3>
-          
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-sm font-medium text-orange-700">Slots Summary:</p>
-              <ul className="text-sm text-orange-600 mt-1 space-y-1">
-                <li>Total Slots: {slots?.length || 0}</li>
-                <li>With Product ID: {slots?.filter(s => s.product_id).length || 0}</li>
-                <li>With Product Data: {slots?.filter(s => s.product).length || 0}</li>
-                <li>Active Slots: {slots?.filter(s => s.is_active).length || 0}</li>
-                <li>Occupied Status: {slots?.filter(s => s.status === SlotStatus.OCCUPIED).length || 0}</li>
-              </ul>
+        {/* Header Section */}
+        <header className="mb-12 relative">
+          {/* Hero section with background gradient */}
+          <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl overflow-hidden">
+            <div className="absolute inset-0 opacity-20" aria-hidden="true">
+              <svg
+                className="h-full w-full"
+                viewBox="0 0 600 600"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g transform="translate(300,300)">
+                  <path
+                    d="M125,-160.4C159.9,-146.7,184.6,-107.3,190.4,-67C196.2,-26.7,183.1,14.4,169.6,56.8C156.2,99.2,142.3,143,115.8,172C89.3,201.1,50.1,215.4,9.2,209.3C-31.7,203.2,-74.4,176.7,-104.3,147.7C-134.3,118.7,-151.5,87.1,-161.9,51.5C-172.3,15.9,-175.8,-23.7,-166.7,-61.7C-157.6,-99.7,-135.9,-136.2,-105.1,-153.9C-74.2,-171.6,-34.1,-170.6,5.7,-179C45.5,-187.4,90.1,-174.1,125,-160.4Z"
+                    fill="currentColor"
+                  />
+                </g>
+              </svg>
             </div>
-            
-            <div>
-              <p className="text-sm font-medium text-orange-700">Product Statuses:</p>
-              <ul className="text-sm text-orange-600 mt-1 space-y-1">
-                {Object.entries(
-                  slots?.filter(slot => slot.product)
-                    .reduce((acc, slot) => {
-                      const status = slot.product?.status || 'unknown';
-                      acc[status] = (acc[status] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>) || {}
-                ).map(([status, count]) => (
-                  <li key={status}>
-                    {status}: {count}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => refreshSlots()}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md"
-            >
-              Refresh Slots
-            </button>
-            
-            <button
-              onClick={() => window.location.reload()}
-              className="px-3 py-1 text-sm bg-gray-600 text-white rounded-md"
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
-      )}
 
-      {/* Product Grid */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-6">
-          {searchQuery.trim() && !isSearching 
-            ? t(text.searchResults) 
-            : t(text.productGridHeading)}
-        </h2>
-        
-        {slotsLoading || isSearching ? (
-          // Skeleton loading state
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {Array.from({ length: 25 }).map((_, index) => (
-              <div key={`skeleton-${index}`} className="relative h-full">
-                <Skeleton
-                  variant="productCard"
-                  className="w-full h-full"
-                  animation={prefersReducedMotion ? 'none' : 'pulse'}
-                />
+            <div className="container mx-auto px-6 py-16 md:py-24 relative z-10">
+              <div className="md:max-w-2xl text-center mx-auto">
+                <h1 className="text-3xl md:text-5xl font-bold mb-6 text-white leading-tight">
+                  {t(text.welcome)}
+                </h1>
+                <p className="text-xl md:text-2xl font-medium text-indigo-100 mb-8">
+                  {t(text.tagline)}
+                </p>
+
+                {/* Admin debug mode toggle - accessibility improved */}
+                {isAdmin && (
+                  <div className="mt-6">
+                    <button
+                      onClick={handleDebugToggle}
+                      className={`px-3 py-1 text-sm font-medium border rounded-md ${
+                        debugMode
+                          ? "bg-orange-100 border-orange-300 text-orange-600"
+                          : "bg-white/80 border-white/30 text-white"
+                      }`}
+                      {...createAriaLabel(
+                        t(debugMode ? text.debugModeOn : text.debugModeOff),
+                      )}
+                      {...keyboardHandlers.button(handleDebugToggle)}
+                      style={focusStyles.keyboard}
+                    >
+                      {debugMode ? t(text.debugModeOn) : t(text.debugModeOff)}
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        ) : slotsError ? (
-          // Error state
-          <div className="text-center py-12">
-            <p className="text-red-600 mb-4">{t(text.errorMessage)}</p>
-            <button
-              onClick={() => refreshSlots()}
-              className="bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-600"
+            </div>
+
+            {/* Decorative elements */}
+            <div
+              className="absolute bottom-0 left-0 right-0"
+              aria-hidden="true"
             >
-              {t(text.retryButton)}
-            </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 1200 120"
+                preserveAspectRatio="none"
+                className="w-full h-12 md:h-16 text-gray-50"
+              >
+                <path
+                  d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V69.35C65.79,69.43,132.33,70.39,198,81.89,250,90.61,295.07,96.68,321.39,56.44Z"
+                  fill="currentColor"
+                ></path>
+              </svg>
+            </div>
           </div>
-        ) : (
-          // Product grid or empty state
-          productItems.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {productItems.map(item => (
-                <MemoizedProductCard
-                  key={`product-${item.slotNumber}`}
-                  product={item.product!}
-                  isAdmin={isAdmin}
-                />
-              ))}
+        </header>
+
+        {/* Main content area */}
+        <main id="main-content" tabIndex={-1} style={{ outline: "none" }}>
+          {/* Filters Section */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <CategoryFilter
+              categories={categories || []}
+              selectedCategory={filterCategory}
+              onCategoryChange={handleCategoryChange}
+            />
+            <div className="flex items-center gap-4">
+              <SortingSelector
+                value={sortCriteria}
+                onChange={handleSortChange}
+              />
+              <LanguageToggle compact />
             </div>
-          ) : (
-            // No products found state
-            <div className="text-center py-16 border border-gray-200 rounded-lg">
-              <p className="text-gray-600 mb-4">{t(text.noProductsFound)}</p>
-              {searchQuery && (
+          </div>
+
+          {/* Debug Info Section - Correct connection state access */}
+          {isAdmin && debugMode && !slotsLoading && !slotsError && (
+            <div
+              className="mb-8 p-4 border border-orange-300 bg-orange-50 rounded-lg"
+              role="region"
+              aria-label={t(text.debugInfo)}
+            >
+              <h3 className="text-lg font-medium text-orange-800 mb-3">
+                {t(text.debugInfo)}
+              </h3>
+
+              {/* Connection status section - Use connectionState properties */}
+              <div className="mb-4 pb-4 border-b border-orange-200">
+                <p className="text-sm font-medium text-orange-700 mb-2">
+                  {t({ en: "Connection Status:", fr: "Statut de Connexion:" })}
+                </p>
+                <div className="flex items-center">
+                  <div
+                    className={`w-3 h-3 rounded-full mr-2 ${
+                      connectionState.isConnected
+                        ? "bg-green-500"
+                        : "bg-red-500"
+                    }`}
+                  ></div>
+                  <span className="text-sm">
+                    {connectionState.isConnected
+                      ? t({
+                          en: `Connected (${connectionState.latency ?? "N/A"}ms)`,
+                          fr: `Connecté (${connectionState.latency ?? "N/A"}ms)`,
+                        })
+                      : t({ en: "Disconnected", fr: "Déconnecté" })}
+                    {!connectionState.isConnected &&
+                      connectionState.connectionStatus?.error && (
+                        <span className="ml-2 text-xs text-red-600">
+                          {connectionState.connectionStatus.error.message}
+                        </span>
+                      )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm font-medium text-orange-700">
+                    {t(text.slotsSummary)}:
+                  </p>
+                  <ul className="text-sm text-orange-600 mt-1 space-y-1">
+                    <li>
+                      {t(text.totalSlots)}: {slots?.length || 0}
+                    </li>
+                    <li>
+                      {t(text.withProductId)}:{" "}
+                      {slots?.filter(
+                        (s) =>
+                          s.live_product_seller_id || s.live_product_name_en,
+                      ).length || 0}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
                 <button
-                  onClick={handleClearSearch}
-                  className="bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-600"
+                  onClick={() => refreshSlots()}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  style={focusStyles.keyboard}
                 >
-                  {t(text.clearSearch)}
+                  {t(text.refreshSlots)}
                 </button>
-              )}
+
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                  style={focusStyles.keyboard}
+                >
+                  {t(text.reloadPage)}
+                </button>
+              </div>
             </div>
-          )
-        )}
-      </section>
-    </div>
+          )}
+
+          {/* Product Grid */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-6">
+              {t(text.productGridHeading)}
+            </h2>
+
+            {slotsLoading ? (
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+                {...createAriaBusy(true)}
+                {...createAriaLive("polite")}
+              >
+                {Array.from({ length: 16 }).map((_, index) => (
+                  <div
+                    key={`skeleton-${index}`}
+                    className="relative h-full"
+                    aria-hidden="true"
+                  >
+                    <Skeleton
+                      className={`w-full h-full rounded-lg bg-gray-200 ${prefersReducedMotion ? "" : "animate-pulse"}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : slotsError ? (
+              <div
+                className="text-center py-12"
+                role="alert"
+                aria-live="assertive"
+              >
+                <p className="text-red-600 mb-4">{t(text.errorMessage)}</p>
+                <button
+                  onClick={() => refreshSlots()}
+                  className="bg-primary-500 text-white px-4 py-2 rounded hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  style={focusStyles.keyboard}
+                >
+                  {t(text.retryButton)}
+                </button>
+              </div>
+            ) : productItems.length > 0 ? (
+              <div
+                tabIndex={-1}
+                aria-label={t(text.productGridHeading)}
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
+                style={{ outline: "none" }}
+              >
+                {gridItems.map((item) =>
+                  item.type === "product" && item.slot ? (
+                    <MemoizedProductCard
+                      key={`slot-${item.slotNumber}`}
+                      slot={item.slot}
+                      isAdmin={isAdmin}
+                      className="h-full"
+                    />
+                  ) : (
+                    <div
+                      key={`empty-${item.slotNumber}`}
+                      className="aspect-w-4 aspect-h-5 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200"
+                      aria-hidden="true"
+                    ></div>
+                  ),
+                )}
+              </div>
+            ) : (
+              <div
+                className="text-center py-16 border border-gray-200 rounded-lg"
+                role="region"
+                aria-live="polite"
+              >
+                <p className="text-gray-600 mb-4">{t(text.noProductsFound)}</p>
+              </div>
+            )}
+          </section>
+        </main>
+      </Container>
+    </>
   );
 };
 

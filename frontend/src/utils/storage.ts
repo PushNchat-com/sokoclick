@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from "@/services/supabase";
 
 interface UploadOptions {
   userId: string;
@@ -9,16 +9,19 @@ interface UploadOptions {
 /**
  * Generates a storage path for product images
  */
-export const getProductImagePath = (file: File, { userId, isAdmin, productId }: UploadOptions) => {
+export const getProductImagePath = (
+  file: File,
+  { userId, isAdmin, productId }: UploadOptions,
+) => {
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(2, 15);
-  const fileName = `${randomId}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  const fileName = `${randomId}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
   if (isAdmin) {
-    return `admin/${userId}/${productId || 'new'}/${fileName}`;
+    return `admin/${userId}/${productId || "new"}/${fileName}`;
   }
 
-  return `sellers/${userId}/${productId || 'new'}/${fileName}`;
+  return `sellers/${userId}/${productId || "new"}/${fileName}`;
 };
 
 /**
@@ -26,24 +29,24 @@ export const getProductImagePath = (file: File, { userId, isAdmin, productId }: 
  */
 export const uploadProductImage = async (
   file: File,
-  options: UploadOptions
+  options: UploadOptions,
 ): Promise<{ url: string }> => {
   const path = getProductImagePath(file, options);
 
   const { error, data } = await supabase.storage
-    .from('product-images')
+    .from("product-images")
     .upload(path, file, {
-      cacheControl: '3600',
-      upsert: false
+      cacheControl: "3600",
+      upsert: false,
     });
 
   if (error) {
     throw error;
   }
 
-  const { data: { publicUrl } } = supabase.storage
-    .from('product-images')
-    .getPublicUrl(path);
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("product-images").getPublicUrl(path);
 
   return { url: publicUrl };
 };
@@ -52,13 +55,13 @@ export const uploadProductImage = async (
  * Deletes a product image from storage
  */
 export const deleteProductImage = async (url: string) => {
-  const path = url.split('/').slice(-4).join('/'); // Extract path from URL
-  
+  const path = url.split("/").slice(-4).join("/"); // Extract path from URL
+
   const { error } = await supabase.storage
-    .from('product-images')
+    .from("product-images")
     .remove([path]);
 
   if (error) {
     throw error;
   }
-}; 
+};

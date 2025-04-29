@@ -14,12 +14,12 @@ export interface DeliveryOptionInternal extends DeliveryOption {
 
 // Delivery status enum
 export enum DeliveryStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  SHIPPED = 'shipped',
-  DELIVERED = 'delivered',
-  FAILED = 'failed',
-  CANCELED = 'canceled'
+  PENDING = "pending",
+  PROCESSING = "processing",
+  SHIPPED = "shipped",
+  DELIVERED = "delivered",
+  FAILED = "failed",
+  CANCELED = "canceled",
 }
 
 // Shipping address interface
@@ -34,4 +34,4 @@ export interface ShippingAddress {
   postal_code?: string;
   phone: string;
   is_default?: boolean;
-} 
+}

@@ -1,2 +1,2 @@
-export * from './UnifiedAuthService';
-export { unifiedAuthService as default } from './UnifiedAuthService'; 
+export * from "./UnifiedAuthService";
+export { unifiedAuthService as default } from "./UnifiedAuthService";

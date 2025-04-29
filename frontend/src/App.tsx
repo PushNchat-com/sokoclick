@@ -1,42 +1,57 @@
-import React, { Suspense, lazy, ComponentType } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { LanguageProvider } from './store/LanguageContext';
-import { UnifiedAuthProvider } from './contexts/UnifiedAuthContext';
-import { HelmetProvider } from 'react-helmet-async';
-import MainLayout from './layouts/MainLayout';
-import AdminLayout from './layouts/AdminLayout';
-import ErrorBoundary from './components/ErrorBoundary';
-import PrivateRoute from './components/auth/PrivateRoute';
-import AdminRoute from './components/auth/AdminRoute';
-import { Toast } from './components/ui/Toast';
+import React, { Suspense, lazy, ComponentType } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { LanguageProvider } from "./store/LanguageContext";
+import { UnifiedAuthProvider } from "./contexts/UnifiedAuthContext";
+import { HelmetProvider } from "react-helmet-async";
+import MainLayout from "./layouts/MainLayout";
+import AdminLayout from "./layouts/AdminLayout";
+import ErrorBoundary from "./components/ui/ErrorBoundary";
+import AuthErrorBoundary from "./components/auth/AuthErrorBoundary";
+import PrivateRoute from "./components/auth/PrivateRoute";
+import AdminRoute from "./components/auth/AdminRoute";
+import { Toast } from "./components/ui/Toast";
+import { toast } from "./utils/toast";
 
 // Lazy-loaded components with proper typing
-const HomePage = lazy(() => import('./pages/HomePage')) as ComponentType;
-const ProductPage = lazy(() => import('./pages/ProductPage')) as ComponentType;
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard')) as ComponentType;
-const Dashboard = lazy(() => import('./pages/Dashboard')) as ComponentType;
-const Profile = lazy(() => import('./pages/Profile')) as ComponentType;
-const AdminProductsPage = lazy(() => import('./pages/AdminProductsPage')) as ComponentType;
+const HomePage = lazy(() => import("./pages/HomePage")) as ComponentType;
+const ProductPage = lazy(() => import("./pages/ProductPage")) as ComponentType;
+const AdminDashboard = lazy(
+  () => import("./pages/AdminDashboard"),
+) as ComponentType;
+const Dashboard = lazy(() => import("./pages/Dashboard")) as ComponentType;
+const Profile = lazy(() => import("./pages/Profile")) as ComponentType;
+// const AdminProductsPage = lazy(
+//   () => import("./pages/AdminProductsPage"),
+// ) as ComponentType;
 
 // New pages
-const AboutPage = lazy(() => import('./pages/AboutPage')) as ComponentType;
-const FaqPage = lazy(() => import('./pages/FaqPage')) as ComponentType;
-const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage')) as ComponentType;
-const SlotUploadsPage = lazy(() => import('./pages/admin/SlotUploadsPage')) as ComponentType;
+const AboutPage = lazy(() => import("./pages/AboutPage")) as ComponentType;
+const FaqPage = lazy(() => import("./pages/FaqPage")) as ComponentType;
+const HowItWorksPage = lazy(
+  () => import("./pages/HowItWorksPage"),
+) as ComponentType;
+const SlotUploadsPage = lazy(
+  () => import("./pages/admin/SlotUploadsPage"),
+) as ComponentType;
 
 // Auth Components - these are smaller and can be imported directly
-import Login from './components/auth/Login';
-import Signup from './components/auth/Signup';
-import ForgotPassword from './components/auth/ForgotPassword';
-import ResetPassword from './components/auth/ResetPassword';
+import Login from "./components/auth/Login";
+import Signup from "./components/auth/Signup";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
 
 // Admin Components
-import UserManagement from './components/admin/UserManagement';
-import SlotManagement from './components/admin/SlotManagement';
-import ProductForm from './components/admin/ProductForm';
+import UserManagement from "./components/admin/UserManagement";
+import SlotManagement from "./components/admin/SlotManagement";
+// import ProductForm from "./components/admin/ProductForm"; // Removed as per Option A
 
 // Admin Auth Components
-import AdminLogin from './components/auth/AdminLogin';
+import AdminLogin from "./components/auth/AdminLogin";
 
 // Loading Fallback
 const LoadingFallback = () => (
@@ -53,7 +68,10 @@ const NotFoundPage = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
     <h1 className="text-4xl font-bold text-gray-800 mb-2">404</h1>
     <p className="text-xl text-gray-600 mb-8">Page Not Found</p>
-    <a href="/" className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+    <a
+      href="/"
+      className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+    >
       Return to Home
     </a>
   </div>
@@ -62,8 +80,13 @@ const NotFoundPage = () => (
 const UnauthorizedPage = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
     <h1 className="text-4xl font-bold text-gray-800 mb-2">Unauthorized</h1>
-    <p className="text-xl text-gray-600 mb-8">You don't have permission to access this page</p>
-    <a href="/" className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+    <p className="text-xl text-gray-600 mb-8">
+      You don't have permission to access this page
+    </p>
+    <a
+      href="/"
+      className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+    >
       Return to Home
     </a>
   </div>
@@ -71,13 +94,23 @@ const UnauthorizedPage = () => (
 
 const AdminUnauthorizedPage = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-    <h1 className="text-4xl font-bold text-gray-800 mb-2">Admin Access Required</h1>
-    <p className="text-xl text-gray-600 mb-8">You need admin privileges to access this page</p>
+    <h1 className="text-4xl font-bold text-gray-800 mb-2">
+      Admin Access Required
+    </h1>
+    <p className="text-xl text-gray-600 mb-8">
+      You need admin privileges to access this page
+    </p>
     <div className="flex space-x-4">
-      <a href="/admin/login" className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+      <a
+        href="/admin/login"
+        className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+      >
         Admin Login
       </a>
-      <a href="/" className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+      <a
+        href="/"
+        className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+      >
         Return to Home
       </a>
     </div>
@@ -97,9 +130,19 @@ const App: React.FC = () => {
                   {/* User Routes */}
                   <Route path="/" element={<MainLayout />}>
                     <Route index element={<HomePage />} />
-                    <Route path="login" element={<Login />} />
+                    <Route
+                      path="login"
+                      element={
+                        <AuthErrorBoundary>
+                          <Login />
+                        </AuthErrorBoundary>
+                      }
+                    />
                     <Route path="signup" element={<Signup />} />
-                    <Route path="forgot-password" element={<ForgotPassword />} />
+                    <Route
+                      path="forgot-password"
+                      element={<ForgotPassword />}
+                    />
                     <Route path="reset-password" element={<ResetPassword />} />
                     {/* New public pages */}
                     <Route path="about" element={<AboutPage />} />
@@ -123,10 +166,19 @@ const App: React.FC = () => {
                     />
                     <Route path="product/:id" element={<ProductPage />} />
                   </Route>
-                  
+
                   {/* Admin login - standalone route */}
-                  <Route path="/admin/login" element={<AdminLogin />} />
-                  
+                  <Route
+                    path="/admin/login"
+                    element={
+                      <AuthErrorBoundary>
+                        <Suspense fallback={<LoadingFallback />}>
+                          <AdminLogin />
+                        </Suspense>
+                      </AuthErrorBoundary>
+                    }
+                  />
+
                   {/* Admin Routes with AdminRoute protection */}
                   <Route
                     path="/admin"
@@ -140,20 +192,30 @@ const App: React.FC = () => {
                     <Route path="slots" element={<SlotManagement />} />
                     <Route path="slots/uploads" element={<SlotUploadsPage />} />
                     <Route path="users" element={<UserManagement />} />
-                    <Route path="products" element={<AdminProductsPage />} />
-                    <Route path="products/create" element={<ProductForm />} />
-                    <Route path="products/new" element={<Navigate to="/admin/products/create" replace />} />
-                    <Route path="products/:id/edit" element={<ProductForm isEditing />} />
+                    {/* <Route path="products" element={<AdminProductsPage />} /> */}
+                    {/* Removed ProductForm routes as per Option A */}
+                    {/* <Route path="products/create" element={<ProductForm />} /> */}
+                    {/* <Route
+                      path="products/new"
+                      element={<Navigate to="/admin/products/create" replace />}
+                    /> */}
+                    {/* <Route
+                      path="products/:id/edit"
+                      element={<ProductForm isEditing />}
+                    /> */}
                   </Route>
-                  
+
                   {/* Error Pages */}
                   <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                  <Route path="/admin/unauthorized" element={<AdminUnauthorizedPage />} />
+                  <Route
+                    path="/admin/unauthorized"
+                    element={<AdminUnauthorizedPage />}
+                  />
                   <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </Suspense>
-              
-              <Toast position="bottom-right" />
+
+              <Toast />
             </Router>
           </UnifiedAuthProvider>
         </LanguageProvider>
@@ -163,20 +225,24 @@ const App: React.FC = () => {
 };
 
 // Global unhandled error handler
-window.addEventListener('error', (event) => {
-  console.error('Unhandled error:', event.error);
+window.addEventListener("error", (event) => {
+  console.error("Unhandled error:", event.error);
   // Display a toast for unhandled errors in production
-  if (process.env.NODE_ENV === 'production') {
-    toast.error('An unexpected error occurred. Please try again or contact support if the problem persists.');
+  if (process.env.NODE_ENV === "production") {
+    toast.error(
+      "An unexpected error occurred. Please try again or contact support if the problem persists.",
+    );
   }
 });
 
 // Global unhandled promise rejection handler
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
   // Display a toast for unhandled promise rejections in production
-  if (process.env.NODE_ENV === 'production') {
-    toast.error('An unexpected error occurred. Please try again or contact support if the problem persists.');
+  if (process.env.NODE_ENV === "production") {
+    toast.error(
+      "An unexpected error occurred. Please try again or contact support if the problem persists.",
+    );
   }
 });
 

@@ -14,7 +14,7 @@ export type TranslationFunction = (content: TranslationContent) => string;
 /**
  * Language type
  */
-export type Language = 'en' | 'fr';
+export type Language = "en" | "fr";
 
 /**
  * Language context type
@@ -43,7 +43,10 @@ export type TranslationKey = keyof TranslationMap;
 /**
  * Helper function to create a translation content object
  */
-export const createTranslation = (en: string, fr: string): TranslationContent => ({
+export const createTranslation = (
+  en: string,
+  fr: string,
+): TranslationContent => ({
   en,
   fr,
-}); 
+});

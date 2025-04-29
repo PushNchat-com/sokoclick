@@ -4,17 +4,17 @@ SokoClick is a mobile-first ecommerce platform with 25 dedicated product slots, 
 
 ## Overview
 
-SokoClick provides a streamlined marketplace experience focused on mobile users in Cameroon. The platform features 25 permanent product slots with dedicated URLs, making it easy for sellers to market their products and for buyers to discover and inquire about items via WhatsApp.
+SokoClick provides a streamlined marketplace experience focused on mobile users in Cameroon. The platform features 25 permanent product slots, each capable of holding product information directly. This allows for easy discovery and inquiry about items via WhatsApp.
 
 ## Key Features
 
-- **25 Dedicated Product Slots**: Fixed number of slots with permanent links
-- **WhatsApp Integration**: Direct communication between buyers and sellers
-- **Bilingual Support**: Full English and French language support
-- **Mobile-First Design**: Optimized for smartphone users in Cameroon
-- **Cash on Delivery**: Simple payment model without online processing
-- **Seller Verification**: Trust-building verification system
-- **Admin Dashboard**: Comprehensive management tools
+- **25 Dedicated Product Slots**: Fixed number of slots, each storing product details directly.
+- **WhatsApp Integration**: Direct communication between buyers and sellers.
+- **Bilingual Support**: Full English and French language support.
+- **Mobile-First Design**: Optimized for smartphone users in Cameroon.
+- **Cash on Delivery**: Simple payment model.
+- **Seller Verification**: Trust-building verification system for sellers.
+- **Admin Dashboard**: Comprehensive management tools for slots, users, and content.
 
 ## Tech Stack
 
@@ -22,7 +22,7 @@ SokoClick provides a streamlined marketplace experience focused on mobile users 
 - **Backend**: Supabase (Auth, Database, Storage, Realtime)
 - **Hosting**: Netlify with CI/CD
 - **Image Optimization**: WebP format with responsive sizing
-- **Monitoring**: Sentry integration
+- **Monitoring**: Sentry integration (Planned/Optional)
 
 ## Installation
 
@@ -36,7 +36,7 @@ SokoClick provides a streamlined marketplace experience focused on mobile users 
 
 1. Clone the repository
 ```bash
-git clone https://github.com/your-org/sokoclick.git
+git clone https://github.com/PushNchat-com/sokoclick.git
 cd sokoclick
 ```
 
@@ -49,7 +49,7 @@ pnpm install
 ```bash
 cp .env.example .env
 ```
-Edit `.env` with your Supabase credentials.
+Edit `.env` with your Supabase credentials (URL and Anon Key).
 
 4. Start the development server
 ```bash
@@ -63,20 +63,20 @@ sokoclick/
 ├── public/            # Static assets
 ├── src/
 │   ├── components/    # Reusable UI components
-│   │   ├── admin/     # Admin-specific components
-│   │   ├── product/   # Product-related components
+│   │   ├── admin/     # Admin-specific components (Slot/User Management)
+│   │   ├── product/   # Components for displaying slot content (Card, Details)
 │   │   └── ui/        # Generic UI components
 │   ├── hooks/         # Custom React hooks
 │   ├── layouts/       # Page layout components
-│   ├── pages/         # Application pages
-│   ├── services/      # API and external service integrations
+│   ├── pages/         # Application pages (Home, Admin, etc.)
+│   ├── services/      # API and external service integrations (Supabase)
 │   ├── store/         # State management
 │   ├── styles/        # Global styles and Tailwind config
-│   ├── types/         # TypeScript type definitions
+│   ├── types/         # TypeScript type definitions (incl. Supabase types)
 │   ├── utils/         # Utility functions
 │   ├── App.tsx        # Main application component
-│   ├── index.tsx      # Application entry point
-│   └── routes.tsx     # Application routes
+│   ├── main.tsx       # Application entry point (Vite)
+│   └── routes.tsx     # Application routes (Example, adjust as needed)
 ├── supabase/          # Supabase configuration and migrations
 ├── .env.example       # Example environment variables
 ├── index.html         # HTML entry point
@@ -89,23 +89,23 @@ sokoclick/
 ## User Types
 
 ### Buyers
-- Browse products on the home page
-- View detailed product information
-- Contact sellers directly via WhatsApp
-- No account required
+- Browse products displayed in the 25 slots.
+- View detailed product information shown in a slot.
+- Contact sellers directly via WhatsApp (using number linked to the slot's seller).
+- No account required.
 
 ### Sellers
-- List products through admin verification
-- Receive inquiries via WhatsApp
-- Manage product details and availability
-- Complete verification process for trust-building
+- Provide product info & images to Admin via WhatsApp.
+- Receive inquiries via their registered WhatsApp number.
+- Complete verification process for trust-building.
 
 ### Administrators
-- Manage all 25 product slots
-- Approve and moderate product listings
-- Verify sellers
-- Monitor platform analytics
-- Configure platform settings
+- Manage content (draft & live) for all 25 product slots.
+- Populate slot drafts based on seller submissions.
+- Publish drafts to make content live in slots.
+- Verify sellers.
+- Monitor platform analytics.
+- Configure platform settings.
 
 ## Deployment
 
@@ -116,8 +116,8 @@ The application is configured for deployment on Netlify with Supabase as the bac
 pnpm build
 ```
 
-2. Set up required environment variables in Netlify dashboard
-3. Enable continuous deployment from your repository
+2. Set up required environment variables in Netlify dashboard (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
+3. Enable continuous deployment from your repository.
 
 ## License
 
@@ -125,8 +125,7 @@ This project is proprietary and confidential. Unauthorized copying, distribution
 
 ## Documentation
 
-Additional documentation is available in the `sokoclick-docs` directory:
-- [Home Page Design](sokoclick-docs/home-page-design.md)
-- [Product Card Design](sokoclick-docs/product-card-design.md)
-- [Product Details Page Design](sokoclick-docs/product-details-page-design.md)
+Additional documentation is available in the `sokoclick-docs` and `guides` directories:
+- [Slot System Architecture](sokoclick-docs/slot-system-architecture.md)
 - [Admin Dashboard Design](sokoclick-docs/dashboard/admin-dashboard-design.md)
+- *(Review other docs for relevance)*

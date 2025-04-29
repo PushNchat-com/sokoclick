@@ -1,48 +1,76 @@
-import { PasswordValidationResult } from '../types/auth';
+import { PasswordValidationResult } from "../types/auth";
 
 /**
  * Validates password strength and returns detailed feedback
  */
-export const validatePasswordStrength = (password: string): PasswordValidationResult => {
+export const validatePasswordStrength = (
+  password: string,
+): PasswordValidationResult => {
   const minLength = 8;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumbers = /\d/.test(password);
   const hasSpecialChar = /[!@#$%^&*]/.test(password);
-  
+
   const requirements = [
-    { met: password.length >= minLength, message: { en: 'At least 8 characters', fr: 'Au moins 8 caractères' } },
-    { met: hasUpperCase, message: { en: 'At least one uppercase letter', fr: 'Au moins une lettre majuscule' } },
-    { met: hasLowerCase, message: { en: 'At least one lowercase letter', fr: 'Au moins une lettre minuscule' } },
-    { met: hasNumbers, message: { en: 'At least one number', fr: 'Au moins un chiffre' } },
-    { met: hasSpecialChar, message: { en: 'At least one special character (!@#$%^&*)', fr: 'Au moins un caractère spécial (!@#$%^&*)' } }
+    {
+      met: password.length >= minLength,
+      message: { en: "At least 8 characters", fr: "Au moins 8 caractères" },
+    },
+    {
+      met: hasUpperCase,
+      message: {
+        en: "At least one uppercase letter",
+        fr: "Au moins une lettre majuscule",
+      },
+    },
+    {
+      met: hasLowerCase,
+      message: {
+        en: "At least one lowercase letter",
+        fr: "Au moins une lettre minuscule",
+      },
+    },
+    {
+      met: hasNumbers,
+      message: { en: "At least one number", fr: "Au moins un chiffre" },
+    },
+    {
+      met: hasSpecialChar,
+      message: {
+        en: "At least one special character (!@#$%^&*)",
+        fr: "Au moins un caractère spécial (!@#$%^&*)",
+      },
+    },
   ];
-  
-  const unmetRequirements = requirements.filter(req => !req.met);
-  
+
+  const unmetRequirements = requirements.filter((req) => !req.met);
+
   return {
     isValid: unmetRequirements.length === 0,
-    unmetRequirements: unmetRequirements.map(req => req.message)
+    unmetRequirements: unmetRequirements.map((req) => req.message),
   };
 };
 
 /**
  * Validates and formats Cameroon phone numbers
  */
-export const validateAndFormatPhone = (phone: string): { isValid: boolean; formatted: string } => {
+export const validateAndFormatPhone = (
+  phone: string,
+): { isValid: boolean; formatted: string } => {
   // Remove all non-digit characters
-  const digits = phone.replace(/\D/g, '');
-  
+  const digits = phone.replace(/\D/g, "");
+
   // Check if it's a valid Cameroon number
   const isCameroonFormat = /^(?:237|)?([2368]\d{8})$/.test(digits);
-  
+
   if (!isCameroonFormat) {
     return { isValid: false, formatted: phone };
   }
-  
+
   // Format as international number
-  const formatted = digits.replace(/^(?:237)?(\d{9})$/, '+237$1');
-  
+  const formatted = digits.replace(/^(?:237)?(\d{9})$/, "+237$1");
+
   return { isValid: true, formatted };
 };
 
@@ -51,12 +79,12 @@ export const validateAndFormatPhone = (phone: string): { isValid: boolean; forma
  */
 export const sanitizeInput = (input: string): string => {
   return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
 };
 
 /**
@@ -65,7 +93,9 @@ export const sanitizeInput = (input: string): string => {
 export const generateCSRFToken = (): string => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
 };
 
 /**
@@ -76,7 +106,7 @@ export const validateResetToken = (token: string): boolean => {
   if (!token || !/^[a-zA-Z0-9_-]+$/.test(token)) {
     return false;
   }
-  
+
   // Add additional validation as needed
   return true;
 };
@@ -85,27 +115,32 @@ export const validateResetToken = (token: string): boolean => {
  * Tracks security events
  */
 export const trackSecurityEvent = async (
-  eventType: 'login' | 'logout' | 'password_reset' | 'signup' | 'password_change',
-  metadata: Record<string, any>
+  eventType:
+    | "login"
+    | "logout"
+    | "password_reset"
+    | "signup"
+    | "password_change",
+  metadata: Record<string, any>,
 ) => {
   try {
-    const response = await fetch('/api/security/log', {
-      method: 'POST',
+    const response = await fetch("/api/security/log", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         event_type: eventType,
         timestamp: new Date().toISOString(),
-        ...metadata
-      })
+        ...metadata,
+      }),
     });
-    
+
     if (!response.ok) {
-      throw new Error('Failed to log security event');
+      throw new Error("Failed to log security event");
     }
   } catch (error) {
-    console.error('Error logging security event:', error);
+    console.error("Error logging security event:", error);
   }
 };
 
@@ -148,4 +183,4 @@ export class RateLimiter {
   reset(key: string): void {
     this.attempts.delete(key);
   }
-} 
+}

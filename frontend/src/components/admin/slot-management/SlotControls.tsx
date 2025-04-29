@@ -1,13 +1,8 @@
-import React from 'react';
-import { Slot, SlotStatus } from '../../../services/slots';
-import { useLanguage } from '../../../store/LanguageContext';
-import { Button } from '../../ui/Button';
-import { 
-  RefreshIcon, 
-  PlusIcon, 
-  PhotographIcon, 
-  CogIcon 
-} from '../../ui/Icons';
+import React from "react";
+import { Slot, SlotStatus } from "../../../services/slots";
+import { useLanguage } from "../../../store/LanguageContext";
+import { Button } from "../../ui/Button";
+import { RefreshIcon, PlusIcon, PhotographIcon, CogIcon } from "../../ui/Icons";
 
 interface SlotControlsProps {
   selectedSlot: Slot | null;
@@ -26,19 +21,22 @@ const SlotControls: React.FC<SlotControlsProps> = ({
   onViewImages,
   onToggleMaintenance,
   onReserveSlot,
-  onCancelReservation
+  onCancelReservation,
 }) => {
   const { t } = useLanguage();
 
   // Text content
   const text = {
-    refresh: { en: 'Refresh', fr: 'Actualiser' },
-    product: { en: 'Product', fr: 'Produit' },
-    images: { en: 'Images', fr: 'Images' },
-    maintenance: { en: 'Toggle Maintenance', fr: 'Mode Maintenance' },
-    reserve: { en: 'Reserve Slot', fr: 'Réserver' },
-    cancel: { en: 'Cancel Reservation', fr: 'Annuler' },
-    noSlot: { en: 'Select a slot to see actions', fr: 'Sélectionnez un emplacement pour voir les actions' }
+    refresh: { en: "Refresh", fr: "Actualiser" },
+    product: { en: "Product", fr: "Produit" },
+    images: { en: "Images", fr: "Images" },
+    maintenance: { en: "Toggle Maintenance", fr: "Mode Maintenance" },
+    reserve: { en: "Reserve Slot", fr: "Réserver" },
+    cancel: { en: "Cancel Reservation", fr: "Annuler" },
+    noSlot: {
+      en: "Select a slot to see actions",
+      fr: "Sélectionnez un emplacement pour voir les actions",
+    },
   };
 
   // No slot selected message
@@ -84,7 +82,9 @@ const SlotControls: React.FC<SlotControlsProps> = ({
       </Button>
 
       <Button
-        variant={selectedSlot.status === SlotStatus.MAINTENANCE ? "danger" : "warning"}
+        variant={
+          selectedSlot.status === SlotStatus.MAINTENANCE ? "danger" : "warning"
+        }
         onClick={() => onToggleMaintenance(selectedSlot.id)}
         icon={<CogIcon className="h-4 w-4" />}
       >
@@ -112,4 +112,4 @@ const SlotControls: React.FC<SlotControlsProps> = ({
   );
 };
 
-export default SlotControls; 
+export default SlotControls;

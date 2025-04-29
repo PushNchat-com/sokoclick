@@ -11,9 +11,6 @@ importers:
       '@supabase/storage-js':
         specifier: ^2.7.2
         version: 2.7.2
-      browser-image-compression:
-        specifier: ^2.0.2
-        version: 2.0.2
     devDependencies:
       supabase:
         specifier: ^2.22.4
@@ -39,9 +36,6 @@ packages:
   bin-links@5.0.0:
     resolution: {integrity: sha512-sdleLVfCjBtgO5cNjA2HVRvWBJAHs4zwenaCPMNJAJU0yNxpzj80IpjOIimkpkr+mhlA+how5poQtt53PygbHA==}
     engines: {node: ^18.17.0 || >=20.5.0}
-
-  browser-image-compression@2.0.2:
-    resolution: {integrity: sha512-pBLlQyUf6yB8SmmngrcOw3EoS4RpQ1BcylI3T9Yqn7+4nrQTXJD4sJDe5ODnJdrvNMaio5OicFo75rDyJD2Ucw==}
 
   chownr@3.0.0:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
@@ -133,9 +127,6 @@ packages:
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
 
-  uzip@0.20201231.0:
-    resolution: {integrity: sha512-OZeJfZP+R0z9D6TmBgLq2LHzSSptGMGDGigGiEe0pr8UBe/7fdflgHlHBNDASTXB5jnFuxHpNaJywSg8YFeGng==}
-
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
@@ -177,10 +168,6 @@ snapshots:
       proc-log: 5.0.0
       read-cmd-shim: 5.0.0
       write-file-atomic: 6.0.0
-
-  browser-image-compression@2.0.2:
-    dependencies:
-      uzip: 0.20201231.0
 
   chownr@3.0.0: {}
 
@@ -255,8 +242,6 @@ snapshots:
       yallist: 5.0.0
 
   tr46@0.0.3: {}
-
-  uzip@0.20201231.0: {}
 
   web-streams-polyfill@3.3.3: {}
 

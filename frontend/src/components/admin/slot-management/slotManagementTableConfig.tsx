@@ -1,0 +1,309 @@
+import { Slot } from "@/services/slots";
+import { Column } from "@/components/ui/DataTable";
+import { Badge } from "@/components/ui/Badge";
+import { formatDateTime } from "@/utils/formatters";
+import {
+  ImageIcon,
+  CheckIcon,
+  XIcon,
+  TrashIcon,
+  SettingsIcon,
+} from "@/components/ui/Icons";
+import { ActionItem } from "@/components/ui/ActionMenu";
+import { SlotStatus, DraftStatus } from "@/types/supabase-types";
+
+// Define types for handler functions to ensure type safety
+// These now represent the CONFIRMATION trigger functions, not the core async logic
+type ApproveDraftHandler = (
+  slotId: number,
+  sellerId: string | undefined,
+) => void;
+type RejectDraftHandler = (slotId: number) => void;
+type RemoveProductHandler = (slotId: number) => void;
+type MaintenanceToggleHandler = (slotId: number, targetState: boolean) => void;
+
+interface TableConfigDependencies {
+  language: "en" | "fr";
+  t: (key: { en: string; fr: string }, options?: any) => string;
+  filterDraftStatus?: DraftStatus;
+  isLoading: boolean;
+  handleApproveDraft: ApproveDraftHandler;
+  handleRejectDraft: RejectDraftHandler;
+  handleRemoveProduct: RemoveProductHandler;
+  handleMaintenanceToggle: MaintenanceToggleHandler;
+}
+
+export const getSlotTableColumns = ({
+  language,
+  t,
+  filterDraftStatus,
+}: Pick<
+  TableConfigDependencies,
+  "language" | "t" | "filterDraftStatus"
+>): Column<Slot>[] => {
+  // Define base columns common to both modes
+  const baseColumns: Column<Slot>[] = [
+    {
+      id: "id",
+      accessorKey: "id",
+      header: t({ en: "ID", fr: "ID" }),
+      width: 60,
+    },
+    // Only show slot_status column when NOT in approval mode
+    ...(filterDraftStatus !== DraftStatus.ReadyToPublish
+      ? [
+          {
+            id: "slot_status",
+            accessorKey: "slot_status",
+            header: t({ en: "Status", fr: "Statut" }),
+            cell: (slot: Slot) => {
+              const status = slot.slot_status as SlotStatus;
+              const variant =
+                status === SlotStatus.Live
+                  ? "primary"
+                  : status === SlotStatus.Empty
+                    ? "success"
+                    : status === SlotStatus.Maintenance
+                      ? "error"
+                      : "secondary";
+              // Use translation for status text if needed
+              const statusText = t({
+                en: status.charAt(0).toUpperCase() + status.slice(1),
+                fr:
+                  status === SlotStatus.Live
+                    ? "En Ligne"
+                    : status === SlotStatus.Empty
+                      ? "Vide"
+                      : status === SlotStatus.Maintenance
+                        ? "Maintenance"
+                        : status,
+              });
+              return <Badge variant={variant}>{statusText}</Badge>;
+            },
+            enableSorting: true,
+            width: 120,
+          } as Column<Slot>,
+        ]
+      : []),
+  ];
+
+  let modeSpecificColumns: Column<Slot>[] = [];
+
+  if (filterDraftStatus === DraftStatus.ReadyToPublish) {
+    // Columns for Approval Mode
+    modeSpecificColumns = [
+      {
+        id: "draft_product_name",
+        header: t({ en: "Draft Product", fr: "Produit Brouillon" }),
+        cell: (slot: Slot) => {
+          const productName =
+            language === "en"
+              ? slot.draft_product_name_en
+              : slot.draft_product_name_fr;
+          const imageUrl = slot.draft_product_image_urls?.[0];
+          return (
+            <div className="flex items-center">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={
+                    productName ||
+                    t({
+                      en: "Draft product image",
+                      fr: "Image produit brouillon",
+                    })
+                  }
+                  className="w-8 h-8 object-cover rounded mr-2"
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gray-200 rounded mr-2 flex items-center justify-center text-gray-500">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+              )}
+              <span className="truncate">{productName || "-"}</span>
+            </div>
+          );
+        },
+        enableSorting: true,
+      },
+      {
+        id: "draft_product_price",
+        accessorKey: "draft_product_price",
+        header: t({ en: "Draft Price", fr: "Prix Brouillon" }),
+        cell: (slot: Slot) => {
+          if (slot.draft_product_price == null) return "-";
+          // Consider formatting currency properly based on locale/currency
+          return `${slot.draft_product_price.toLocaleString()} ${slot.draft_product_currency || ""}`;
+        },
+        enableSorting: true,
+        width: 150,
+      },
+      {
+        id: "draft_seller_whatsapp",
+        accessorKey: "draft_seller_whatsapp_number",
+        header: t({ en: "Seller WhatsApp", fr: "WhatsApp Vendeur" }),
+        cell: (slot: Slot) => slot.draft_seller_whatsapp_number || "-",
+        width: 180,
+      },
+      {
+        id: "draft_updated_at",
+        accessorKey: "draft_updated_at",
+        header: t({ en: "Submitted", fr: "Soumis le" }),
+        cell: (slot: Slot) => {
+          if (!slot.draft_updated_at) return "-";
+          try {
+            return formatDateTime(new Date(slot.draft_updated_at), "relative");
+          } catch (e) {
+            console.error(
+              "Error parsing draft_updated_at:",
+              slot.draft_updated_at,
+              e,
+            );
+            return t({ en: "Invalid date", fr: "Date invalide" });
+          }
+        },
+        enableSorting: true,
+        width: 150,
+      },
+    ];
+  } else {
+    // Columns for General Management Mode
+    modeSpecificColumns = [
+      {
+        id: "live_product_name",
+        header: t({ en: "Product Name", fr: "Nom du Produit" }),
+        cell: (slot: Slot) => {
+          if (slot.slot_status !== SlotStatus.Live) return "-";
+          const productName =
+            language === "en"
+              ? slot.live_product_name_en
+              : slot.live_product_name_fr;
+          const imageUrl = slot.live_product_image_urls?.[0];
+          return (
+            <div className="flex items-center">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={
+                    productName ||
+                    t({
+                      en: "Live product image",
+                      fr: "Image produit en ligne",
+                    })
+                  }
+                  className="w-8 h-8 object-cover rounded mr-2"
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gray-200 rounded mr-2 flex items-center justify-center text-gray-500">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+              )}
+              <span className="truncate">{productName || "-"}</span>
+            </div>
+          );
+        },
+        enableSorting: true,
+      },
+      {
+        id: "live_product_price",
+        accessorKey: "live_product_price",
+        header: t({ en: "Price", fr: "Prix" }),
+        cell: (slot: Slot) => {
+          if (
+            slot.slot_status !== SlotStatus.Live ||
+            slot.live_product_price == null
+          )
+            return "-";
+          return `${slot.live_product_price.toLocaleString()} ${slot.live_product_currency || ""}`;
+        },
+        enableSorting: true,
+        width: 150,
+      },
+      {
+        id: "end_time",
+        accessorKey: "end_time",
+        header: t({ en: "Ends In", fr: "Finit Dans" }),
+        cell: (slot: Slot) => {
+          if (slot.slot_status !== SlotStatus.Live || !slot.end_time)
+            return "-";
+          try {
+            const endDate = new Date(slot.end_time);
+            return formatDateTime(endDate, "relative");
+          } catch (e) {
+            console.error("Error parsing end_time:", slot.end_time, e);
+            return t({ en: "Invalid date", fr: "Date invalide" });
+          }
+        },
+        enableSorting: true,
+        width: 150,
+      },
+    ];
+  }
+
+  return [...baseColumns, ...modeSpecificColumns];
+};
+
+export const getSlotRowActions = (
+  slot: Slot,
+  {
+    t,
+    filterDraftStatus,
+    isLoading,
+    handleApproveDraft,
+    handleRejectDraft,
+    handleRemoveProduct,
+    handleMaintenanceToggle,
+  }: Omit<TableConfigDependencies, "language">,
+): ActionItem[] => {
+  const actions: ActionItem[] = [];
+
+  if (filterDraftStatus === DraftStatus.ReadyToPublish) {
+    // Actions for Approval Mode
+    actions.push({
+      label: t({ en: "Approve", fr: "Approuver" }),
+      icon: <CheckIcon className="w-4 h-4 mr-2 text-green-600" />,
+      onClick: () => handleApproveDraft(slot.id, slot.draft_seller_id),
+      disabled: !slot.draft_seller_id || isLoading,
+    });
+    actions.push({
+      label: t({ en: "Reject", fr: "Rejeter" }),
+      icon: <XIcon className="w-4 h-4 mr-2 text-red-600" />,
+      onClick: () => handleRejectDraft(slot.id),
+      variant: "destructive",
+      disabled: isLoading,
+    });
+    // TODO: Add View Details action
+  } else {
+    // Actions for General Management Mode
+    const isMaintenance = slot.slot_status === SlotStatus.Maintenance;
+    const isLive = slot.slot_status === SlotStatus.Live;
+
+    if (isLive) {
+      actions.push({
+        label: t({ en: "Remove Product", fr: "Retirer Produit" }),
+        icon: <TrashIcon className="w-4 h-4 mr-2" />,
+        onClick: () => handleRemoveProduct(slot.id),
+        variant: "destructive",
+        disabled: isLoading,
+      });
+    }
+
+    const toggleAction: ActionItem = {
+      label: isMaintenance
+        ? t({ en: "Clear Maintenance", fr: "Terminer Maintenance" })
+        : t({ en: "Set Maintenance", fr: "Mettre en Maintenance" }),
+      icon: isMaintenance ? (
+        <CheckIcon className="w-4 h-4 mr-2" />
+      ) : (
+        <SettingsIcon className="w-4 h-4 mr-2" />
+      ),
+      onClick: () => handleMaintenanceToggle(slot.id, !isMaintenance),
+      disabled: isLoading,
+    };
+    actions.push(toggleAction);
+  }
+
+  return actions;
+};

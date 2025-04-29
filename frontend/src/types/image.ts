@@ -1,4 +1,4 @@
-import { FileObject } from '@supabase/storage-js';
+import { FileObject } from "@supabase/storage-js";
 
 // Image file interface for handling uploads
 export interface ImageFile {
@@ -41,17 +41,26 @@ export interface ImageValidationResult {
   error?: string;
 }
 
-export type AllowedImageType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/jpg';
+export type AllowedImageType =
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp"
+  | "image/jpg";
 
 export const IMAGE_CONSTRAINTS = {
   maxSize: 2 * 1024 * 1024, // 2MB in bytes (changed from 5MB)
-  allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'] as AllowedImageType[],
+  allowedTypes: [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/jpg",
+  ] as AllowedImageType[],
   maxImages: 5,
   minImages: 1,
   maxDimensions: {
     width: 2048,
-    height: 2048
-  }
+    height: 2048,
+  },
 } as const;
 
 export const validateImage = (file: File): ImageValidationResult => {
@@ -59,7 +68,7 @@ export const validateImage = (file: File): ImageValidationResult => {
   if (!IMAGE_CONSTRAINTS.allowedTypes.includes(file.type as AllowedImageType)) {
     return {
       valid: false,
-      error: 'Invalid file type. Only JPG, PNG, and WebP images are allowed.'
+      error: "Invalid file type. Only JPG, PNG, and WebP images are allowed.",
     };
   }
 
@@ -67,9 +76,9 @@ export const validateImage = (file: File): ImageValidationResult => {
   if (file.size > IMAGE_CONSTRAINTS.maxSize) {
     return {
       valid: false,
-      error: `File too large. Maximum size is ${IMAGE_CONSTRAINTS.maxSize / (1024 * 1024)}MB.`
+      error: `File too large. Maximum size is ${IMAGE_CONSTRAINTS.maxSize / (1024 * 1024)}MB.`,
     };
   }
 
   return { valid: true };
-}; 
+};

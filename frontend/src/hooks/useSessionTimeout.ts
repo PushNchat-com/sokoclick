@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { useUnifiedAuth } from '../contexts/UnifiedAuthContext';
-import { useLanguage } from '../store/LanguageContext';
+import { useEffect, useRef } from "react";
+import { useUnifiedAuth } from "../contexts/UnifiedAuthContext";
+import { useLanguage } from "../store/LanguageContext";
 
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const WARNING_TIME = 5 * 60 * 1000; // 5 minutes before timeout
@@ -18,13 +18,13 @@ interface TimeoutMessages {
 
 const messages: TimeoutMessages = {
   warning: {
-    en: 'Your session will expire in 5 minutes. Would you like to stay signed in?',
-    fr: 'Votre session expirera dans 5 minutes. Voulez-vous rester connecté ?'
+    en: "Your session will expire in 5 minutes. Would you like to stay signed in?",
+    fr: "Votre session expirera dans 5 minutes. Voulez-vous rester connecté ?",
   },
   expired: {
-    en: 'Your session has expired. Please sign in again.',
-    fr: 'Votre session a expiré. Veuillez vous reconnecter.'
-  }
+    en: "Your session has expired. Please sign in again.",
+    fr: "Votre session a expiré. Veuillez vous reconnecter.",
+  },
 };
 
 export const useSessionTimeout = () => {
@@ -58,8 +58,8 @@ export const useSessionTimeout = () => {
 
   useEffect(() => {
     // Track user activity
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-    
+    const events = ["mousedown", "keydown", "scroll", "touchstart"];
+
     const handleActivity = () => {
       resetTimeout();
     };
@@ -68,7 +68,7 @@ export const useSessionTimeout = () => {
     resetTimeout();
 
     // Add event listeners
-    events.forEach(event => {
+    events.forEach((event) => {
       document.addEventListener(event, handleActivity);
     });
 
@@ -80,9 +80,9 @@ export const useSessionTimeout = () => {
       if (warningId.current) {
         clearTimeout(warningId.current);
       }
-      events.forEach(event => {
+      events.forEach((event) => {
         document.removeEventListener(event, handleActivity);
       });
     };
   }, [signOut, t]);
-}; 
+};

@@ -1,0 +1,173 @@
+/* responsive.css - Tablet and mobile optimizations for admin dashboard */
+
+/* Global responsive improvements */
+@media (max-width: 900px) {
+  /* Increase touch targets on tablets */
+  button,
+  .button,
+  a[role="button"],
+  [type="button"],
+  [type="submit"],
+  [type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem 1rem;
+    touch-action: manipulation;
+  }
+
+  /* Improve table scroll experience */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  /* Ensure inputs are large enough to tap */
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+    min-height: 44px;
+  }
+
+  /* Sticky header improvements */
+  .sticky {
+    position: sticky;
+    background-color: white;
+    z-index: 10;
+  }
+}
+
+/* Tablet-specific optimizations (600-900px) */
+@media (min-width: 600px) and (max-width: 900px) {
+  /* Improved layout for filters */
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-bar > * {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Better grid layout for slot cards */
+  .grid-layout-tablet {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Ensure actions fit properly */
+  .action-menu-tablet {
+    width: 100%;
+  }
+
+  /* Ensure table takes full width */
+  .table-container-tablet {
+    width: 100%;
+    margin: 0;
+  }
+
+  /* Optimize batch operation buttons */
+  .batch-actions-tablet {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .batch-actions-tablet button {
+    flex: 1 0 45%;
+  }
+}
+
+/* Table optimizations for touch devices */
+.touch-friendly-table th,
+.touch-friendly-table td {
+  padding: 12px 16px;
+}
+
+.touch-friendly-table .sticky-column {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background-color: inherit;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.touch-friendly-table .sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: #f9fafb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Data tables horizontal scroll indicator */
+.table-scroll-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.table-scroll-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.8));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.table-scroll-container.has-overflow::after {
+  opacity: 1;
+}
+
+/* Touch device accordion menus */
+.touch-accordion {
+  width: 100%;
+}
+
+.touch-accordion-trigger {
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.touch-accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.touch-accordion-content.open {
+  max-height: 500px;
+}
+
+/* Improved form controls */
+@media (max-width: 900px) {
+  .form-row {
+    flex-direction: column;
+  }
+
+  .form-row > * {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 0.75rem;
+  }
+
+  /* Increase spacing between form elements for touch */
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  /* Larger checkboxes and radio buttons */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 24px;
+    height: 24px;
+  }
+}

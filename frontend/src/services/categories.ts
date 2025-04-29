@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from './supabase';
-import type { PostgrestError } from '@supabase/postgrest-js';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/services/supabase";
+import type { PostgrestError } from "@supabase/postgrest-js";
 
 export interface Category {
   id: string;
@@ -16,11 +16,11 @@ export interface Category {
 // Add type guard for PostgrestError
 function isPostgrestError(error: unknown): error is PostgrestError {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'code' in error &&
-    'message' in error &&
-    'details' in error
+    "code" in error &&
+    "message" in error &&
+    "details" in error
   );
 }
 
@@ -38,9 +38,9 @@ export const useCategories = () => {
 
     try {
       const { data, error: fetchError } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name_en', { ascending: true });
+        .from("categories")
+        .select("*")
+        .order("name_en", { ascending: true });
 
       if (fetchError) {
         throw fetchError;
@@ -48,8 +48,8 @@ export const useCategories = () => {
 
       setCategories(data as Category[]);
     } catch (err) {
-      console.error('Error:', err);
-      setError(isPostgrestError(err) ? err.message : 'Operation failed');
+      console.error("Error:", err);
+      setError(isPostgrestError(err) ? err.message : "Operation failed");
     } finally {
       setLoading(false);
     }
@@ -63,5 +63,5 @@ export const useCategories = () => {
 };
 
 export default {
-  useCategories
-}; 
+  useCategories,
+};

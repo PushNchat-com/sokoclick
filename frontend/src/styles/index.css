@@ -1,8 +1,8 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
-@import './animations.css';
+@import "./animations.css";
 
 /* Global styles */
 :root {
@@ -160,4 +160,4 @@ body {
 
 .grid-auto-fill {
   @apply grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5;
-} 
+}

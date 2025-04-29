@@ -1,0 +1,51 @@
+name: Validate Supabase Imports
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/src/**/*.ts'
+      - 'frontend/src/**/*.tsx'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/src/**/*.ts'
+      - 'frontend/src/**/*.tsx'
+
+jobs:
+  validate:
+    name: Validate Supabase Imports
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Check for direct imports to old Supabase client
+        run: |
+          if grep -r --include="*.ts" --include="*.tsx" "import.*from.*lib/supabaseClient" frontend/src; then
+            echo "WARNING: Found imports from deprecated Supabase client path"
+            echo "The following files need to be updated to use the centralized client:"
+            grep -r --include="*.ts" --include="*.tsx" -l "import.*from.*lib/supabaseClient" frontend/src
+            exit 1
+          else
+            echo "✅ No imports from deprecated Supabase client path found"
+          fi
+
+      - name: Validate Supabase client instantiation
+        run: |
+          if grep -r --include="*.ts" --include="*.tsx" "createClient.*supabase" --exclude="**/supabase/config.ts" frontend/src; then
+            echo "ERROR: Found createClient calls outside of the centralized config file"
+            echo "The following files need to be updated to use the centralized client:"
+            grep -r --include="*.ts" --include="*.tsx" -l "createClient.*supabase" --exclude="**/supabase/config.ts" frontend/src
+            exit 1
+          else
+            echo "✅ No createClient calls outside of the centralized config file found"
+          fi
+
+      - name: Recommend importing from centralized location
+        run: |
+          echo "Reminder: Use the following import pattern in your code:"
+          echo "import { supabase } from '@/services/supabase';"
+          echo "Or for more specific imports:"
+          echo "import { supabase, testConnection } from '@/services/supabase';" 

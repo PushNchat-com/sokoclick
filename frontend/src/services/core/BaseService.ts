@@ -1,6 +1,12 @@
-import { ServiceResponse, createSuccessResponse, createErrorResponse, ServiceErrorType, BaseService } from './ServiceResponse';
-import { networkStatus } from './NetworkStatus';
-import { offlineStorage, PendingOperationType } from './OfflineStorage';
+import {
+  ServiceResponse,
+  createSuccessResponse,
+  createErrorResponse,
+  ServiceErrorType,
+  BaseService,
+} from "./ServiceResponse";
+import { networkStatus } from "./NetworkStatus";
+import { offlineStorage, PendingOperationType } from "./OfflineStorage";
 
 /**
  * Base service implementation with common functionality
@@ -33,17 +39,17 @@ export abstract class BaseServiceImpl implements BaseService {
     try {
       // Initialize network status service
       await networkStatus.initialize();
-      
+
       // Initialize offline storage
       await offlineStorage.initialize();
-      
+
       this.initialized = true;
       return createSuccessResponse();
     } catch (error) {
       return createErrorResponse(
         ServiceErrorType.UNKNOWN_ERROR,
         `Failed to initialize ${this.serviceName} service`,
-        error
+        error,
       );
     }
   }
@@ -54,7 +60,7 @@ export abstract class BaseServiceImpl implements BaseService {
   protected async executeWithOfflineFallback<T>(
     onlineOperation: () => Promise<ServiceResponse<T>>,
     offlineOperation: () => Promise<ServiceResponse<T>>,
-    entityId?: string | number
+    entityId?: string | number,
   ): Promise<ServiceResponse<T>> {
     try {
       // Make sure we're initialized
@@ -69,7 +75,10 @@ export abstract class BaseServiceImpl implements BaseService {
           return result;
         } catch (error) {
           // If online operation fails, try offline fallback
-          console.warn(`Online operation failed for ${this.serviceName}, falling back to offline:`, error);
+          console.warn(
+            `Online operation failed for ${this.serviceName}, falling back to offline:`,
+            error,
+          );
           return offlineOperation();
         }
       }
@@ -80,7 +89,7 @@ export abstract class BaseServiceImpl implements BaseService {
       return createErrorResponse(
         ServiceErrorType.UNKNOWN_ERROR,
         `Operation failed in ${this.serviceName} service`,
-        error
+        error,
       );
     }
   }
@@ -91,21 +100,21 @@ export abstract class BaseServiceImpl implements BaseService {
   protected async savePendingOperation<T>(
     type: PendingOperationType,
     data: T,
-    entityId?: string | number
+    entityId?: string | number,
   ): Promise<ServiceResponse<T>> {
     try {
       const result = await offlineStorage.storePendingOperation({
         type,
         entityType: this.entityType,
         data,
-        entityId
+        entityId,
       });
 
       if (!result.success) {
         return createErrorResponse(
           result.error?.type || ServiceErrorType.STORAGE_ERROR,
-          `Failed to save pending ${type} operation: ${result.error?.message || 'Unknown error'}`,
-          result.error?.details
+          `Failed to save pending ${type} operation: ${result.error?.message || "Unknown error"}`,
+          result.error?.details,
         );
       }
 
@@ -114,7 +123,7 @@ export abstract class BaseServiceImpl implements BaseService {
       return createErrorResponse(
         ServiceErrorType.STORAGE_ERROR,
         `Failed to save pending ${type} operation`,
-        error
+        error,
       );
     }
   }
@@ -125,36 +134,39 @@ export abstract class BaseServiceImpl implements BaseService {
   protected logError(method: string, error: unknown): void {
     console.error(`${this.serviceName}.${method} error:`, error);
   }
-  
+
   /**
    * Process an error into a standardized response
    */
-  protected processError<T = void>(method: string, error: unknown): ServiceResponse<T> {
+  protected processError<T = void>(
+    method: string,
+    error: unknown,
+  ): ServiceResponse<T> {
     this.logError(method, error);
-    
-    if (typeof error === 'object' && error !== null) {
-      if ('type' in error && 'message' in error) {
+
+    if (typeof error === "object" && error !== null) {
+      if ("type" in error && "message" in error) {
         // It's already in our error format
         return createErrorResponse(
           (error as any).type || ServiceErrorType.UNKNOWN_ERROR,
           (error as any).message || `Error in ${this.serviceName}.${method}`,
-          error
+          error,
         );
       }
-      
+
       if (error instanceof Error) {
         return createErrorResponse(
           ServiceErrorType.UNKNOWN_ERROR,
           error.message || `Error in ${this.serviceName}.${method}`,
-          error
+          error,
         );
       }
     }
-    
+
     return createErrorResponse(
       ServiceErrorType.UNKNOWN_ERROR,
       `Unknown error in ${this.serviceName}.${method}`,
-      error
+      error,
     );
   }
 
@@ -164,4 +176,4 @@ export abstract class BaseServiceImpl implements BaseService {
   async clearCache(): Promise<ServiceResponse> {
     return createSuccessResponse();
   }
-} 
+}

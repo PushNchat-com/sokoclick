@@ -1,12 +1,17 @@
-import { ServiceResponse, createSuccessResponse, createErrorResponse, ServiceErrorType } from './ServiceResponse';
-import React, { useEffect } from 'react';
+import {
+  ServiceResponse,
+  createSuccessResponse,
+  createErrorResponse,
+  ServiceErrorType,
+} from "./ServiceResponse";
+import React, { useEffect } from "react";
 
 /**
  * Network status event types
  */
 export enum NetworkStatusEvent {
-  ONLINE = 'online',
-  OFFLINE = 'offline'
+  ONLINE = "online",
+  OFFLINE = "offline",
 }
 
 /**
@@ -30,8 +35,8 @@ class NetworkStatusService {
       return Promise.resolve(createSuccessResponse());
     }
 
-    window.addEventListener('online', this.handleOnline);
-    window.addEventListener('offline', this.handleOffline);
+    window.addEventListener("online", this.handleOnline);
+    window.addEventListener("offline", this.handleOffline);
     this.initialized = true;
 
     return Promise.resolve(createSuccessResponse());
@@ -41,8 +46,8 @@ class NetworkStatusService {
    * Clean up event listeners
    */
   cleanup(): Promise<ServiceResponse> {
-    window.removeEventListener('online', this.handleOnline);
-    window.removeEventListener('offline', this.handleOffline);
+    window.removeEventListener("online", this.handleOnline);
+    window.removeEventListener("offline", this.handleOffline);
     this.initialized = false;
     this.handlers = [];
 
@@ -69,7 +74,7 @@ class NetworkStatusService {
    * Notify all registered handlers of network status change
    */
   private notifyHandlers(): void {
-    this.handlers.forEach(handler => handler(this.online));
+    this.handlers.forEach((handler) => handler(this.online));
   }
 
   /**
@@ -92,7 +97,7 @@ class NetworkStatusService {
    * Unregister a handler
    */
   unregisterHandler(handler: NetworkStatusHandler): void {
-    this.handlers = this.handlers.filter(h => h !== handler);
+    this.handlers = this.handlers.filter((h) => h !== handler);
   }
 
   /**
@@ -101,19 +106,19 @@ class NetworkStatusService {
   async testConnectivity(): Promise<ServiceResponse<boolean>> {
     try {
       // Try to fetch a small resource to test connectivity
-      const response = await fetch('/api/ping', { 
-        method: 'HEAD',
-        cache: 'no-store' 
+      const response = await fetch("/api/ping", {
+        method: "HEAD",
+        cache: "no-store",
       });
-      
+
       const online = response.ok;
-      
+
       // Update the status if it's different
       if (online !== this.online) {
         this.online = online;
         this.notifyHandlers();
       }
-      
+
       return createSuccessResponse(online);
     } catch (error) {
       // If fetch fails, we're offline
@@ -121,11 +126,11 @@ class NetworkStatusService {
         this.online = false;
         this.notifyHandlers();
       }
-      
+
       return createErrorResponse(
         ServiceErrorType.NETWORK_ERROR,
-        'Network connectivity test failed',
-        error
+        "Network connectivity test failed",
+        error,
       );
     }
   }
@@ -140,7 +145,7 @@ export function useNetworkStatus(handler?: NetworkStatusHandler): boolean {
   if (!networkStatus.isOnline) {
     networkStatus.initialize();
   }
-  
+
   // Register the handler if provided
   if (handler) {
     useEffect(() => {
@@ -148,7 +153,7 @@ export function useNetworkStatus(handler?: NetworkStatusHandler): boolean {
       return () => networkStatus.unregisterHandler(handler);
     }, [handler]);
   }
-  
+
   // Return current status
   return networkStatus.isOnline();
-} 
+}

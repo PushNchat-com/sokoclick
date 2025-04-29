@@ -1,15 +1,18 @@
-import React, { lazy, Suspense, useState, useEffect } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
-import AdminHeader from './AdminHeader';
-import AdminNav from './AdminNav';
-import LoadingSpinner from '../common/LoadingSpinner';
-import ErrorBoundary from '../common/ErrorBoundary';
-import { ErrorMonitoring } from '../../services/monitoring/ErrorMonitoring';
-import { PerformanceMonitor } from '../../services/monitoring/PerformanceMonitor';
+import React, { lazy, Suspense, useState, useEffect } from "react";
+import { Navigate, Outlet } from "react-router-dom";
+import { useUnifiedAuth } from "../../contexts/UnifiedAuthContext";
+import AdminHeader from "./AdminHeader";
+import AdminNav from "./AdminNav";
+import LoadingSpinner from "../common/LoadingSpinner";
+import ErrorBoundary from "../common/ErrorBoundary";
+import {
+  logSystemError,
+  ErrorSeverity,
+} from "../../services/core/ErrorMonitoring";
+import analyticsService from "../../services/analytics";
 
 // Lazy load health monitor component
-const SystemHealthMonitor = lazy(() => import('./monitors/SystemHealthMonitor'));
+const SystemHealthMonitor = lazy(() => import("./SystemHealthMonitor"));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -23,28 +26,30 @@ interface AdminLayoutProps {
   enableHealthMonitor?: boolean;
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ 
-  title = 'Admin Dashboard',
-  enableHealthMonitor = false
+const AdminLayout: React.FC<AdminLayoutProps> = ({
+  title = "Admin Dashboard",
+  enableHealthMonitor = false,
 }) => {
   const { user, loading, isAdmin } = useUnifiedAuth();
   const [showHealthMonitor, setShowHealthMonitor] = useState(false);
   const [systemAlertsCount, setSystemAlertsCount] = useState(0);
 
   const handleHealthAlert = (count: number) => {
-    PerformanceMonitor.trackEvent('admin_health_alert_received');
+    // Track health alert event
+    console.log("Health alert received:", count);
     setSystemAlertsCount(count);
   };
 
   const toggleHealthMonitor = () => {
-    PerformanceMonitor.trackEvent('admin_toggle_health_monitor');
-    setShowHealthMonitor(prev => !prev);
+    // Track toggle event
+    console.log("Health monitor toggled");
+    setShowHealthMonitor((prev) => !prev);
   };
 
   useEffect(() => {
-    // Record page view for performance analysis
-    PerformanceMonitor.trackPageView('admin_dashboard');
-    
+    // Record admin dashboard view
+    console.log("Admin dashboard viewed");
+
     // Check for system alerts if health monitor is enabled
     if (enableHealthMonitor) {
       // This could be replaced with actual API call to check system health
@@ -53,7 +58,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         const alertCount = Math.floor(Math.random() * 4);
         handleHealthAlert(alertCount);
       }, 30000);
-      
+
       return () => clearInterval(checkInterval);
     }
   }, [enableHealthMonitor]);
@@ -65,33 +70,40 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
 
   // Handle authentication and authorization
   if (!user) {
-    ErrorMonitoring.logSecurityIssue('Unauthenticated access attempt to admin area');
+    logSystemError("Unauthenticated access attempt to admin area", {
+      severity: ErrorSeverity.ERROR,
+      component: "AdminLayout",
+    });
     return <Navigate to="/login" replace />;
   }
 
   if (!isAdmin) {
-    ErrorMonitoring.logSecurityIssue('Unauthorized access attempt to admin area', {
+    logSystemError("Unauthorized access attempt to admin area", {
+      severity: ErrorSeverity.ERROR,
+      component: "AdminLayout",
       userId: user.id,
-      attemptedRole: 'admin'
+      metadata: { attemptedRole: "admin" },
     });
     return <Navigate to="/dashboard" replace />;
   }
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <AdminNav 
+      <AdminNav
         systemAlertsCount={systemAlertsCount}
         showHealthMonitor={showHealthMonitor}
-        onToggleHealthMonitor={enableHealthMonitor ? toggleHealthMonitor : undefined}
+        onToggleHealthMonitor={
+          enableHealthMonitor ? toggleHealthMonitor : undefined
+        }
       />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <AdminHeader title={title} />
-        
+        <AdminHeader title={{ en: title, fr: title }} />
+
         <main className="flex-1 overflow-y-auto p-4">
           <ErrorBoundary>
             <Outlet />
-            
+
             {enableHealthMonitor && showHealthMonitor && (
               <Suspense fallback={<LoadingFallback />}>
                 <SystemHealthMonitor onAlertCountChange={handleHealthAlert} />
@@ -104,4 +116,4 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
   );
 };
 
-export default AdminLayout; 
+export default AdminLayout;

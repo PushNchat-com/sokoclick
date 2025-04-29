@@ -1,12 +1,17 @@
-import { supabase } from '../supabase';
-import { logAdminAction, AuditAction, AuditResource } from '../auditLog';
-import { ServiceResponse, ServiceErrorType, createSuccessResponse, createErrorResponse } from './ServiceResponse';
+import { supabase } from "../supabase";
+import { logAdminAction, AuditAction, AuditResource } from "../auditLog";
+import {
+  ServiceResponse,
+  ServiceErrorType,
+  createSuccessResponse,
+  createErrorResponse,
+} from "./ServiceResponse";
 
 export enum ErrorSeverity {
-  INFO = 'info',
-  WARNING = 'warning',
-  ERROR = 'error',
-  CRITICAL = 'critical'
+  INFO = "info",
+  WARNING = "warning",
+  ERROR = "error",
+  CRITICAL = "critical",
 }
 
 export interface SystemError {
@@ -17,17 +22,17 @@ export interface SystemError {
   severity: ErrorSeverity;
   userId?: string;
   metadata?: Record<string, any>;
-  status: 'new' | 'acknowledged' | 'resolved';
+  status: "new" | "acknowledged" | "resolved";
   resolution?: string;
   created_at?: string;
   updated_at?: string;
 }
 
 export interface SystemHealth {
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: "healthy" | "degraded" | "unhealthy";
   services: {
     name: string;
-    status: 'up' | 'down' | 'degraded';
+    status: "up" | "down" | "degraded";
     latency?: number;
     lastChecked: string;
   }[];
@@ -51,41 +56,46 @@ export async function logSystemError(
     severity?: ErrorSeverity;
     userId?: string;
     metadata?: Record<string, any>;
-  } = {}
+  } = {},
 ): Promise<void> {
   try {
-    const { component, severity = ErrorSeverity.ERROR, userId, metadata } = options;
-    
+    const {
+      component,
+      severity = ErrorSeverity.ERROR,
+      userId,
+      metadata,
+    } = options;
+
     const errorObj: SystemError = {
-      message: typeof error === 'string' ? error : error.message,
-      stackTrace: typeof error === 'string' ? undefined : error.stack,
+      message: typeof error === "string" ? error : error.message,
+      stackTrace: typeof error === "string" ? undefined : error.stack,
       component,
       severity,
       userId,
       metadata,
-      status: 'new',
+      status: "new",
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
-    
+
     // Add to buffer
     errorBuffer.push(errorObj);
-    
+
     // For critical errors, flush immediately
     if (severity === ErrorSeverity.CRITICAL) {
       await flushErrorBuffer();
-      
+
       // Log critical errors to audit log as well
       if (userId) {
         await logAdminAction(
           AuditAction.CREATE,
           AuditResource.SETTING,
-          'error-log',
-          { 
+          "error-log",
+          {
             errorMessage: errorObj.message,
             component: errorObj.component,
-            severity: errorObj.severity
-          }
+            severity: errorObj.severity,
+          },
         );
       }
     } else if (errorBuffer.length >= MAX_BUFFER_SIZE) {
@@ -95,21 +105,21 @@ export async function logSystemError(
       // Schedule flush if not already scheduled
       flushTimeout = setTimeout(() => flushErrorBuffer(), FLUSH_INTERVAL);
     }
-    
+
     // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[SystemError]', component, errorObj.message);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[SystemError]", component, errorObj.message);
       if (errorObj.stackTrace) {
         console.error(errorObj.stackTrace);
       }
       if (metadata) {
-        console.error('Metadata:', metadata);
+        console.error("Metadata:", metadata);
       }
     }
   } catch (e) {
     // Fallback to console if error logging fails
-    console.error('Error in logSystemError:', e);
-    console.error('Original error:', error);
+    console.error("Error in logSystemError:", e);
+    console.error("Original error:", error);
   }
 }
 
@@ -118,27 +128,27 @@ export async function logSystemError(
  */
 async function flushErrorBuffer(): Promise<void> {
   if (errorBuffer.length === 0) return;
-  
+
   if (flushTimeout) {
     clearTimeout(flushTimeout);
     flushTimeout = null;
   }
-  
+
   try {
     const errorsToInsert = [...errorBuffer];
     errorBuffer.length = 0; // Clear buffer
-    
+
     const { error } = await supabase
-      .from('system_errors')
+      .from("system_errors")
       .insert(errorsToInsert);
-    
+
     if (error) {
-      console.error('Failed to flush error buffer:', error);
+      console.error("Failed to flush error buffer:", error);
       // Put errors back in buffer for retry
       errorBuffer.push(...errorsToInsert);
     }
   } catch (e) {
-    console.error('Error flushing error buffer:', e);
+    console.error("Error flushing error buffer:", e);
   }
 }
 
@@ -150,11 +160,11 @@ export async function getSystemErrors(
     page?: number;
     pageSize?: number;
     severity?: ErrorSeverity;
-    status?: 'new' | 'acknowledged' | 'resolved';
+    status?: "new" | "acknowledged" | "resolved";
     startDate?: string;
     endDate?: string;
     component?: string;
-  } = {}
+  } = {},
 ): Promise<ServiceResponse<{ errors: SystemError[]; count: number }>> {
   try {
     const {
@@ -164,61 +174,59 @@ export async function getSystemErrors(
       status,
       startDate,
       endDate,
-      component
+      component,
     } = options;
-    
+
     // Calculate pagination
     const start = (page - 1) * pageSize;
     const end = start + pageSize - 1;
-    
+
     // Build query
-    let query = supabase
-      .from('system_errors')
-      .select('*', { count: 'exact' });
-    
+    let query = supabase.from("system_errors").select("*", { count: "exact" });
+
     // Apply filters
     if (severity) {
-      query = query.eq('severity', severity);
+      query = query.eq("severity", severity);
     }
-    
+
     if (status) {
-      query = query.eq('status', status);
+      query = query.eq("status", status);
     }
-    
+
     if (component) {
-      query = query.eq('component', component);
+      query = query.eq("component", component);
     }
-    
+
     if (startDate) {
-      query = query.gte('created_at', startDate);
+      query = query.gte("created_at", startDate);
     }
-    
+
     if (endDate) {
-      query = query.lte('created_at', endDate);
+      query = query.lte("created_at", endDate);
     }
-    
+
     // Apply pagination and order
     const { data, error, count } = await query
-      .order('created_at', { ascending: false })
+      .order("created_at", { ascending: false })
       .range(start, end);
-    
+
     if (error) {
       return createErrorResponse(
         ServiceErrorType.DATABASE_ERROR,
-        'Failed to fetch system errors',
-        error
+        "Failed to fetch system errors",
+        error,
       );
     }
-    
+
     return createSuccessResponse({
       errors: data || [],
-      count: count || 0
+      count: count || 0,
     });
   } catch (error) {
     return createErrorResponse(
       ServiceErrorType.UNKNOWN_ERROR,
-      'An unexpected error occurred while fetching system errors',
-      error
+      "An unexpected error occurred while fetching system errors",
+      error,
     );
   }
 }
@@ -226,63 +234,74 @@ export async function getSystemErrors(
 /**
  * Get system health status
  */
-export async function getSystemHealth(): Promise<ServiceResponse<SystemHealth>> {
+export async function getSystemHealth(): Promise<
+  ServiceResponse<SystemHealth>
+> {
   try {
     // Check database connectivity
     const dbStart = Date.now();
-    const dbResult = await supabase.from('system_health').select('last_check').limit(1);
+    const dbResult = await supabase
+      .from("system_health")
+      .select("last_check")
+      .limit(1);
     const dbLatency = Date.now() - dbStart;
-    
+
     // Check for critical errors in the last hour
     const criticalErrorsQuery = await supabase
-      .from('system_errors')
-      .select('id', { count: 'exact' })
-      .eq('severity', ErrorSeverity.CRITICAL)
-      .eq('status', 'new')
-      .gte('created_at', new Date(Date.now() - 3600000).toISOString());
-    
+      .from("system_errors")
+      .select("id", { count: "exact" })
+      .eq("severity", ErrorSeverity.CRITICAL)
+      .eq("status", "new")
+      .gte("created_at", new Date(Date.now() - 3600000).toISOString());
+
     // Check for warnings in the last hour
     const warningsQuery = await supabase
-      .from('system_errors')
-      .select('id', { count: 'exact' })
-      .eq('severity', ErrorSeverity.WARNING)
-      .eq('status', 'new')
-      .gte('created_at', new Date(Date.now() - 3600000).toISOString());
-    
+      .from("system_errors")
+      .select("id", { count: "exact" })
+      .eq("severity", ErrorSeverity.WARNING)
+      .eq("status", "new")
+      .gte("created_at", new Date(Date.now() - 3600000).toISOString());
+
     // Get overall status
-    let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    
-    if (dbResult.error || criticalErrorsQuery.count !== null && criticalErrorsQuery.count > 0) {
-      overallStatus = 'unhealthy';
-    } else if (warningsQuery.count !== null && warningsQuery.count > 0 || dbLatency > 500) {
-      overallStatus = 'degraded';
+    let overallStatus: "healthy" | "degraded" | "unhealthy" = "healthy";
+
+    if (
+      dbResult.error ||
+      (criticalErrorsQuery.count !== null && criticalErrorsQuery.count > 0)
+    ) {
+      overallStatus = "unhealthy";
+    } else if (
+      (warningsQuery.count !== null && warningsQuery.count > 0) ||
+      dbLatency > 500
+    ) {
+      overallStatus = "degraded";
     }
-    
+
     // Update the health check timestamp
-    await supabase.from('system_health').upsert({ 
-      id: 'last-check',
+    await supabase.from("system_health").upsert({
+      id: "last-check",
       last_check: new Date().toISOString(),
-      status: overallStatus
+      status: overallStatus,
     });
-    
+
     return createSuccessResponse({
       status: overallStatus,
       services: [
         {
-          name: 'database',
-          status: dbResult.error ? 'down' : dbLatency > 500 ? 'degraded' : 'up',
+          name: "database",
+          status: dbResult.error ? "down" : dbLatency > 500 ? "degraded" : "up",
           latency: dbLatency,
-          lastChecked: new Date().toISOString()
-        }
+          lastChecked: new Date().toISOString(),
+        },
       ],
       criticalErrorCount: criticalErrorsQuery.count || 0,
-      warningCount: warningsQuery.count || 0
+      warningCount: warningsQuery.count || 0,
     });
   } catch (error) {
     return createErrorResponse(
       ServiceErrorType.UNKNOWN_ERROR,
-      'Failed to check system health',
-      error
+      "Failed to check system health",
+      error,
     );
   }
 }
@@ -292,29 +311,29 @@ export async function getSystemHealth(): Promise<ServiceResponse<SystemHealth>> 
  */
 export async function updateErrorStatus(
   errorId: string,
-  status: 'acknowledged' | 'resolved',
-  resolution?: string
+  status: "acknowledged" | "resolved",
+  resolution?: string,
 ): Promise<ServiceResponse<SystemError>> {
   try {
     const { data, error } = await supabase
-      .from('system_errors')
+      .from("system_errors")
       .update({
         status,
         resolution,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', errorId)
+      .eq("id", errorId)
       .select()
       .single();
-    
+
     if (error) {
       return createErrorResponse(
         ServiceErrorType.DATABASE_ERROR,
-        'Failed to update error status',
-        error
+        "Failed to update error status",
+        error,
       );
     }
-    
+
     // Log the action to audit log
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -323,20 +342,20 @@ export async function updateErrorStatus(
           AuditAction.UPDATE,
           AuditResource.SETTING,
           `error-${errorId}`,
-          { status, resolution }
+          { status, resolution },
         );
       }
     } catch (err) {
       // Don't fail if audit logging fails
-      console.warn('Failed to log audit event for error status update:', err);
+      console.warn("Failed to log audit event for error status update:", err);
     }
-    
+
     return createSuccessResponse(data as SystemError);
   } catch (error) {
     return createErrorResponse(
       ServiceErrorType.UNKNOWN_ERROR,
-      'An unexpected error occurred while updating error status',
-      error
+      "An unexpected error occurred while updating error status",
+      error,
     );
   }
 }
@@ -345,81 +364,90 @@ export async function updateErrorStatus(
  * Automatic error recovery - attempt to recover from common error scenarios
  */
 export async function attemptErrorRecovery(
-  errorId: string
+  errorId: string,
 ): Promise<ServiceResponse<{ recovered: boolean; message: string }>> {
   try {
     // Get the error details
     const { data: errorData, error: fetchError } = await supabase
-      .from('system_errors')
-      .select('*')
-      .eq('id', errorId)
+      .from("system_errors")
+      .select("*")
+      .eq("id", errorId)
       .single();
-    
+
     if (fetchError || !errorData) {
       return createErrorResponse(
         ServiceErrorType.NOT_FOUND,
-        'Error not found',
-        fetchError
+        "Error not found",
+        fetchError,
       );
     }
-    
+
     const error = errorData as SystemError;
-    
+
     // Check if already resolved
-    if (error.status === 'resolved') {
+    if (error.status === "resolved") {
       return createSuccessResponse({
         recovered: true,
-        message: 'Error was already resolved'
+        message: "Error was already resolved",
       });
     }
-    
+
     // Try to recover based on component and error message
     let recovered = false;
-    let message = 'No automatic recovery available for this error type';
-    
-    if (error.component === 'SlotService' && error.message.includes('database connection')) {
+    let message = "No automatic recovery available for this error type";
+
+    if (
+      error.component === "SlotService" &&
+      error.message.includes("database connection")
+    ) {
       // For database connection issues, we can try reconnecting
       try {
-        await supabase.rpc('ping_database');
+        await supabase.rpc("ping_database");
         recovered = true;
-        message = 'Successfully reconnected to database';
+        message = "Successfully reconnected to database";
       } catch (e) {
-        message = 'Failed to recover: database still unreachable';
+        message = "Failed to recover: database still unreachable";
       }
-    } else if (error.component === 'ImageUpload' && error.message.includes('storage')) {
+    } else if (
+      error.component === "ImageUpload" &&
+      error.message.includes("storage")
+    ) {
       // For storage issues, we can try clearing temp files
       try {
-        await supabase.rpc('clear_temp_storage');
+        await supabase.rpc("clear_temp_storage");
         recovered = true;
-        message = 'Successfully cleared temporary storage';
+        message = "Successfully cleared temporary storage";
       } catch (e) {
-        message = 'Failed to recover: could not clear temporary storage';
+        message = "Failed to recover: could not clear temporary storage";
       }
-    } else if (error.component?.includes('Cache') && error.message.includes('cache')) {
+    } else if (
+      error.component?.includes("Cache") &&
+      error.message.includes("cache")
+    ) {
       // For cache issues, we can try clearing the cache
-      localStorage.removeItem('app_cache');
+      localStorage.removeItem("app_cache");
       recovered = true;
-      message = 'Successfully cleared local cache';
+      message = "Successfully cleared local cache";
     }
-    
+
     // Update error status if recovered
     if (recovered) {
       await supabase
-        .from('system_errors')
+        .from("system_errors")
         .update({
-          status: 'resolved',
+          status: "resolved",
           resolution: `Automatic recovery: ${message}`,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', errorId);
+        .eq("id", errorId);
     }
-    
+
     return createSuccessResponse({ recovered, message });
   } catch (error) {
     return createErrorResponse(
       ServiceErrorType.UNKNOWN_ERROR,
-      'Failed to attempt error recovery',
-      error
+      "Failed to attempt error recovery",
+      error,
     );
   }
 }
@@ -431,7 +459,7 @@ export const ErrorMonitoring = {
   getSystemHealth,
   updateErrorStatus,
   attemptErrorRecovery,
-  ErrorSeverity
+  ErrorSeverity,
 };
 
-export default ErrorMonitoring; 
+export default ErrorMonitoring;

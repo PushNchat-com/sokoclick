@@ -1,8 +1,8 @@
-import React from 'react';
-import { useLanguage } from '../../store/LanguageContext';
-import { Link } from 'react-router-dom';
-import { Button } from '../ui/Button';
-import { ArrowRightIcon } from '../ui/Icons';
+import React from "react";
+import { useLanguage } from "../../store/LanguageContext";
+import { Link } from "react-router-dom";
+import { Button } from "../ui/Button";
+import { ArrowRightIcon } from "../ui/Icons";
 
 interface Breadcrumb {
   label: { en: string; fr: string };
@@ -16,11 +16,11 @@ export interface AdminHeaderProps {
   actions?: React.ReactNode[];
 }
 
-const AdminHeader: React.FC<AdminHeaderProps> = ({ 
-  title, 
-  description, 
+const AdminHeader: React.FC<AdminHeaderProps> = ({
+  title,
+  description,
   breadcrumbs = [],
-  actions = [] 
+  actions = [],
 }) => {
   const { t } = useLanguage();
 
@@ -31,14 +31,14 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         <nav className="flex mb-3" aria-label="Breadcrumb">
           <ol className="inline-flex items-center space-x-1 md:space-x-3">
             <li className="inline-flex items-center">
-              <Link 
-                to="/admin/dashboard" 
+              <Link
+                to="/admin/dashboard"
                 className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600"
               >
-                {t({ en: 'Dashboard', fr: 'Tableau de bord' })}
+                {t({ en: "Dashboard", fr: "Tableau de bord" })}
               </Link>
             </li>
-            
+
             {breadcrumbs.map((crumb, index) => (
               <li key={index}>
                 <div className="flex items-center">
@@ -64,22 +64,16 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {t(title)}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t(title)}</h1>
           {description && (
-            <p className="mt-1 text-sm text-gray-500">
-              {t(description)}
-            </p>
+            <p className="mt-1 text-sm text-gray-500">{t(description)}</p>
           )}
         </div>
-        
+
         {actions.length > 0 && (
           <div className="flex space-x-3">
             {actions.map((action, index) => (
-              <React.Fragment key={index}>
-                {action}
-              </React.Fragment>
+              <React.Fragment key={index}>{action}</React.Fragment>
             ))}
           </div>
         )}
@@ -88,4 +82,4 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   );
 };
 
-export default AdminHeader; 
+export default AdminHeader;

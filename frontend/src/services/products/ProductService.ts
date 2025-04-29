@@ -1,14 +1,21 @@
-import { supabase } from '../supabase';
-import { BaseServiceImpl } from '../core/BaseService';
-import { ServiceResponse, createSuccessResponse, createErrorResponse, ServiceErrorType } from '../core/ServiceResponse';
-import { offlineStorage, PendingOperationType } from '../core/OfflineStorage';
-import { PostgrestError } from '@supabase/postgrest-js';
+import { supabase } from "../supabase";
+import { BaseServiceImpl } from "../core/BaseService";
+import {
+  ServiceResponse,
+  createSuccessResponse,
+  createErrorResponse,
+  ServiceErrorType,
+} from "../core/ServiceResponse";
+import { offlineStorage, PendingOperationType } from "../core/OfflineStorage";
+import { PostgrestError } from "@supabase/postgrest-js";
+import { Database } from "../../types/supabase-types";
+import { SlotStatus, DraftStatus } from "../../types/supabase-types";
 
 /**
- * Product entity interface
+ * Product entity interface - now based on auction_slots structure
  */
 export interface Product {
-  id: string;
+  id: number; // This is now the slot_id
   name_en: string;
   name_fr: string;
   description_en?: string;
@@ -17,9 +24,12 @@ export interface Product {
   currency: string;
   images: string[];
   seller_id: string;
-  category_id?: string;
-  auction_slot_id?: number;
-  status: ProductStatus;
+  categories: string[];
+  delivery_options?: any;
+  tags?: string[];
+  slot_status: SlotStatus;
+  start_time?: string;
+  end_time?: string;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -29,11 +39,6 @@ export interface Product {
     whatsapp_number: string;
     location?: string;
     is_verified: boolean;
-  };
-  category?: {
-    id: string;
-    name_en: string;
-    name_fr: string;
   };
 }
 
@@ -49,32 +54,31 @@ export interface ProductPayload {
   currency: string;
   images: string[];
   seller_id: string;
-  category_id?: string;
-  auction_slot_id?: number;
-  status?: ProductStatus;
+  categories?: string[];
+  delivery_options?: any;
+  tags?: string[];
+  slot_status?: SlotStatus;
+  start_time?: string;
+  end_time?: string;
 }
 
 /**
- * Product status enum
+ * Product status enum - now using SlotStatus
  */
-export enum ProductStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-  INACTIVE = 'inactive'
-}
+export type ProductStatus = SlotStatus;
 
 /**
  * Product filter options
  */
 export interface ProductFilter {
-  status?: ProductStatus;
+  status?: SlotStatus;
   sellerId?: string;
-  categoryId?: string;
-  slotId?: number;
+  category?: string;
   searchTerm?: string;
   minPrice?: number;
   maxPrice?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 /**
@@ -82,34 +86,34 @@ export interface ProductFilter {
  */
 function isPostgrestError(error: unknown): error is PostgrestError {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'message' in error &&
-    'details' in error &&
-    'hint' in error &&
-    'code' in error
+    "message" in error &&
+    "details" in error &&
+    "hint" in error &&
+    "code" in error
   );
 }
 
 /**
- * Product service for managing product operations
+ * Product service for managing product operations - now using auction_slots
  */
 class ProductService extends BaseServiceImpl {
   constructor() {
-    super('ProductService', 'products');
+    super("ProductService", "auction_slots");
   }
 
   /**
    * Get all products with optional filtering
    */
-  async getProducts(filter?: ProductFilter): Promise<ServiceResponse<Product[]>> {
+  async getProducts(
+    filter?: ProductFilter,
+  ): Promise<ServiceResponse<Product[]>> {
     return this.executeWithOfflineFallback(
       // Online operation
       async () => {
         try {
-          let query = supabase
-            .from('products')
-            .select(`
+          let query = supabase.from("auction_slots").select(`
               *,
               seller:users (
                 id,
@@ -117,140 +121,107 @@ class ProductService extends BaseServiceImpl {
                 whatsapp_number,
                 location,
                 is_verified
-              ),
-              category:categories (
-                id,
-                name_en,
-                name_fr
               )
             `);
+
+          // Only get slots with live products
+          query = query.eq("slot_status", "live");
 
           // Apply filters
           if (filter) {
             if (filter.status) {
-              query = query.eq('status', filter.status);
+              query = query.eq("slot_status", filter.status);
             }
-            
+
             if (filter.sellerId) {
-              query = query.eq('seller_id', filter.sellerId);
+              query = query.eq("live_product_seller_id", filter.sellerId);
             }
-            
-            if (filter.categoryId) {
-              query = query.eq('category_id', filter.categoryId);
+
+            if (filter.category) {
+              // Filter for slots where the category array contains the specified category
+              query = query.contains("live_product_categories", [filter.category]);
             }
-            
-            if (filter.slotId) {
-              query = query.eq('auction_slot_id', filter.slotId);
-            }
-            
+
             if (filter.minPrice !== undefined) {
-              query = query.gte('price', filter.minPrice);
+              query = query.gte("live_product_price", filter.minPrice);
             }
-            
+
             if (filter.maxPrice !== undefined) {
-              query = query.lte('price', filter.maxPrice);
+              query = query.lte("live_product_price", filter.maxPrice);
             }
-            
-            // TODO: Implement search term filtering on the server side
-            // For now, we'll filter client-side after fetching
+
+            if (filter.startDate) {
+              query = query.gte("start_time", filter.startDate);
+            }
+
+            if (filter.endDate) {
+              query = query.lte("end_time", filter.endDate);
+            }
           }
 
-          const { data, error } = await query.order('created_at', { ascending: false });
-          
+          const { data, error } = await query.order("updated_at", {
+            ascending: false,
+          });
+
           if (error) {
             throw error;
           }
 
-          // Handle search term client-side filtering if needed
-          let products = data as Product[];
+          // Transform auction_slots to Product interface
+          let products: Product[] = [];
           
-          if (filter?.searchTerm) {
-            const searchTerm = filter.searchTerm.toLowerCase();
-            products = products.filter(product => 
-              product.name_en.toLowerCase().includes(searchTerm) ||
-              product.name_fr.toLowerCase().includes(searchTerm) ||
-              (product.description_en && product.description_en.toLowerCase().includes(searchTerm)) ||
-              (product.description_fr && product.description_fr.toLowerCase().includes(searchTerm))
-            );
+          if (data) {
+            products = data.map(slot => this.slotToProduct(slot));
+            
+            // Handle search term client-side filtering if needed
+            if (filter?.searchTerm) {
+              const searchTerm = filter.searchTerm.toLowerCase();
+              products = products.filter(
+                (product) =>
+                  product.name_en.toLowerCase().includes(searchTerm) ||
+                  product.name_fr.toLowerCase().includes(searchTerm) ||
+                  (product.description_en &&
+                    product.description_en.toLowerCase().includes(searchTerm)) ||
+                  (product.description_fr &&
+                    product.description_fr.toLowerCase().includes(searchTerm)),
+              );
+            }
           }
 
           // Cache products for offline use
           this.cacheProducts(products);
-          
+
           return createSuccessResponse(products);
         } catch (error) {
-          return this.processError<Product[]>('getProducts', error);
+          return this.processError<Product[]>("getProducts", error);
         }
       },
       // Offline operation
       async () => {
         try {
-          const response = await offlineStorage.getAllEntities<Product>('products');
-          
-          if (!response.success || !response.data) {
-            return createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              'No products found in offline storage'
-            );
-          }
-          
-          let products = response.data;
-          
-          // Apply offline filtering
-          if (filter) {
-            if (filter.status) {
-              products = products.filter(p => p.status === filter.status);
-            }
-            
-            if (filter.sellerId) {
-              products = products.filter(p => p.seller_id === filter.sellerId);
-            }
-            
-            if (filter.categoryId) {
-              products = products.filter(p => p.category_id === filter.categoryId);
-            }
-            
-            if (filter.slotId) {
-              products = products.filter(p => p.auction_slot_id === filter.slotId);
-            }
-            
-            if (filter.minPrice !== undefined) {
-              products = products.filter(p => p.price >= filter.minPrice!);
-            }
-            
-            if (filter.maxPrice !== undefined) {
-              products = products.filter(p => p.price <= filter.maxPrice!);
-            }
-            
-            if (filter.searchTerm) {
-              const searchTerm = filter.searchTerm.toLowerCase();
-              products = products.filter(p => 
-                p.name_en.toLowerCase().includes(searchTerm) ||
-                p.name_fr.toLowerCase().includes(searchTerm) ||
-                (p.description_en && p.description_en.toLowerCase().includes(searchTerm)) ||
-                (p.description_fr && p.description_fr.toLowerCase().includes(searchTerm))
-              );
-            }
-          }
-          
-          return createSuccessResponse(products);
-        } catch (error) {
-          return this.processError<Product[]>('getProducts(offline)', error);
+          const response =
+            await offlineStorage.getAllEntities<Product>("products");
+          return createSuccessResponse(response);
+        } catch (err) {
+          return createErrorResponse<Product[]>("Offline storage error", {
+            type: ServiceErrorType.OFFLINE_STORAGE_ERROR,
+            originalError: err,
+          });
         }
-      }
+      },
     );
   }
 
   /**
-   * Get a product by ID
+   * Get a single product by ID (slot ID)
    */
-  async getProduct(id: string): Promise<ServiceResponse<Product>> {
+  async getProduct(id: number): Promise<ServiceResponse<Product>> {
     return this.executeWithOfflineFallback(
       // Online operation
       async () => {
         try {
           const { data, error } = await supabase
-            .from('products')
+            .from("auction_slots")
             .select(`
               *,
               seller:users (
@@ -259,184 +230,243 @@ class ProductService extends BaseServiceImpl {
                 whatsapp_number,
                 location,
                 is_verified
-              ),
-              category:categories (
-                id,
-                name_en,
-                name_fr
               )
             `)
-            .eq('id', id)
+            .eq("id", id)
+            .eq("slot_status", "live")
             .single();
-          
+
           if (error) {
-            if (error.code === 'PGRST116') {
-              return createErrorResponse(
-                ServiceErrorType.NOT_FOUND,
-                `Product with ID ${id} not found`
-              );
-            }
             throw error;
           }
-          
+
           if (!data) {
-            return createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              `Product with ID ${id} not found`
-            );
+            return createErrorResponse<Product>("Product not found", {
+              type: ServiceErrorType.NOT_FOUND,
+            });
           }
-          
-          const product = data as Product;
-          
-          // Cache for offline use
+
+          const product = this.slotToProduct(data);
+
+          // Cache product for offline use
           this.cacheProduct(product);
-          
+
           return createSuccessResponse(product);
         } catch (error) {
-          return this.processError<Product>('getProduct', error);
+          return this.processError<Product>("getProduct", error);
         }
       },
       // Offline operation
       async () => {
         try {
-          const response = await offlineStorage.getEntity<Product>('products', id);
-          
-          if (!response.success || !response.data) {
-            return createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              `Product with ID ${id} not found in offline storage`
-            );
+          const product = await offlineStorage.getEntity<Product>(
+            "products",
+            id.toString(),
+          );
+          if (!product) {
+            return createErrorResponse<Product>("Product not found offline", {
+              type: ServiceErrorType.NOT_FOUND,
+            });
           }
-          
-          return createSuccessResponse(response.data);
-        } catch (error) {
-          return this.processError<Product>('getProduct(offline)', error);
+          return createSuccessResponse(product);
+        } catch (err) {
+          return createErrorResponse<Product>("Offline storage error", {
+            type: ServiceErrorType.OFFLINE_STORAGE_ERROR,
+            originalError: err,
+          });
         }
       },
-      id
     );
   }
 
   /**
-   * Create a new product
+   * Create a product (assigns it to an available slot)
    */
-  async createProduct(payload: ProductPayload): Promise<ServiceResponse<Product>> {
+  async createProduct(
+    payload: ProductPayload,
+  ): Promise<ServiceResponse<Product>> {
     return this.executeWithOfflineFallback(
       // Online operation
       async () => {
         try {
-          // Set default status if not provided
-          if (!payload.status) {
-            payload.status = ProductStatus.PENDING;
+          // Find an empty slot
+          const { data: emptySlots, error: findError } = await supabase
+            .from("auction_slots")
+            .select("id")
+            .eq("slot_status", "empty")
+            .limit(1);
+
+          if (findError) {
+            throw findError;
           }
-          
-          const newProduct = {
-            ...payload,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+
+          if (!emptySlots || emptySlots.length === 0) {
+            return createErrorResponse<Product>("No empty slots available", {
+              type: ServiceErrorType.BUSINESS_RULE_VIOLATION,
+            });
+          }
+
+          const slotId = emptySlots[0].id;
+
+          // Prepare slot data with live product information
+          const slotData = {
+            live_product_seller_id: payload.seller_id,
+            live_product_name_en: payload.name_en,
+            live_product_name_fr: payload.name_fr,
+            live_product_description_en: payload.description_en,
+            live_product_description_fr: payload.description_fr,
+            live_product_price: payload.price,
+            live_product_currency: payload.currency,
+            live_product_image_urls: payload.images,
+            live_product_categories: payload.categories || [],
+            live_product_delivery_options: payload.delivery_options,
+            live_product_tags: payload.tags || [],
+            slot_status: "live",
+            start_time: payload.start_time || new Date().toISOString(),
+            end_time: payload.end_time,
           };
-          
+
+          // Update the slot with product data
           const { data, error } = await supabase
-            .from('products')
-            .insert(newProduct)
-            .select()
+            .from("auction_slots")
+            .update(slotData)
+            .eq("id", slotId)
+            .select(`
+              *,
+              seller:users (
+                id,
+                name,
+                whatsapp_number,
+                location,
+                is_verified
+              )
+            `)
             .single();
-          
+
           if (error) {
             throw error;
           }
-          
-          if (!data) {
-            return createErrorResponse(
-              ServiceErrorType.UNKNOWN_ERROR,
-              'Failed to create product - no data returned'
-            );
-          }
-          
-          const product = data as Product;
-          
-          // Cache for offline use
+
+          const product = this.slotToProduct(data);
+
+          // Cache product for offline use
           this.cacheProduct(product);
-          
+
           return createSuccessResponse(product);
         } catch (error) {
-          return this.processError<Product>('createProduct', error);
+          return this.processError<Product>("createProduct", error);
         }
       },
-      // Offline operation - Save pending operation
+      // Offline operation
       async () => {
         try {
-          // Generate temporary ID
-          const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-          
-          // Create offline product entity
-          const offlineProduct: Product = {
-            id: tempId,
-            ...payload,
-            status: payload.status || ProductStatus.PENDING,
+          const newProduct: Product = {
+            id: Date.now(), // Temporary ID until synced
+            name_en: payload.name_en,
+            name_fr: payload.name_fr,
+            description_en: payload.description_en,
+            description_fr: payload.description_fr,
+            price: payload.price,
+            currency: payload.currency,
+            images: payload.images,
+            seller_id: payload.seller_id,
+            categories: payload.categories || [],
+            slot_status: "live",
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            images: payload.images || []
           };
-          
-          // Cache locally
-          await offlineStorage.storeEntity('products', offlineProduct);
-          
-          // Save as pending operation
-          return this.savePendingOperation(
-            PendingOperationType.CREATE,
+
+          await offlineStorage.addPendingOperation({
+            type: PendingOperationType.CREATE,
+            entityType: "products",
             payload,
-            tempId
-          );
-        } catch (error) {
-          return this.processError<Product>('createProduct(offline)', error);
+          });
+
+          await offlineStorage.saveEntity("products", newProduct);
+
+          return createSuccessResponse(newProduct);
+        } catch (err) {
+          return createErrorResponse<Product>("Offline storage error", {
+            type: ServiceErrorType.OFFLINE_STORAGE_ERROR,
+            originalError: err,
+          });
         }
-      }
+      },
     );
   }
 
   /**
-   * Update an existing product
+   * Update a product (updates fields in an existing slot)
    */
-  async updateProduct(id: string, payload: Partial<ProductPayload>): Promise<ServiceResponse<Product>> {
+  async updateProduct(
+    id: number,
+    payload: Partial<ProductPayload>,
+  ): Promise<ServiceResponse<Product>> {
     return this.executeWithOfflineFallback(
       // Online operation
       async () => {
         try {
-          // First, check if product exists
-          const { data: existingData, error: fetchError } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
+          // First check if the slot exists and is in 'live' status
+          const { data: existingSlot, error: checkError } = await supabase
+            .from("auction_slots")
+            .select("*")
+            .eq("id", id)
             .single();
-          
-          if (fetchError) {
-            if (fetchError.code === 'PGRST116') {
-              return createErrorResponse(
-                ServiceErrorType.NOT_FOUND,
-                `Product with ID ${id} not found`
-              );
-            }
-            throw fetchError;
+
+          if (checkError) {
+            throw checkError;
           }
-          
-          if (!existingData) {
-            return createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              `Product with ID ${id} not found`
+
+          if (!existingSlot) {
+            return createErrorResponse<Product>("Product not found", {
+              type: ServiceErrorType.NOT_FOUND,
+            });
+          }
+
+          if (existingSlot.slot_status !== "live") {
+            return createErrorResponse<Product>(
+              "Cannot update product: slot is not in live status",
+              {
+                type: ServiceErrorType.BUSINESS_RULE_VIOLATION,
+              },
             );
           }
-          
-          // Update the product
-          const updatePayload = {
-            ...payload,
-            updated_at: new Date().toISOString()
-          };
-          
+
+          // Prepare update data
+          const updateData: any = {};
+
+          if (payload.name_en !== undefined)
+            updateData.live_product_name_en = payload.name_en;
+          if (payload.name_fr !== undefined)
+            updateData.live_product_name_fr = payload.name_fr;
+          if (payload.description_en !== undefined)
+            updateData.live_product_description_en = payload.description_en;
+          if (payload.description_fr !== undefined)
+            updateData.live_product_description_fr = payload.description_fr;
+          if (payload.price !== undefined)
+            updateData.live_product_price = payload.price;
+          if (payload.currency !== undefined)
+            updateData.live_product_currency = payload.currency;
+          if (payload.images !== undefined)
+            updateData.live_product_image_urls = payload.images;
+          if (payload.categories !== undefined)
+            updateData.live_product_categories = payload.categories;
+          if (payload.delivery_options !== undefined)
+            updateData.live_product_delivery_options = payload.delivery_options;
+          if (payload.tags !== undefined)
+            updateData.live_product_tags = payload.tags;
+          if (payload.start_time !== undefined)
+            updateData.start_time = payload.start_time;
+          if (payload.end_time !== undefined)
+            updateData.end_time = payload.end_time;
+          if (payload.slot_status !== undefined)
+            updateData.slot_status = payload.slot_status;
+
+          // Update the slot
           const { data, error } = await supabase
-            .from('products')
-            .update(updatePayload)
-            .eq('id', id)
+            .from("auction_slots")
+            .update(updateData)
+            .eq("id", id)
             .select(`
               *,
               seller:users (
@@ -445,156 +475,156 @@ class ProductService extends BaseServiceImpl {
                 whatsapp_number,
                 location,
                 is_verified
-              ),
-              category:categories (
-                id,
-                name_en,
-                name_fr
               )
             `)
             .single();
-          
+
           if (error) {
             throw error;
           }
-          
-          if (!data) {
-            return createErrorResponse(
-              ServiceErrorType.UNKNOWN_ERROR,
-              'Failed to update product - no data returned'
-            );
-          }
-          
-          const updatedProduct = data as Product;
-          
-          // Cache for offline use
-          this.cacheProduct(updatedProduct);
-          
-          return createSuccessResponse(updatedProduct);
+
+          const product = this.slotToProduct(data);
+
+          // Cache updated product for offline use
+          this.cacheProduct(product);
+
+          return createSuccessResponse(product);
         } catch (error) {
-          return this.processError<Product>('updateProduct', error);
+          return this.processError<Product>("updateProduct", error);
         }
       },
       // Offline operation
       async () => {
         try {
-          // Get existing product from offline storage
-          const existingResponse = await offlineStorage.getEntity<Product>('products', id);
-          
-          if (!existingResponse.success || !existingResponse.data) {
-            return createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              `Product with ID ${id} not found in offline storage`
-            );
+          const existingProduct = await offlineStorage.getEntity<Product>(
+            "products",
+            id.toString(),
+          );
+
+          if (!existingProduct) {
+            return createErrorResponse<Product>("Product not found offline", {
+              type: ServiceErrorType.NOT_FOUND,
+            });
           }
-          
-          // Update product
-          const existingProduct = existingResponse.data;
-          const updatedProduct: Product = {
+
+          // Update product with new values
+          const updatedProduct = {
             ...existingProduct,
             ...payload,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           };
-          
-          // Store locally
-          await offlineStorage.storeEntity('products', updatedProduct);
-          
-          // Save as pending operation
-          return this.savePendingOperation(
-            PendingOperationType.UPDATE,
-            { id, ...payload },
-            id
-          );
-        } catch (error) {
-          return this.processError<Product>('updateProduct(offline)', error);
+
+          await offlineStorage.addPendingOperation({
+            type: PendingOperationType.UPDATE,
+            entityType: "products",
+            entityId: id.toString(),
+            payload,
+          });
+
+          await offlineStorage.saveEntity("products", updatedProduct);
+
+          return createSuccessResponse(updatedProduct as Product);
+        } catch (err) {
+          return createErrorResponse<Product>("Offline storage error", {
+            type: ServiceErrorType.OFFLINE_STORAGE_ERROR,
+            originalError: err,
+          });
         }
       },
-      id
     );
   }
 
   /**
-   * Delete a product
+   * Delete a product (set slot status to empty and clear product data)
    */
-  async deleteProduct(id: string): Promise<ServiceResponse> {
+  async deleteProduct(id: number): Promise<ServiceResponse> {
     return this.executeWithOfflineFallback(
       // Online operation
       async () => {
         try {
-          // First check if product exists
-          const { data: existingData, error: fetchError } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
-            .single();
-          
-          if (fetchError) {
-            if (fetchError.code === 'PGRST116') {
-              return createErrorResponse(
-                ServiceErrorType.NOT_FOUND,
-                `Product with ID ${id} not found`
-              );
-            }
-            throw fetchError;
-          }
-          
-          if (!existingData) {
-            return createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              `Product with ID ${id} not found`
-            );
-          }
-          
-          // Delete the product
+          // We don't actually delete - we set the slot to empty and clear data
           const { error } = await supabase
-            .from('products')
-            .delete()
-            .eq('id', id);
-          
+            .from("auction_slots")
+            .update({
+              slot_status: "empty",
+              live_product_seller_id: null,
+              live_product_name_en: null,
+              live_product_name_fr: null,
+              live_product_description_en: null,
+              live_product_description_fr: null,
+              live_product_price: null,
+              live_product_currency: null,
+              live_product_image_urls: null,
+              live_product_categories: null,
+              live_product_delivery_options: null,
+              live_product_tags: null,
+              start_time: null,
+              end_time: null,
+            })
+            .eq("id", id);
+
           if (error) {
             throw error;
           }
-          
-          return createSuccessResponse();
+
+          // Remove from offline cache
+          await offlineStorage.removeEntity("products", id.toString());
+
+          return createSuccessResponse(true);
         } catch (error) {
-          return this.processError('deleteProduct', error);
+          return this.processError("deleteProduct", error);
         }
       },
       // Offline operation
       async () => {
         try {
-          // Check if product exists in offline storage
-          const existingResponse = await offlineStorage.getEntity<Product>('products', id);
-          
-          if (!existingResponse.success || !existingResponse.data) {
-            return createErrorResponse(
-              ServiceErrorType.NOT_FOUND,
-              `Product with ID ${id} not found in offline storage`
-            );
-          }
-          
-          // Save pending operation
-          const pendingResult = await this.savePendingOperation(
-            PendingOperationType.DELETE,
-            { id },
-            id
-          );
-          
-          if (!pendingResult.success) {
-            return pendingResult;
-          }
-          
-          return createSuccessResponse(undefined, true);
-        } catch (error) {
-          return this.processError('deleteProduct(offline)', error);
+          await offlineStorage.addPendingOperation({
+            type: PendingOperationType.DELETE,
+            entityType: "products",
+            entityId: id.toString(),
+          });
+
+          await offlineStorage.removeEntity("products", id.toString());
+
+          return createSuccessResponse(true);
+        } catch (err) {
+          return createErrorResponse("Offline storage error", {
+            type: ServiceErrorType.OFFLINE_STORAGE_ERROR,
+            originalError: err,
+          });
         }
       },
-      id
     );
   }
 
   /**
-   * Cache products for offline use
+   * Convert an auction_slot to a Product interface
+   */
+  private slotToProduct(slot: any): Product {
+    return {
+      id: slot.id,
+      name_en: slot.live_product_name_en || "",
+      name_fr: slot.live_product_name_fr || "",
+      description_en: slot.live_product_description_en,
+      description_fr: slot.live_product_description_fr,
+      price: slot.live_product_price || 0,
+      currency: slot.live_product_currency || "XAF",
+      images: slot.live_product_image_urls || [],
+      seller_id: slot.live_product_seller_id || "",
+      categories: slot.live_product_categories || [],
+      delivery_options: slot.live_product_delivery_options,
+      tags: slot.live_product_tags || [],
+      slot_status: slot.slot_status,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      created_at: slot.created_at,
+      updated_at: slot.updated_at,
+      seller: slot.seller,
+    };
+  }
+
+  /**
+   * Cache multiple products for offline use
    */
   private async cacheProducts(products: Product[]): Promise<void> {
     for (const product of products) {
@@ -606,11 +636,7 @@ class ProductService extends BaseServiceImpl {
    * Cache a single product for offline use
    */
   private async cacheProduct(product: Product): Promise<void> {
-    try {
-      await offlineStorage.storeEntity('products', product);
-    } catch (error) {
-      console.warn('Failed to cache product:', error);
-    }
+    await offlineStorage.saveEntity("products", product);
   }
 
   /**
@@ -618,13 +644,17 @@ class ProductService extends BaseServiceImpl {
    */
   async clearCache(): Promise<ServiceResponse> {
     try {
-      await offlineStorage.clearEntityStore('products');
-      return createSuccessResponse();
-    } catch (error) {
-      return this.processError('clearCache', error);
+      await offlineStorage.clearEntities("products");
+      return createSuccessResponse(true);
+    } catch (err) {
+      return createErrorResponse("Failed to clear cache", {
+        type: ServiceErrorType.OFFLINE_STORAGE_ERROR,
+        originalError: err,
+      });
     }
   }
 }
 
-// Create and export singleton instance
-export const productService = new ProductService(); 
+// Export singleton instance
+export const productService = new ProductService();
+export default productService;

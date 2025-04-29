@@ -6,7 +6,7 @@ interface RateLimitData {
   blockExpiry: number | null;
 }
 
-const RATE_LIMIT_KEY = 'admin_login_rate_limit';
+const RATE_LIMIT_KEY = "admin_login_rate_limit";
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const BLOCK_DURATION_MS = 60 * 60 * 1000; // 1 hour
@@ -19,13 +19,17 @@ export const getRateLimitData = (): RateLimitData => {
       firstAttempt: Date.now(),
       lastAttempt: Date.now(),
       blocked: false,
-      blockExpiry: null
+      blockExpiry: null,
     };
   }
   return JSON.parse(stored);
 };
 
-export const updateRateLimit = (): { blocked: boolean; remainingAttempts: number; blockExpiry: number | null } => {
+export const updateRateLimit = (): {
+  blocked: boolean;
+  remainingAttempts: number;
+  blockExpiry: number | null;
+} => {
   const now = Date.now();
   let data = getRateLimitData();
 
@@ -36,7 +40,7 @@ export const updateRateLimit = (): { blocked: boolean; remainingAttempts: number
       firstAttempt: now,
       lastAttempt: now,
       blocked: false,
-      blockExpiry: null
+      blockExpiry: null,
     };
   }
 
@@ -45,7 +49,7 @@ export const updateRateLimit = (): { blocked: boolean; remainingAttempts: number
     return {
       blocked: true,
       remainingAttempts: 0,
-      blockExpiry: data.blockExpiry
+      blockExpiry: data.blockExpiry,
     };
   }
 
@@ -56,7 +60,7 @@ export const updateRateLimit = (): { blocked: boolean; remainingAttempts: number
       firstAttempt: now,
       lastAttempt: now,
       blocked: false,
-      blockExpiry: null
+      blockExpiry: null,
     };
   } else {
     // Increment attempts
@@ -75,10 +79,10 @@ export const updateRateLimit = (): { blocked: boolean; remainingAttempts: number
   return {
     blocked: data.blocked,
     remainingAttempts: Math.max(0, MAX_ATTEMPTS - data.attempts),
-    blockExpiry: data.blockExpiry
+    blockExpiry: data.blockExpiry,
   };
 };
 
 export const resetRateLimit = () => {
   localStorage.removeItem(RATE_LIMIT_KEY);
-}; 
+};

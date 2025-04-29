@@ -1,6 +1,6 @@
-import React from 'react';
-import { Button } from '../../ui/Button';
-import { useLanguage } from '../../../store/LanguageContext';
+import React from "react";
+import { Button } from "../../ui/Button";
+import { useLanguage } from "../../../store/LanguageContext";
 
 interface FormActionButtonsProps {
   currentStep: number;
@@ -31,19 +31,22 @@ const FormActionButtons: React.FC<FormActionButtonsProps> = ({
   showCancelDialog,
   onConfirmCancel,
   onCancelDialog,
-  className = ''
+  className = "",
 }) => {
   const { t } = useLanguage();
 
   // Text content
   const text = {
-    back: { en: 'Back', fr: 'Retour' },
-    next: { en: 'Next', fr: 'Suivant' },
-    submit: { en: 'Submit', fr: 'Soumettre' },
-    cancel: { en: 'Cancel', fr: 'Annuler' },
-    confirmCancel: { en: 'Confirm Cancel', fr: 'Confirmer l\'annulation' },
-    confirmCancelMessage: { en: 'Are you sure you want to cancel? All unsaved changes will be lost.', fr: 'Êtes-vous sûr de vouloir annuler ? Toutes les modifications non enregistrées seront perdues.' },
-    keepEditing: { en: 'Keep Editing', fr: 'Continuer l\'édition' }
+    back: { en: "Back", fr: "Retour" },
+    next: { en: "Next", fr: "Suivant" },
+    submit: { en: "Submit", fr: "Soumettre" },
+    cancel: { en: "Cancel", fr: "Annuler" },
+    confirmCancel: { en: "Confirm Cancel", fr: "Confirmer l'annulation" },
+    confirmCancelMessage: {
+      en: "Are you sure you want to cancel? All unsaved changes will be lost.",
+      fr: "Êtes-vous sûr de vouloir annuler ? Toutes les modifications non enregistrées seront perdues.",
+    },
+    keepEditing: { en: "Keep Editing", fr: "Continuer l'édition" },
   };
 
   return (
@@ -102,11 +105,7 @@ const FormActionButtons: React.FC<FormActionButtonsProps> = ({
               {t(text.confirmCancelMessage)}
             </p>
             <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onCancelDialog}
-              >
+              <Button variant="outline" size="sm" onClick={onCancelDialog}>
                 {t(text.keepEditing)}
               </Button>
               <Button
@@ -125,4 +124,4 @@ const FormActionButtons: React.FC<FormActionButtonsProps> = ({
   );
 };
 
-export default FormActionButtons; 
+export default FormActionButtons;

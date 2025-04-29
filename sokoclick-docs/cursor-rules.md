@@ -175,6 +175,12 @@ This document defines the coding rules and guidelines for the SokoClick project.
       "filePattern": "src/**/*.{ts,tsx,js,jsx}",
       "rule": "Follow these guidelines for codebase modifications:\n- Before creating new components/files, verify they don't already exist\n- Update and enhance existing code rather than duplicating functionality\n- Build incrementally upon the current codebase with coherent changes\n- Avoid introducing redundant files or repeating previously fixed issues\n- Use consistent naming, formatting, and patterns as established in similar files\n- Create fallback mechanisms for problematic database structures\n- Document any workarounds with clear explanations and TODOs\n- Ensure changes are backward compatible with existing functionality\n- Test modifications against edge cases and error conditions",
       "alwaysApply": true
+    },
+    {
+      "description": "Follow slot-based storage architecture",
+      "filePattern": "src/(services|components|utils)/**/*.{ts,tsx}",
+      "rule": "Use the dedicated slot-based storage system for product images. Ensure images are stored in `slot-{slotNumber}` folders. Utilize `slotStorage.ts` utilities for folder initialization and clearing. Extend `fileUpload.ts` for slot-aware uploads. Use `StorageInitializer` component for admin operations. Implement automatic cleanup when products are removed from slots.",
+      "alwaysApply": true
     }
   ]
 }
@@ -206,6 +212,7 @@ This document defines the coding rules and guidelines for the SokoClick project.
 - **Bilingual Data Support**: Handle English and French content fields
 - **Analytics Tracking**: Track user interactions according to database structure
 - **Seller Verification**: Display verification status badges based on database fields
+- **Slot Storage**: Adhere to the `slot-{slotNumber}` folder structure and utilize dedicated utilities
 
 ### Data Model Integration
 
@@ -252,6 +259,7 @@ Layered components from presentation to connected data:
 - `SlotGrid` focuses on presentation
 - `SlotGridConnected` handles data fetching
 - `SlotManagement` provides complete workflow
+- `StorageInitializer` manages slot storage setup
 
 ### Incremental Development
 
