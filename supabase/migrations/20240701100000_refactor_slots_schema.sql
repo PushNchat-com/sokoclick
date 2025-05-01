@@ -11,7 +11,7 @@ DROP TABLE IF EXISTS public.users;
 -- Create users table (simplified for sellers/admins initially)
 CREATE TABLE public.users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'seller', 'admin')),
+    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'seller', 'admin', 'super_admin')),
     whatsapp_number TEXT UNIQUE, -- Unique if present, required for sellers
     name TEXT,
     email TEXT UNIQUE,
@@ -197,7 +197,7 @@ AS $$
   SELECT EXISTS (
     SELECT 1
     FROM public.users
-    WHERE id = auth.uid() AND role = 'admin'
+    WHERE id = auth.uid() AND (role = 'admin' OR role = 'super_admin')
   );
 $$;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
@@ -230,11 +230,14 @@ USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
 -- Allow anon/public to see basic seller info? (Optional - Needed if showing seller name on cards)
--- DROP POLICY IF EXISTS "Allow public view of seller info" ON public.users;
--- CREATE POLICY "Allow public view of seller info"
--- ON public.users FOR SELECT
--- TO anon, authenticated
--- USING (role = 'seller');
+DROP POLICY IF EXISTS "Allow public view of seller info" ON public.users;
+CREATE POLICY "Allow public view of seller info"
+ON public.users FOR SELECT
+TO anon, authenticated
+USING (role = 'seller'); -- SELECT policies only use USING
+
+-- Note: Column-level visibility is handled by the specific SELECT statement in the frontend query (`useSlots`),
+-- which only requests permitted columns (e.g., 'id', 'name') for the joined seller.
 
 -- Enable RLS on auction_slots table
 ALTER TABLE public.auction_slots ENABLE ROW LEVEL SECURITY;

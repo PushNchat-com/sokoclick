@@ -11,9 +11,14 @@ import {
   Title,
   Tooltip,
   Legend,
+  ArcElement,
 } from "chart.js";
 import { toast } from "../../utils/toast";
-import { DetailedAnalyticsData } from "../../services/analytics";
+import { AnalyticsMetrics } from "../../services/analytics";
+import { Slot } from "../../services/slots";
+import {
+  formatDateTime,
+} from "../../utils/formatters";
 
 // Register ChartJS components
 ChartJS.register(
@@ -25,10 +30,11 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  ArcElement,
 );
 
 interface AnalyticsComponentProps {
-  analyticsData: DetailedAnalyticsData | null;
+  analyticsData: AnalyticsMetrics | null;
   className?: string;
 }
 

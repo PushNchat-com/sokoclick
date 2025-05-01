@@ -121,10 +121,11 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
     ref,
   ) => {
     const { t } = useLanguage();
+    const generatedId = React.useId();
+    const inputId = id || generatedId;
     const [internalShowSuggestions, setInternalShowSuggestions] =
       useState(showSuggestions);
     const searchContainerRef = useRef<HTMLDivElement>(null);
-    const inputId = id || React.useId();
     const searchStartTimeRef = useRef<number | null>(null);
 
     // Text content with bilingual support
@@ -259,111 +260,4 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             placeholder={t(text.searchPlaceholder)}
             value={value}
             onChange={onChange}
-            className={`w-full border-0 focus:ring-2 focus:ring-indigo-400 focus:outline-none text-gray-600 shadow-sm ${
-              rounded ? "rounded-full" : "rounded-md"
-            } ${sizeClasses[size]} ${className}`}
-            disabled={isSearching}
-            aria-label={t(text.searchPlaceholder)}
-            style={focusStyles.keyboard}
-            onFocus={handleFocus}
-            id={inputId as string}
-            autoComplete="off"
-            {...props}
-          />
-
-          {value && onClear ? (
-            <button
-              type="button"
-              onClick={onClear}
-              className={`absolute text-gray-400 hover:text-gray-600 transition ${clearButtonSizeClasses[size]}`}
-              {...createAriaLabel(t(text.clearSearch))}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={iconSizeClasses[size]}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          ) : null}
-
-          <button
-            type="submit"
-            className={`absolute bg-indigo-700 text-white rounded-full hover:bg-indigo-800 transition duration-150 disabled:opacity-70 ${buttonSizeClasses[size]}`}
-            disabled={isSearching || !value.trim()}
-            {...createAriaLabel(
-              t(isSearching ? text.searching : text.searchButton),
-            )}
-            style={focusStyles.keyboard}
-          >
-            {isSearching ? (
-              <svg
-                className={`animate-spin ${iconSizeClasses[size]}`}
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={iconSizeClasses[size]}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            )}
-          </button>
-        </form>
-
-        {/* Search suggestions */}
-        <SearchSuggestions
-          inputValue={value}
-          isVisible={displaySuggestions && !isSearching}
-          searchHistory={searchHistory}
-          suggestions={suggestions}
-          onSelectSuggestion={handleSelectSuggestion}
-          onRemoveHistoryItem={onRemoveHistoryItem}
-          onClearHistory={onClearHistory}
-          inputId={inputId as string}
-        />
-      </div>
-    );
-  },
-);
-
-SearchInput.displayName = "SearchInput";
-
-// Export the component with performance monitoring
-export default withPerformanceMonitoring(SearchInput, "SearchInput");
+            className={`

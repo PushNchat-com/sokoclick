@@ -1,6 +1,11 @@
 import React, { FC } from "react";
 import SlotManagement from "../SlotManagement";
 import { useAdminDashboardData } from "../../../hooks/useAdminDashboardData"; // Import hook type
+import ConfirmDialogProvider from "../../../components/ui/ConfirmDialog"; // Import the provider
+import { DraftStatus } from "@/utils/slotUtils"; // Corrected: Import from slotUtils
+import { useSlotStats } from "@/services/slots";
+import { useLanguage } from "@/store/LanguageContext";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 // Update props interface to accept refresh handlers and potentially stats/count
 interface ApprovalsTabProps {
@@ -18,15 +23,16 @@ const ApprovalsTab: FC<ApprovalsTabProps> = ({
 }) => {
   return (
     <div>
-      {/* Render SlotManagement in approval mode */}
-      {/* Pass filterDraftStatus and necessary refresh handlers */}
-      <SlotManagement
-        filterDraftStatus="ready_to_publish"
-        refreshPendingCount={refreshPendingCount}
-        refreshStats={refreshStats}
-        stats={stats} // Pass stats down if SlotManagement needs it (e.g., for display)
-        pendingApprovalsCount={pendingApprovalsCount} // Pass count down if needed
-      />
+      {/* Wrap SlotManagement with ConfirmDialogProvider to ensure context is available */}
+      <ConfirmDialogProvider>
+        <SlotManagement
+          filterDraftStatus={"ready_to_publish"}
+          refreshPendingCount={refreshPendingCount}
+          refreshStats={refreshStats}
+          stats={stats}
+          pendingApprovalsCount={pendingApprovalsCount}
+        />
+      </ConfirmDialogProvider>
     </div>
   );
 };

@@ -9,7 +9,8 @@ import {
 } from "../../services/slots";
 import { useProductForm } from "../../hooks/useProductForm";
 import { useLocalFormStorage } from "../../hooks/useLocalFormStorage";
-import { UserRole, UserProfile } from "../../types/auth";
+import type { UserRole, AuthUserProfile } from "@/types/auth";
+import { UserRoleEnum } from "@/types/auth";
 
 // Import form steps
 import BasicInfoStep from "./form-steps/BasicInfoStep";
@@ -53,15 +54,15 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
   });
 
   // Convert User to UserProfile
-  const userProfile: UserProfile | null = user
+  const userProfile: AuthUserProfile | null = user
     ? {
         id: user.id,
-        email: user.email || "",
-        role: user.role || UserRole.SELLER,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        name: user.name,
-        phone: user.phone,
+        email: user.email || null,
+        role: user.role || UserRoleEnum.SELLER,
+        name: user.name || null,
+        whatsapp_number: user.whatsapp_number || null,
+        is_verified: user.is_verified || false,
+        verification_level: user.verification_level || null,
       }
     : null;
 
@@ -80,7 +81,7 @@ const BaseProductForm: React.FC<BaseProductFormProps> = ({
           if (slots.length > 0 && !slotsError) {
             setAvailableSlots(
               slots
-                .filter((slot) => slot.status === "available")
+                .filter((slot) => slot.slot_status === "empty")
                 .map((slot) => slot.id),
             );
           } else {

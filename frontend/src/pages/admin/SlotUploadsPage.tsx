@@ -1,8 +1,9 @@
 import React from "react";
 import { Helmet } from "react-helmet-async";
-import AdminLayout from "../../layouts/AdminLayout";
-import SlotImageUploader from "../../components/admin/SlotImageUploader";
+import AdminLayout from "../../components/admin/AdminLayout";
 import { useLanguage } from "../../store/LanguageContext";
+import BackToDashboard from "../../components/admin/BackToDashboard";
+import SlotImageUploader from "../../components/admin/SlotImageUploader";
 
 const SlotUploadsPage: React.FC = () => {
   const { t } = useLanguage();

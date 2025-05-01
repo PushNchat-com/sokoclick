@@ -11,7 +11,7 @@ interface LocationState {
 }
 
 const Login: React.FC = () => {
-  const { signIn, user } = useUnifiedAuth();
+  const { login, user } = useUnifiedAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,21 +79,11 @@ const Login: React.FC = () => {
 
       try {
         setSubmitLoading(true);
-        const { user: loggedInUser, error } = await signIn(
+        await login(
           formState.email,
           formState.password,
         );
-
-        if (error) {
-          setSubmitError(error || t(text.serverError));
-          return;
-        }
-
-        if (loggedInUser) {
-          console.log("Login successful, navigating to:", from);
-          navigate(from, { replace: true });
-          resetForm();
-        }
+        resetForm();
       } catch (err: any) {
         console.error("Login submission error:", err);
         setSubmitError(err.message || t(text.serverError));
@@ -102,7 +92,7 @@ const Login: React.FC = () => {
       }
     },
     [
-      signIn,
+      login,
       formState,
       validateForm,
       navigate,

@@ -3,6 +3,7 @@ import { useLanguage } from "../../../store/LanguageContext";
 import { SlotStatus } from "../../../services/slots";
 import { Button } from "../../ui/Button";
 import { SearchIcon } from "../../ui/Icons";
+import { getSlotStatusText } from "@/utils/slotUtils";
 
 interface SlotFiltersProps {
   /**
@@ -62,14 +63,21 @@ const SlotFilters: React.FC<SlotFiltersProps> = ({
     [],
   );
 
-  // Text content
+  // Use utility for status text
   const filterLabels = {
     all: { en: "All", fr: "Tous" },
-    [SlotStatus.AVAILABLE]: { en: "Available", fr: "Disponible" },
-    [SlotStatus.OCCUPIED]: { en: "Occupied", fr: "Occupé" },
-    [SlotStatus.RESERVED]: { en: "Reserved", fr: "Réservé" },
-    [SlotStatus.MAINTENANCE]: { en: "Maintenance", fr: "Maintenance" },
+    [SlotStatus.Empty]: getSlotStatusText(SlotStatus.Empty),
+    [SlotStatus.Live]: getSlotStatusText(SlotStatus.Live),
+    [SlotStatus.Maintenance]: getSlotStatusText(SlotStatus.Maintenance),
   };
+
+  // Define the order of statuses for buttons
+  const statusOrder: (SlotStatus | "all")[] = [
+    "all",
+    SlotStatus.Empty,
+    SlotStatus.Live,
+    SlotStatus.Maintenance,
+  ];
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
@@ -78,29 +86,19 @@ const SlotFilters: React.FC<SlotFiltersProps> = ({
         className="inline-flex items-center rounded-md shadow-sm"
         role="group"
       >
-        {(
-          [
-            "all",
-            SlotStatus.AVAILABLE,
-            SlotStatus.OCCUPIED,
-            SlotStatus.RESERVED,
-            SlotStatus.MAINTENANCE,
-          ] as const
-        ).map((status) => (
+        {statusOrder.map((status, index) => (
           <Button
             key={status}
             variant={filterStatus === status ? "primary" : "outline"}
             size="sm"
-            className={`${status === "all" ? "rounded-l-md" : ""} ${
-              status === SlotStatus.MAINTENANCE ? "rounded-r-md" : ""
-            } ${
-              !(status === "all" || status === SlotStatus.MAINTENANCE)
-                ? "rounded-none"
-                : ""
-            }`}
+            className={`
+              ${index === 0 ? "rounded-l-md" : ""}
+              ${index === statusOrder.length - 1 ? "rounded-r-md" : ""}
+              ${index > 0 && index < statusOrder.length - 1 ? "rounded-none -ml-px" : ""}
+            `}
             onClick={() => onFilterChange(status)}
           >
-            {t(filterLabels[status])}
+            {t(filterLabels[status as keyof typeof filterLabels])}
           </Button>
         ))}
       </div>

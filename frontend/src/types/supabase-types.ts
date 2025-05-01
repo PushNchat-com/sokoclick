@@ -226,9 +226,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_slot: {
+        Args: { slot_id_to_approve: number }
+        Returns: Json
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      reject_slot: {
+        Args: { slot_id_to_reject: number; rejection_reason?: string }
+        Returns: Json
+      }
+      remove_live_product: {
+        Args: { target_slot_id: number }
+        Returns: Json
+      }
+      toggle_slot_maintenance: {
+        Args: { slot_id_input: string } | { target_slot_id: number }
+        Returns: Json
       }
     }
     Enums: {
@@ -350,17 +366,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// --- Add Enums for Statuses ---
-export enum SlotStatus {
-  Empty = 'empty',
-  Live = 'live',
-  Maintenance = 'maintenance'
-}
-
-export enum DraftStatus {
-  Empty = 'empty',
-  Drafting = 'drafting',
-  ReadyToPublish = 'ready_to_publish'
-}
-// --- End Enums --- 

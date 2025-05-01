@@ -1,0 +1,2 @@
+# Ignore generated Supabase types file due to parsing error
+src/types/supabase-types.ts 

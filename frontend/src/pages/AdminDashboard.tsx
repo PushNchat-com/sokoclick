@@ -137,7 +137,7 @@ const AdminDashboard: FC = () => {
           {/* Products Panel */}
           <Tab.Panel>
             {/* Pass stats and refreshStats for general slot info */}
-            <ProductsTab stats={stats} refreshStats={refreshStats} />
+            <ProductsTab />
           </Tab.Panel>
         </Tab.Panels>
       </Tab.Group>

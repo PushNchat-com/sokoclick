@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { toast } from "../../utils/toast";
 import { useUsers, userService } from "../../services/users";
 import { useLanguage } from "../../store/LanguageContext";
-import { UserRole } from "../../types/auth";
+import type { UserRole } from "@/types/auth";
+import { UserRoleEnum } from "@/types/auth";
 import BackToDashboard from "./BackToDashboard";
-import UserMigrationHelper from "./UserMigrationHelper";
 import rpcFunctions from "../../services/rpcFunctions";
 
 const UserManagement: React.FC = () => {
@@ -145,9 +145,6 @@ const UserManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Database Schema Helper Component */}
-      <UserMigrationHelper />
-
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="p-4 border-b">
           <div className="flex flex-col md:flex-row gap-4 justify-between">
@@ -170,11 +167,11 @@ const UserManagement: React.FC = () => {
                 className="p-2 border rounded"
               >
                 <option value="">{text.allRoles[language]}</option>
-                <option value={UserRole.CUSTOMER}>
+                <option value={UserRoleEnum.CUSTOMER}>
                   {text.customer[language]}
                 </option>
-                <option value={UserRole.SELLER}>{text.seller[language]}</option>
-                <option value={UserRole.ADMIN}>{text.admin[language]}</option>
+                <option value={UserRoleEnum.SELLER}>{text.seller[language]}</option>
+                <option value={UserRoleEnum.ADMIN}>{text.admin[language]}</option>
               </select>
 
               <button

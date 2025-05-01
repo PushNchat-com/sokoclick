@@ -339,50 +339,102 @@ export class SlotService extends BaseServiceImpl {
    */
   public async clearLiveProduct(
     id: number,
-  ): Promise<ServiceResponse<AuctionSlot>> {
-    const payload: SlotUpdatePayload = {
-      live_product_seller_id: null,
-      live_product_name_en: null,
-      live_product_name_fr: null,
-      live_product_description_en: null,
-      live_product_description_fr: null,
-      live_product_price: null,
-      live_product_currency: null,
-      live_product_categories: null,
-      live_product_delivery_options: null,
-      live_product_tags: null,
-      live_product_image_urls: null,
-      slot_status: "empty",
-      start_time: null,
-      end_time: null,
-      view_count: 0,
-      featured: false,
-    };
-    return this.updateSlot(id, payload);
+  ): Promise<ServiceResponse<{ new_status: SlotStatus }>> {
+    try {
+      const { data, error } = await supabase.rpc("remove_live_product", {
+        target_slot_id: id,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.status === 'error') {
+        return createErrorResponse(
+          ServiceErrorType.BACKEND_ERROR,
+          data.message || "Failed to remove live product",
+          JSON.stringify(data)
+        );
+      }
+      if (data?.status === 'info') {
+        console.info(`clearLiveProduct (slot ${id}): ${data.message}`);
+        const currentSlot = await this.getSlotById(id);
+        const currentStatus = currentSlot.success ? currentSlot.data.slot_status : 'unknown';
+        return createSuccessResponse({ new_status: currentStatus, message: data.message });
+      }
+
+      const newStatus = data?.new_status as SlotStatus || 'empty';
+
+      this.updateCachedSlotStatus(id, newStatus);
+
+      return createSuccessResponse({ new_status: newStatus });
+
+    } catch (error) {
+      return this.processError(
+        "clearLiveProduct",
+        error as PostgrestError | Error,
+      );
+    }
   }
 
   /**
-   * Toggle maintenance mode for a slot.
+   * Toggle maintenance mode for a slot by calling the RPC function.
    */
   public async toggleMaintenance(
     id: number,
-    setMaintenance: boolean,
-  ): Promise<ServiceResponse<AuctionSlot>> {
-    const currentSlotResponse = await this.getSlotById(id);
-    if (!currentSlotResponse.success || !currentSlotResponse.data) {
-      return createErrorResponse(ServiceErrorType.NOT_FOUND, "Slot not found");
+  ): Promise<ServiceResponse<{ new_status: SlotStatus }>> {
+    try {
+      const { data, error } = await supabase.rpc("toggle_slot_maintenance", {
+        target_slot_id: id,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.status === 'error') {
+        return createErrorResponse(
+          ServiceErrorType.BACKEND_ERROR,
+          data.message || "Failed to toggle maintenance mode",
+          JSON.stringify(data)
+        );
+      }
+
+      const newStatus = data?.new_status as SlotStatus;
+      if (!newStatus) {
+        console.error("toggleMaintenance RPC success response missing 'new_status'. Data:", data);
+        return createErrorResponse(
+          ServiceErrorType.UNEXPECTED_RESPONSE,
+          "RPC response format unexpected.",
+          JSON.stringify(data)
+        );
+      }
+
+      this.updateCachedSlotStatus(id, newStatus);
+
+      return createSuccessResponse({ new_status: newStatus });
+
+    } catch (error) {
+      return this.processError(
+        "toggleMaintenance",
+        error as PostgrestError | Error,
+      );
     }
+  }
 
-    const newStatus = setMaintenance
-      ? "maintenance"
-      : currentSlotResponse.data.live_product_name_en
-        ? "live"
-        : "empty";
-
-    const payload: SlotUpdatePayload = {
-      slot_status: newStatus,
-    };
-    return this.updateSlot(id, payload);
+  private async updateCachedSlotStatus(id: number, newStatus: SlotStatus): Promise<void> {
+    try {
+      const cachedSlots = await this.getFromOfflineStorage<AuctionSlot>(this.tableName);
+      if (cachedSlots) {
+        const updatedCache = cachedSlots.map((slot) =>
+          slot.id === id ? { ...slot, slot_status: newStatus } : slot
+        );
+        await this.saveToOfflineStorage(this.tableName, updatedCache);
+        this.log(`Cache updated for slot ${id} with status ${newStatus}`);
+      }
+    } catch (cacheError) {
+      console.error(`Failed to update cache for slot ${id}:`, cacheError);
+    }
   }
 
   public async deleteSlot(id: number): Promise<ServiceResponse<void>> {

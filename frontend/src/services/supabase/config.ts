@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { TIMEOUTS } from "../../config/timeouts";
-import type { Database } from "../../types/supabase-types";
+import type { Database, Json } from "../../types/supabase-types";
 
 // Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -67,16 +67,42 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
  * @returns Promise that resolves to true if connection is successful, or rejects with error
  */
 export const testConnection = async (): Promise<boolean> => {
+  if (!navigator.onLine) {
+    throw new Error("Browser is offline");
+  }
+  
   try {
-    // Ping a lightweight table or call a simple RPC function
-    // Here we're using a simple query to fetch the server timestamp
-    const { data, error } = await supabase.rpc("ping");
-
-    if (error) {
-      throw error;
+    // Try to use the ping RPC function first
+    let pingSuccess = false;
+    
+    try {
+      const { data: pingData, error: pingError } = await supabase.rpc("ping");
+      
+      if (!pingError && pingData) {
+        // The ping was successful
+        console.info("Supabase connection successful:", pingData);
+        pingSuccess = true;
+        return true;
+      }
+    } catch (pingErr) {
+      console.info("Ping RPC function error:", pingErr);
+      // Will fall through to the fallback method
     }
-
-    console.info("Supabase connection successful:", data);
+    
+    // If ping wasn't successful, use the fallback method
+    if (!pingSuccess) {
+      console.info("Using fallback connection test");
+      const { error: countError } = await supabase
+        .from("auction_slots")
+        .select("*", { count: "exact", head: true });
+      
+      if (countError) throw countError;
+      
+      // Success if we got here
+      console.info("Supabase connection successful (fallback method)");
+      return true;
+    }
+    
     return true;
   } catch (error) {
     console.error("Supabase connection test failed:", error);

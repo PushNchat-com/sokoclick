@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useUnifiedAuth } from "../../contexts/UnifiedAuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "../../store/LanguageContext";
-import { UserRole } from "../../types/auth";
+import type { UserRole } from "@/types/auth";
 import {
   validatePasswordStrength,
   validateAndFormatPhone,
@@ -10,6 +10,7 @@ import {
 } from "../../utils/securityUtils";
 import ResponsiveImage from "../ui/ResponsiveImage";
 import logoImage from "../../assets/images/logo.svg";
+import { UserRoleEnum } from "@/types/auth";
 
 const Signup: React.FC = () => {
   const { t, language } = useLanguage();
@@ -277,38 +278,53 @@ const Signup: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateStep(currentStep)) return;
+    // Validate final step before submission
+    if (!validateStep(2)) {
+      return;
+    }
 
+    // Check if terms are accepted
     if (!acceptedTerms) {
       setValidationError(t(text.terms.required));
       return;
     }
 
+    const { formatted: formattedPhone, isValid: isPhoneValid } = validateAndFormatPhone(formData.phone);
+
+    // Re-validate phone just in case, though step validation should catch it
+    if (!isPhoneValid && formData.phone.trim() !== "") {
+      setValidationError(t(text.errors.phoneInvalid));
+      return;
+    }
+
     try {
-      // Track signup attempt
+      setValidationError(""); // Clear validation error before proceeding
+
+      // Call signUp with additional data in options.data
+      const { data, error } = await signUp(formData.email, formData.password, {
+        data: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone: formattedPhone || null, // Use formatted phone or null
+          role: UserRoleEnum.SELLER, // Use Enum value CORRECTLY
+        },
+      });
+
+      if (error) {
+        // Throw the error to be caught by the catch block
+        throw error;
+      }
+
+      // Track signup event on success
       await trackSecurityEvent("signup", {
+        userId: data?.user?.id, // Safely access user ID
         email: formData.email,
-        userAgent: navigator.userAgent,
         timestamp: new Date().toISOString(),
       });
 
-      const response = await signUp(formData.email, formData.password, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        name: `${formData.firstName} ${formData.lastName}`,
-        phone: formData.phone ? `+237${formData.phone.replace(/\s/g, "")}` : "",
-        role: UserRole.CUSTOMER,
-      });
+      setSignupSuccess(true); // Show success notification
 
-      if (response.error) {
-        setValidationError(response.error);
-        return;
-      }
-
-      // Show success message
-      setSignupSuccess(true);
-
-      // Reset form data
+      // Reset form state after successful signup
       setFormData({
         email: "",
         password: "",
@@ -317,18 +333,20 @@ const Signup: React.FC = () => {
         lastName: "",
         phone: "",
       });
-
-      // Reset validation
       setValidation({});
       setTouched({});
+      setCurrentStep(1); // Go back to first step for visual reset
+      setAcceptedTerms(false);
+      setPasswordStrength({ score: 0, feedback: "" });
 
-      setTimeout(() => {
-        navigate("/login");
-      }, 5000);
+      // Optionally navigate after a delay
+      // setTimeout(() => navigate('/login', { state: { registered: true } }), 3000);
+
     } catch (error) {
-      setValidationError(
-        error instanceof Error ? error.message : t(text.serverError),
-      );
+      console.error("Signup failed:", error);
+      // Ensure we set a string error message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setValidationError(errorMessage || t(text.serverError)); // Set error message state
     }
   };
 

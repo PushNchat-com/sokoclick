@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSlotStats } from "@/services/slots";
 import {
   analyticsService,
   Activity,
+  AnalyticsMetrics,
   AnalyticsUpdate,
-  DetailedAnalyticsData,
 } from "@/services/analytics";
 import { supabase } from "@/services/supabase";
 import { toast } from "react-hot-toast";
@@ -22,7 +22,7 @@ interface AdminDashboardData {
   activities: Activity[];
   stats: ReturnType<typeof useSlotStats>["stats"];
   metrics: DashboardMetrics;
-  detailedAnalytics: DetailedAnalyticsData | null;
+  detailedAnalytics: AnalyticsMetrics | null;
   pendingApprovalsCount: number;
   startDate: Date;
   endDate: Date;
@@ -67,23 +67,17 @@ export const useAdminDashboardData = (): AdminDashboardData => {
   const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 30));
   const [endDate, setEndDate] = useState<Date>(new Date());
 
-  const [detailedAnalytics, setDetailedAnalytics] =
-    useState<DetailedAnalyticsData | null>(null);
-  const [detailedAnalyticsLoading, setDetailedAnalyticsLoading] =
-    useState<boolean>(true);
-  const [detailedAnalyticsError, setDetailedAnalyticsError] = useState<
-    string | null
-  >(null);
-  const [detailedAnalyticsRefreshTrigger, setDetailedAnalyticsRefreshTrigger] =
-    useState(0);
+  const [detailedAnalytics, setDetailedAnalytics] = useState<AnalyticsMetrics | null>(null);
+  const [detailedAnalyticsLoading, setDetailedAnalyticsLoading] = useState<boolean>(true);
+  const [detailedAnalyticsError, setDetailedAnalyticsError] = useState<string | null>(null);
+  const [detailedAnalyticsRefreshTrigger, setDetailedAnalyticsRefreshTrigger] = useState(0);
 
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
   const [pendingCountLoading, setPendingCountLoading] = useState<boolean>(true);
-  const [pendingCountError, setPendingCountError] = useState<string | null>(
-    null,
-  );
-  const [pendingCountRefreshTrigger, setPendingCountRefreshTrigger] =
-    useState(0);
+  const [pendingCountError, setPendingCountError] = useState<string | null>(null);
+  const [pendingCountRefreshTrigger, setPendingCountRefreshTrigger] = useState(0);
+
+  const [isMounted, setIsMounted] = useState<boolean>(true);
 
   const fetchActivities = useCallback(async () => {
     setActivitiesLoading(true);
@@ -107,14 +101,13 @@ export const useAdminDashboardData = (): AdminDashboardData => {
   );
 
   const fetchDetailedAnalytics = useCallback(async () => {
+    if (!isMounted) return;
     setDetailedAnalyticsLoading(true);
     setDetailedAnalyticsError(null);
     try {
-      const data = await analyticsService.getDetailedAnalytics(
-        startDate,
-        endDate,
-      );
-      setDetailedAnalytics(data);
+      const metricsData = await analyticsService.getMetrics({ startDate, endDate });
+      if (!isMounted) return;
+      setDetailedAnalytics(metricsData);
     } catch (err) {
       console.error("Fetch detailed analytics error:", err);
       const errorMsg = t({
@@ -126,7 +119,7 @@ export const useAdminDashboardData = (): AdminDashboardData => {
     } finally {
       setDetailedAnalyticsLoading(false);
     }
-  }, [startDate, endDate, t]);
+  }, [startDate, endDate, t, isMounted]);
 
   const refreshDetailedAnalytics = useCallback(
     () => setDetailedAnalyticsRefreshTrigger((t) => t + 1),
@@ -179,8 +172,7 @@ export const useAdminDashboardData = (): AdminDashboardData => {
       (update: AnalyticsUpdate) => {
         setMetrics((current) => ({
           ...current,
-          totalViews: update.totalViews ?? current.totalViews,
-          whatsappClicks: update.whatsappClicks ?? current.whatsappClicks,
+          ...update,
         }));
       },
     );
@@ -206,6 +198,13 @@ export const useAdminDashboardData = (): AdminDashboardData => {
     activitiesError ||
     detailedAnalyticsError ||
     pendingCountError;
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
 
   return {
     activities,

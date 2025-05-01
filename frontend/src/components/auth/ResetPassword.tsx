@@ -10,8 +10,8 @@ import {
 import { supabase } from "../../services/supabase";
 
 const ResetPassword: React.FC = () => {
-  const { t } = useLanguage();
-  const { updateUser, loading, error, clearError } = useUnifiedAuth();
+  const { t, language } = useLanguage();
+  const { updateUserPassword, loading, authError, clearAuthError } = useUnifiedAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -116,14 +116,20 @@ const ResetPassword: React.FC = () => {
     const unmetCount = result.unmetRequirements.length;
     const score = 5 - unmetCount;
 
+    const currentLang = language || "en";
+
     setPasswordStrength({
       score,
-      feedback: unmetCount > 0 ? result.unmetRequirements[0][t.language] : "",
+      feedback:
+        unmetCount > 0
+          ? result.unmetRequirements[0][currentLang] ||
+            result.unmetRequirements[0].en
+          : "",
     });
   };
 
   const validateForm = (): boolean => {
-    clearError();
+    clearAuthError();
     setFormError("");
 
     if (!password) {
@@ -151,23 +157,18 @@ const ResetPassword: React.FC = () => {
     if (!validateForm()) return;
 
     try {
-      // Track password reset attempt
       await trackSecurityEvent("password_reset", {
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
       });
 
-      // Use Supabase method to update password
-      const { error } = await supabase.auth.updateUser({
-        password,
-      });
+      const { error } = await updateUserPassword(password);
 
       if (error) {
         setFormError(error.message);
         return;
       }
 
-      // Track successful password change
       await trackSecurityEvent("password_change", {
         success: true,
         timestamp: new Date().toISOString(),
@@ -175,13 +176,12 @@ const ResetPassword: React.FC = () => {
 
       setSuccessMessage(t(text.successMessage));
 
-      // Redirect to login after short delay
       setTimeout(() => {
         navigate("/login");
       }, 3000);
     } catch (err) {
       console.error("Password reset error:", err);
-      setFormError(t(text.errors.unknown));
+      setFormError(err instanceof Error ? err.message : t(text.errors.unknown));
     }
   };
 
@@ -293,8 +293,8 @@ const ResetPassword: React.FC = () => {
               </div>
             </div>
 
-            {(error || formError) && (
-              <div className="text-red-500 text-sm">{formError || error}</div>
+            {(authError || formError) && (
+              <div className="text-red-500 text-sm">{formError || authError?.message}</div>
             )}
 
             <div>

@@ -2,10 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useLanguage } from "../../../store/LanguageContext";
 import { toast } from "../../../utils/toast";
 import { supabase } from "../../../services/supabase";
-import { DEFAULT_BUCKET } from "../../../services/fileUpload";
 import { Button } from "../../ui/Button";
 import { UploadIcon, TrashIcon, RefreshIcon } from "../../ui/Icons";
-import { PerformanceMonitor } from "../../../services/core/PerformanceMonitor";
 
 interface SlotImagePanelProps {
   slotId: number;
@@ -60,11 +58,9 @@ const SlotImagePanel: React.FC<SlotImagePanelProps> = ({ slotId }) => {
 
     setIsLoading(true);
 
-    const perfMetric = PerformanceMonitor.startTimer("loadSlotImages");
-
     try {
       const { data, error } = await supabase.storage
-        .from(DEFAULT_BUCKET)
+        .from('product-images')
         .list(`slot-${slotId}`);
 
       if (error) throw error;
@@ -76,7 +72,7 @@ const SlotImagePanel: React.FC<SlotImagePanelProps> = ({ slotId }) => {
       const imagesWithUrls = await Promise.all(
         imageFiles.map(async (file) => {
           const { data } = supabase.storage
-            .from(DEFAULT_BUCKET)
+            .from('product-images')
             .getPublicUrl(`slot-${slotId}/${file.name}`);
 
           return {
@@ -99,7 +95,6 @@ const SlotImagePanel: React.FC<SlotImagePanelProps> = ({ slotId }) => {
       );
     } finally {
       setIsLoading(false);
-      PerformanceMonitor.stopTimer(perfMetric);
     }
   };
 
@@ -117,7 +112,7 @@ const SlotImagePanel: React.FC<SlotImagePanelProps> = ({ slotId }) => {
         const filePath = `slot-${slotId}/${Date.now()}-${file.name}`;
 
         const { error } = await supabase.storage
-          .from(DEFAULT_BUCKET)
+          .from('product-images')
           .upload(filePath, file);
 
         if (error) {
@@ -156,7 +151,7 @@ const SlotImagePanel: React.FC<SlotImagePanelProps> = ({ slotId }) => {
     if (window.confirm(t(text.deleteConfirm))) {
       try {
         const { error } = await supabase.storage
-          .from(DEFAULT_BUCKET)
+          .from('product-images')
           .remove([`slot-${slotId}/${imageName}`]);
 
         if (error) throw error;

@@ -32,7 +32,7 @@ const AdminNav: React.FC<AdminNavProps> = ({
   onToggleHealthMonitor,
 }) => {
   const { t } = useLanguage();
-  const { user, signOut } = useUnifiedAuth();
+  const { user } = useUnifiedAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -100,7 +100,7 @@ const AdminNav: React.FC<AdminNavProps> = ({
           {user && (
             <p className="text-sm text-gray-500 mt-1">
               {t({ en: "Welcome", fr: "Bienvenue" })},{" "}
-              {user.firstName || user.email}
+              {user.email}
             </p>
           )}
         </div>
@@ -137,11 +137,11 @@ const AdminNav: React.FC<AdminNavProps> = ({
         <div className="px-6 py-4 border-t border-gray-200">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-800 font-semibold">
-              {user?.firstName?.charAt(0) || user?.email?.charAt(0) || "A"}
+              {user?.email?.charAt(0)?.toUpperCase() || "A"}
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium">
-                {user?.firstName || user?.email}
+                {user?.email}
               </p>
               <p className="text-xs text-gray-500">
                 {t({ en: "Admin", fr: "Administrateur" })}

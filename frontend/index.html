@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <!-- Dynamic CSP fix - must run before anything else -->
+    <!--
     <script>
       // Only modify CSP in development mode
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -19,8 +20,9 @@
         console.log('[DEV CSP] Development CSP applied - allowing eval for authentication');
       }
     </script>
+    -->
     
-    <!-- Static CSP meta tag will be replaced in development mode by the script above -->
+    <!-- Static CSP meta tag will be used directly now -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com/@babel/ https://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws: wss: https://*.supabase.co wss://*.supabase.co https://vitejs.dev https://api.supabase.io https://identitytoolkit.googleapis.com; worker-src 'self' blob:; font-src 'self'; frame-src 'self';">
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />

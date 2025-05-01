@@ -313,11 +313,21 @@ class AdminErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Admin Error:", error);
-    console.error("Error Info:", errorInfo);
+    // Log the error to monitoring service
+    ErrorMonitoring.logSystemError(error, {
+      component: this.props.component || "AdminInterface",
+      severity: ErrorSeverity.ERROR,
+      metadata: {
+        componentStack: errorInfo.componentStack,
+        url: window.location.href,
+      },
+    });
 
-    this.setState({
-      componentStack: errorInfo.componentStack,
+    // Update state to render fallback UI
+    this.setState({ 
+      hasError: true,
+      error,
+      componentStack: errorInfo.componentStack || undefined
     });
   }
 

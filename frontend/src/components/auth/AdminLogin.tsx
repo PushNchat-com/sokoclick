@@ -8,8 +8,15 @@ import AuthLayout from "../../layouts/AuthLayout";
 import useAuthForm from "../../hooks/useAuthForm";
 import { LocationState } from "../../types/router";
 
-// Increased timeout duration
-const LOGIN_TIMEOUT_DURATION = 30000; // 30 seconds
+const LOGIN_TIMEOUT_DURATION = 30000;
+
+enum LoginState {
+  IDLE = 'idle',
+  SIGNING_IN = 'signingIn',
+  FETCHING_PROFILE = 'fetchingProfile',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
 
 const text = {
   title: { en: "Admin Login", fr: "Connexion Admin" },
@@ -47,6 +54,10 @@ const text = {
       en: "Too many login attempts. Please try again later",
       fr: "Trop de tentatives de connexion. Veuillez réessayer plus tard",
     },
+    profileFetchFailed: {
+      en: "Could not load admin profile after login.",
+      fr: "Impossible de charger le profil administrateur après la connexion.",
+    }
   },
 };
 
@@ -55,16 +66,14 @@ const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    signIn,
-    signOut,
+    login,
     user,
     isAdmin,
     loading: authContextLoading,
+    clearAuthError,
   } = useUnifiedAuth();
 
-  const [submitStatus, setSubmitStatus] = useState<
-    "idle" | "signingIn" | "checkingProfile" | "error" | "success"
-  >("idle");
+  const [loginState, setLoginState] = useState<LoginState>(LoginState.IDLE);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const loginTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,110 +86,138 @@ const AdminLogin: React.FC = () => {
     handleChange,
     handleBlur,
     validateForm,
-    resetForm,
   } = useAuthForm("admin-login");
 
   const from = (location.state as LocationState)?.from || "/admin";
 
   useEffect(() => {
     mounted.current = true;
+    clearAuthError();
     return () => {
       mounted.current = false;
       if (loginTimeoutRef.current) {
         clearTimeout(loginTimeoutRef.current);
       }
     };
-  }, []);
+  }, [clearAuthError]);
 
   useEffect(() => {
-    if (!authContextLoading && user && isAdmin) {
-      console.log("[AdminLogin] User is admin, navigating to:", from);
-      navigate(from, { replace: true });
+    if (loginState === LoginState.SIGNING_IN && 
+        (!authContextLoading || (user !== null && isAdmin !== null))) {
+      
+      console.log("[AdminLogin] Auth context update detected, processing login state.", 
+                 { user: !!user, isAdmin, authLoading: authContextLoading });
+      
+      if (loginTimeoutRef.current) {
+        clearTimeout(loginTimeoutRef.current);
+        loginTimeoutRef.current = null;
+      }
+
+      if (user && isAdmin) {
+        console.log("[AdminLogin] User is authenticated and has admin privileges.");
+        setLoginState(LoginState.SUCCESS);
+      } 
+      else if (user && isAdmin === false) {
+        console.log("[AdminLogin] User is authenticated but lacks admin privileges.");
+        setLoginState(LoginState.ERROR);
+        setSubmitError(t(text.errors.noAdminPrivileges));
+      }
+      else if (!user && !authContextLoading) {
+        console.log("[AdminLogin] Authentication failed - no user found after loading.");
+        setLoginState(LoginState.ERROR);
+        setSubmitError(t(text.errors.invalidCredentials));
+      }
+      else if (authContextLoading) {
+        console.log("[AdminLogin] Auth context still loading but we have partial data. Waiting for completion.");
+      }
     }
-  }, [user, isAdmin, authContextLoading, navigate, from]);
+  }, [user, isAdmin, authContextLoading, loginState, t, text.errors]);
+
+  useEffect(() => {
+    if (loginState === LoginState.SUCCESS && user && isAdmin) {
+      console.log("[AdminLogin] Login SUCCESS confirmed. Navigating to:", from);
+      const navTimeout = setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 100);
+      
+      return () => clearTimeout(navTimeout);
+    }
+  }, [loginState, navigate, from, user, isAdmin]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
       setSubmitError(null);
+      clearAuthError();
 
       if (!validateForm()) {
         return;
       }
 
-      setSubmitStatus("signingIn");
+      setLoginState(LoginState.SIGNING_IN);
 
       if (loginTimeoutRef.current) {
         clearTimeout(loginTimeoutRef.current);
       }
 
-      loginTimeoutRef.current = setTimeout(() => {
-        if (!mounted.current || submitStatus === "success") return;
-        setSubmitStatus("error");
-        setSubmitError(t(text.errors.loginTimeout));
-      }, LOGIN_TIMEOUT_DURATION);
-
       try {
-        const response = await signIn(formState.email, formState.password);
-
-        if (submitStatus === "signingIn") {
-          setSubmitStatus("checkingProfile");
-        }
-
-        if (!mounted.current) return;
-
-        if (response.error) {
-          let errorMessage = response.error;
-          if (errorMessage.includes("Invalid login credentials")) {
-            errorMessage = t(text.errors.invalidCredentials);
-          } else if (errorMessage.includes("UNAUTHORIZED_ACCESS")) {
-            errorMessage = t(text.errors.noAdminPrivileges);
-          } else if (errorMessage.includes("rate limit")) {
-            errorMessage = t(text.errors.tooManyAttempts);
-          } else if (
-            errorMessage.includes("fetch user profile") ||
-            errorMessage.includes("PROFILE_NOT_FOUND")
-          ) {
-            errorMessage = t(text.errors.loginFailed);
+        console.log("[AdminLogin] Calling context login...");
+        await login(formState.email, formState.password);
+        console.log("[AdminLogin] Context login call finished, waiting for auth context to update.");
+        
+        loginTimeoutRef.current = setTimeout(() => {
+          if (!mounted.current) return;
+          if (loginState === LoginState.SIGNING_IN) {
+            console.warn("[AdminLogin] Login process timed out while waiting for auth context to update.");
+            setLoginState(LoginState.ERROR);
+            setSubmitError(t(text.errors.loginTimeout));
           }
-          setSubmitError(errorMessage);
-          setSubmitStatus("error");
-          if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
-          return;
-        }
-
-        setSubmitStatus("success");
-        if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
+        }, LOGIN_TIMEOUT_DURATION);
       } catch (error: any) {
         if (!mounted.current) return;
-        console.error("Login submission error:", error);
-        setSubmitError(error.message || t(text.errors.loginFailed));
-        setSubmitStatus("error");
+        console.error('[AdminLogin] Error during handleSubmit:', error);
         if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
+        setLoginState(LoginState.ERROR);
+
+        let displayError = t(text.errors.loginFailed);
+        if (typeof error.message === 'string') {
+          if (error.message.includes("Invalid login credentials")) {
+            displayError = t(text.errors.invalidCredentials);
+          } else if (error.message.includes(t(text.errors.profileFetchFailed))) {
+            displayError = t(text.errors.profileFetchFailed);
+          } else if (error.message.includes(t(text.errors.noAdminPrivileges))) {
+            displayError = t(text.errors.noAdminPrivileges);
+          } else if (error.message.includes("Session retrieval failed") || error.message.includes("No session available")) {
+            // Keep default login failed message
+          } else if (error.message.includes("fetch") || error.message.includes("network")) {
+            displayError = t(text.errors.loginFailed) + " (Network Issue)";
+          }
+        }
+        setSubmitError(displayError);
       }
     },
     [
       formState.email,
       formState.password,
-      signIn,
+      login,
       t,
       validateForm,
       text.errors,
-      setSubmitError,
-      setSubmitStatus,
-      submitStatus, // Include submitStatus here
+      clearAuthError,
+      loginState,
     ],
   );
 
   const isLoading =
-    submitStatus === "signingIn" ||
-    submitStatus === "checkingProfile" ||
-    authContextLoading;
-  const currentLoadingText = authContextLoading
-    ? t({ en: "Initializing...", fr: "Initialisation..." })
-    : submitStatus === "checkingProfile"
+    loginState === LoginState.SIGNING_IN ||
+    loginState === LoginState.FETCHING_PROFILE;
+
+  const currentLoadingText =
+    loginState === LoginState.FETCHING_PROFILE
       ? t(text.checkingProfile)
-      : t(text.loggingIn);
+      : loginState === LoginState.SIGNING_IN
+        ? t(text.loggingIn)
+        : t({ en: "Initializing...", fr: "Initialisation..." });
 
   return (
     <AuthLayout>
@@ -194,7 +231,7 @@ const AdminLogin: React.FC = () => {
       </div>
 
       <div className="mt-8">
-        {submitStatus === "error" && submitError && (
+        {loginState === LoginState.ERROR && submitError && (
           <div className="rounded-md bg-red-50 p-4 mb-4" role="alert">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -202,6 +239,7 @@ const AdminLogin: React.FC = () => {
                   className="h-5 w-5 text-red-400"
                   viewBox="0 0 20 20"
                   fill="currentColor"
+                  aria-hidden="true"
                 >
                   <path
                     fillRule="evenodd"
@@ -234,7 +272,7 @@ const AdminLogin: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                disabled={isLoading} // Use combined isLoading state
+                disabled={isLoading}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "email-error" : undefined}
                 className={`appearance-none block w-full px-3 py-2 border ${
@@ -268,7 +306,7 @@ const AdminLogin: React.FC = () => {
                 type="password"
                 autoComplete="current-password"
                 required
-                disabled={isLoading} // Use combined isLoading state
+                disabled={isLoading}
                 aria-invalid={!!errors.password}
                 aria-describedby={
                   errors.password ? "password-error" : undefined
@@ -293,26 +331,30 @@ const AdminLogin: React.FC = () => {
           <div>
             <button
               type="submit"
-              disabled={isLoading} // Use combined isLoading state
-              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors duration-150 ${
-                isLoading
-                  ? "bg-indigo-400 cursor-not-allowed"
-                  : "bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              }`}
+              disabled={isLoading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              {/* Use combined isLoading state and specific loading text */}
               {isLoading ? currentLoadingText : t(text.loginAction)}
             </button>
           </div>
         </form>
 
         <div className="mt-6">
-          <Link
-            to="/"
-            className="w-full flex justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500"
-          >
-            {t(text.backToSite)}
-          </Link>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">
+                <Link
+                  to="/"
+                  className="font-medium text-indigo-600 hover:text-indigo-500"
+                >
+                  {t(text.backToSite)}
+                </Link>
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </AuthLayout>

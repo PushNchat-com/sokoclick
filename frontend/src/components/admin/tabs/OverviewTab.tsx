@@ -1,7 +1,7 @@
 import React, { FC } from "react";
 import { Activity } from "../../../services/analytics";
 import DashboardMetrics from "../DashboardMetrics";
-import ActivityFeed from "../ActivityFeed";
+// import ActivityFeed from "../ActivityFeed"; // Remove dead import
 import { useLanguage, TranslationObject } from "@/store/LanguageContext"; // Import useLanguage
 import { useAdminDashboardData } from "../../../hooks/useAdminDashboardData"; // Import hook type for prop types
 
@@ -72,7 +72,14 @@ const OverviewTab: FC<OverviewTabProps> = ({
         metrics={metrics}
         pendingApprovalsCount={pendingApprovalsCount}
       />
-      <ActivityFeed activities={activities} />
+      {/* Activity Feed */}
+      <div className="mt-6 bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-3">Recent Activity</h3>
+        {/* <ActivityFeed activities={activities} /> // Comment out usage */}
+        {activities.length === 0 && (
+          <p>{t(activityTranslations.noActivity)}</p>
+        )}
+      </div>
     </div>
   );
 };

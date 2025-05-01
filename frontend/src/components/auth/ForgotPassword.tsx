@@ -5,7 +5,7 @@ import { useLanguage } from "../../store/LanguageContext";
 
 const ForgotPassword: React.FC = () => {
   const { t } = useLanguage();
-  const { resetPassword, loading, error, clearError } = useUnifiedAuth();
+  const { resetPasswordForEmail, loading, authError, clearAuthError } = useUnifiedAuth();
   const [email, setEmail] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
@@ -45,7 +45,7 @@ const ForgotPassword: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
-    clearError();
+    clearAuthError();
     setFormError("");
     setSuccessMessage("");
 
@@ -68,16 +68,17 @@ const ForgotPassword: React.FC = () => {
     if (!validateForm()) return;
 
     try {
-      const { success, error } = await resetPassword(email);
+      const { error } = await resetPasswordForEmail(email);
 
-      if (success) {
+      if (!error) {
         setSuccessMessage(t(text.successMessage));
         setEmail("");
-      } else if (error) {
-        setFormError(error);
+      } else {
+        setFormError(error.message);
       }
     } catch (err) {
       console.error("Password reset error:", err);
+      setFormError(err instanceof Error ? err.message : "Unknown error");
     }
   };
 
@@ -138,8 +139,8 @@ const ForgotPassword: React.FC = () => {
               </div>
             </div>
 
-            {(error || formError) && (
-              <div className="text-red-500 text-sm">{formError || error}</div>
+            {(authError || formError) && (
+              <div className="text-red-500 text-sm">{formError || authError?.message}</div>
             )}
 
             <div>

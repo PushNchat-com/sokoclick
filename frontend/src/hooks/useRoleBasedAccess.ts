@@ -2,7 +2,8 @@ import { useUnifiedAuth } from "../contexts/UnifiedAuthContext";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/services/supabase";
-import { UserRole } from "../types/auth";
+import type { UserRole } from "@/types/auth";
+import { UserRoleEnum } from "@/types/auth";
 
 interface UseRoleBasedAccessProps {
   productId?: string;
@@ -62,7 +63,7 @@ export const useRoleBasedAccess = ({
           .eq("id", user.id)
           .single();
 
-        const isAdmin = adminData?.role === UserRole.SUPER_ADMIN;
+        const isAdmin = adminData?.role === UserRoleEnum.SUPER_ADMIN;
 
         if (context === "admin" && !isAdmin) {
           console.log("Access denied: User is not an admin", {

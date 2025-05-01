@@ -15,7 +15,7 @@ import { withErrorBoundary } from "../common/ErrorBoundary";
 import { useConnectionMonitoring } from "../../hooks/useConnectionMonitoring";
 import { withPerformanceMonitoring } from "../../utils/performance";
 
-interface SlotGridConnectedProps {
+interface SlotGridProps {
   /**
    * Optional status filter to show only slots with specific status
    */
@@ -38,12 +38,12 @@ interface SlotGridConnectedProps {
 }
 
 /**
- * SlotGridConnected provides a data-connected wrapper around the SlotGrid component.
- * It handles data fetching, error states, and provides actions that interact with the API.
+ * SlotGrid provides a display grid for auction slots.
+ * It fetches slot data based on filters and renders SlotCard components.
  */
-const SlotGridConnected: React.FC<SlotGridConnectedProps> = ({
+const SlotGrid: React.FC<SlotGridProps> = ({
   filterStatus,
-  enableActions = true,
+  enableActions = false,
   className = "",
   searchTerm = "",
 }) => {
@@ -55,7 +55,7 @@ const SlotGridConnected: React.FC<SlotGridConnectedProps> = ({
   const { isOnline, connectionStatus, latency } = useConnectionMonitoring();
 
   // Get slots data with the useSlots hook
-  const { slots, loading, error, refresh } = useSlots(filterStatus);
+  const { slots, loading, error, refresh } = useSlots(filterStatus, searchTerm);
 
   // Get slot statistics
   const { stats, loading: statsLoading } = useSlotStats();
@@ -366,13 +366,13 @@ const SlotGridConnected: React.FC<SlotGridConnectedProps> = ({
 
 // Apply performance monitoring
 const MonitoredComponent = withPerformanceMonitoring(
-  SlotGridConnected,
-  "SlotGridConnected",
+  SlotGrid,
+  "SlotGrid",
 );
 
 // Apply error boundary and export
 export default withErrorBoundary(MonitoredComponent, {
-  componentName: "SlotGridConnected",
+  componentName: "SlotGrid",
   fallback: (error, errorInfo) => (
     <div className="bg-red-50 border border-red-200 rounded-md p-6">
       <h3 className="text-lg font-medium text-red-800 mb-2">Slot Grid Error</h3>

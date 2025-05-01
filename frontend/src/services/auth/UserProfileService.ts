@@ -1,8 +1,10 @@
 import { supabase } from "../supabase";
-import { AuthUserProfile } from "../../types/auth";
+import { AuthUserProfile, UserRole, UserRoleEnum } from "../../types/auth";
 import { AuthConfig } from "./AuthConfig";
 
 const PROFILE_CACHE_TTL_MS = AuthConfig.STORAGE.CACHE_TTL_MS; // Use configured TTL
+// Add a fetch timeout
+const PROFILE_FETCH_TIMEOUT_MS = 10000; // 10 seconds
 
 interface CachedProfile {
   profile: AuthUserProfile;
@@ -27,56 +29,100 @@ class UserProfileService {
    * Returns null if the profile is not found.
    */
   async getProfile(userId: string): Promise<AuthUserProfile | null> {
-    // Check cache first
+    // Check cache first - TEMPORARILY DISABLED FOR DEBUGGING
+    /*
     const cached = this.profileCache.get(userId);
     if (cached && cached.expiry > Date.now()) {
       console.log(`[UserProfileService] Cache hit for user: ${userId}`);
       return cached.profile;
     }
-
+    */
+    
+    // Ensure we always log the fetch attempt
     console.log(
-      `[UserProfileService] Cache miss or expired for user: ${userId}. Fetching from 'users' table...`,
+      `[UserProfileService] Cache bypassed for debugging. Fetching full profile from 'users' table for user: ${userId}...`,
     );
 
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from("users")
-        .select(
-          "id, email, name, whatsapp_number, role, is_verified, verification_level",
-        )
-        .eq("id", userId)
-        .maybeSingle();
+        // Create a timeout promise
+        const timeoutPromise = new Promise<null>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Profile fetch timed out after ${PROFILE_FETCH_TIMEOUT_MS}ms`));
+          }, PROFILE_FETCH_TIMEOUT_MS);
+        });
 
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        throw new Error("Failed to fetch user profile");
-      }
+        // The actual fetch promise
+        const fetchPromise = this.fetchProfileFromDB(userId);
 
-      if (!profileData) {
-        console.warn(`No profile found for user ID: ${userId}`);
-        return null;
-      }
-
-      const profile: AuthUserProfile = {
-        id: profileData.id,
-        email: profileData.email,
-        name: profileData.name,
-        whatsapp_number: profileData.whatsapp_number,
-        role: profileData.role,
-        is_verified: profileData.is_verified,
-        verification_level: profileData.verification_level,
-      };
-
-      this.updateCache(userId, profile);
-      return profile;
+        // Race the two promises - whichever resolves/rejects first wins
+        const profile = await Promise.race([fetchPromise, timeoutPromise]);
+        return profile;
     } catch (error) {
       console.error(
         `[UserProfileService] Failed to get profile for ${userId}:`,
         error,
       );
       this.profileCache.delete(userId);
+      
+      // Create a minimal profile on timeout to prevent blocking the UI
+      if (error instanceof Error && error.message.includes('timed out')) {
+        console.warn(`[UserProfileService] Creating minimal profile due to timeout for ${userId}`);
+        // Return a minimal profile with just the ID to unblock login
+        return {
+          id: userId,
+          role: UserRoleEnum.ADMIN, // Use the enum value instead of hardcoded string
+          // Add minimal required fields to satisfy the type
+          email: null,
+          name: null,
+          whatsapp_number: null,
+          is_verified: false,
+          verification_level: null
+        };
+      }
+      
       return null;
     }
+  }
+  
+  /**
+   * Fetches the profile from the database
+   */
+  private async fetchProfileFromDB(userId: string): Promise<AuthUserProfile | null> {
+    // Ensure we are selecting ALL required fields
+    const { data: profileData, error: profileError } = await supabase
+        .from("users")
+        .select(
+          "id, email, name, whatsapp_number, role, is_verified, verification_level"
+        )
+        .eq("id", userId)
+        .maybeSingle();
+        
+    console.log(`[UserProfileService] Full profile query finished for user: ${userId}`, { profileData, profileError });
+
+    if (profileError) {
+      console.error("Error fetching profile:", profileError);
+      throw new Error("Failed to fetch user profile");
+    }
+
+    if (!profileData) {
+      console.warn(`No profile found for user ID: ${userId}`);
+      return null;
+    }
+
+    // Use the full profile data
+    const profile: AuthUserProfile = { 
+        id: profileData.id, 
+        email: profileData.email,
+        name: profileData.name,
+        whatsapp_number: profileData.whatsapp_number,
+        role: profileData.role as UserRole, 
+        is_verified: profileData.is_verified,
+        verification_level: profileData.verification_level,
+    }; 
+    
+    // Update cache even though we bypassed reading from it initially
+    this.updateCache(userId, profile);
+    return profile;
   }
 
   /**

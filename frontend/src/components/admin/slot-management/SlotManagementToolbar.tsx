@@ -9,20 +9,44 @@ import {
   FilterIcon,
   ChevronDownIcon,
 } from "@/components/ui/Icons"; // Use alias path
-import { Slot, useSlotStats } from "@/services/slots"; // Use alias path
+import { Slot, useSlotStats, SlotStatus } from "@/services/slots"; // Remove SlotStats import attempt
+import { getSlotStatusText } from "@/utils/slotUtils";
+
+// Explicitly define the type for the stats object based on useSlotStats hook
+interface SlotStatsData {
+  total: number;
+  available: number;
+  live: number;
+  maintenance: number;
+}
 
 interface SlotManagementToolbarProps {
   filterDraftStatus?: Slot["draft_status"];
   activeTab: string;
   onTabChange: (value: string) => void;
-  stats: ReturnType<typeof useSlotStats>["stats"]; // Use correct type
+  stats: SlotStatsData | null; // Use the defined type, allow null initially
   searchTerm: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   showAdvancedFilters: boolean;
   onToggleAdvancedFilters: () => void;
   onRefresh: () => void;
-  isLoading: boolean; // Combined loading state from parent
+  isLoading: boolean;
 }
+
+// Define status tabs
+const statusTabs: (SlotStatus | "all")[] = [
+  "all",
+  SlotStatus.Empty,
+  SlotStatus.Live,
+  SlotStatus.Maintenance,
+];
+
+// Map SlotStatus enum values to the keys used in the stats object
+const statusToStatsKeyMap: { [key in SlotStatus]?: keyof SlotStatsData } = {
+  [SlotStatus.Empty]: "available", 
+  [SlotStatus.Live]: "live",
+  [SlotStatus.Maintenance]: "maintenance",
+};
 
 export const SlotManagementToolbar: React.FC<SlotManagementToolbarProps> = ({
   filterDraftStatus,
@@ -39,48 +63,56 @@ export const SlotManagementToolbar: React.FC<SlotManagementToolbarProps> = ({
   const { t } = useLanguage();
 
   return (
-    <div className="flex flex-col sm:flex-row sm:flex-wrap justify-between items-center mb-4">
-      {/* Hide tabs when in approval mode */}
-      {!filterDraftStatus ? (
-        <Tabs
-          value={activeTab}
-          onValueChange={onTabChange}
-          className="mr-4 mb-3 sm:mb-0 overflow-x-auto w-full sm:w-auto"
-        >
-          <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="all" className="flex-1 sm:flex-initial">
-              {t({
-                en: `All (${stats?.total || 0})`,
-                fr: `Tous (${stats?.total || 0})`,
-              })}
-            </TabsTrigger>
-            <TabsTrigger value="empty" className="flex-1 sm:flex-initial">
-              {t({
-                en: `Empty (${stats?.available || 0})`,
-                fr: `Vides (${stats?.available || 0})`,
-              })}
-            </TabsTrigger>
-            <TabsTrigger value="live" className="flex-1 sm:flex-initial">
-              {t({
-                en: `Live (${stats?.live || 0})`,
-                fr: `En Ligne (${stats?.live || 0})`,
-              })}
-            </TabsTrigger>
-            <TabsTrigger value="maintenance" className="flex-1 sm:flex-initial">
-              {t({
-                en: `Maintenance (${stats?.maintenance || 0})`,
-                fr: `Maintenance (${stats?.maintenance || 0})`,
-              })}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      ) : (
-        // Placeholder or specific title for approval mode header
-        <div className="text-sm font-medium text-gray-500 mb-3 sm:mb-0">
-          {t({
-            en: "Showing products ready for approval",
-            fr: "Affichage des produits prêts pour approbation",
-          })}
+    <div className="space-y-4">
+      {/* Tab Navigation */} 
+      {!filterDraftStatus && (
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+            {statusTabs.map((status) => {
+              const isActive = activeTab === status;
+              const statusText = status === 'all' ? { en: "All", fr: "Tous" } : getSlotStatusText(status);
+              
+              // Get count safely
+              let count: number | undefined | null = null; // Default to null
+              if (stats) { // Ensure stats is not null
+                if (status === 'all') {
+                  count = stats.total;
+                } else {
+                  const statsKey = statusToStatsKeyMap[status];
+                  // Check if statsKey is a valid key of SlotStatsData
+                  if (statsKey && statsKey in stats) {
+                    count = stats[statsKey];
+                  }
+                }
+              }
+
+              return (
+                <button
+                  key={status}
+                  onClick={() => onTabChange(status)}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-150 ease-in-out ${
+                    isActive
+                      ? "border-indigo-500 text-indigo-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {t(statusText)}
+                  {typeof count === 'number' && count >= 0 && (
+                    <span
+                      className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${
+                        isActive
+                          ? "bg-indigo-100 text-indigo-600"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       )}
 

@@ -14,7 +14,6 @@ import ErrorBoundary from "./components/ui/ErrorBoundary";
 import AuthErrorBoundary from "./components/auth/AuthErrorBoundary";
 import PrivateRoute from "./components/auth/PrivateRoute";
 import AdminRoute from "./components/auth/AdminRoute";
-import { Toast } from "./components/ui/Toast";
 import { toast } from "./utils/toast";
 
 // Lazy-loaded components with proper typing
@@ -37,6 +36,9 @@ const HowItWorksPage = lazy(
 ) as ComponentType;
 const SlotUploadsPage = lazy(
   () => import("./pages/admin/SlotUploadsPage"),
+) as ComponentType;
+const CreateProductDraftPage = lazy(
+  () => import("./pages/admin/CreateProductDraftPage"),
 ) as ComponentType;
 
 // Auth Components - these are smaller and can be imported directly
@@ -192,9 +194,13 @@ const App: React.FC = () => {
                     <Route path="slots" element={<SlotManagement />} />
                     <Route path="slots/uploads" element={<SlotUploadsPage />} />
                     <Route path="users" element={<UserManagement />} />
+                    <Route path="products/create" element={<CreateProductDraftPage />} />
                     {/* <Route path="products" element={<AdminProductsPage />} /> */}
                     {/* Removed ProductForm routes as per Option A */}
-                    {/* <Route path="products/create" element={<ProductForm />} /> */}
+                    {/* <Route
+                      path="products/:id/edit"
+                      element={<ProductForm isEditing />}
+                    /> */}
                     {/* <Route
                       path="products/new"
                       element={<Navigate to="/admin/products/create" replace />}
@@ -214,8 +220,6 @@ const App: React.FC = () => {
                   <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </Suspense>
-
-              <Toast />
             </Router>
           </UnifiedAuthProvider>
         </LanguageProvider>

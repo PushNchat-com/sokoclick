@@ -6,10 +6,6 @@ import {
   ErrorSeverity,
   SystemError,
 } from "../../services/core/ErrorMonitoring";
-import {
-  PerformanceMonitor,
-  PerformanceMetric,
-} from "../../services/core/PerformanceMonitor";
 import { useUnifiedAuth } from "../../contexts/UnifiedAuthContext";
 
 interface SystemHealthMonitorProps {
@@ -29,12 +25,11 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
   const { user } = useUnifiedAuth();
   const [healthStatus, setHealthStatus] = useState<SystemHealth | null>(null);
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
-  const [slowOperations, setSlowOperations] = useState<PerformanceMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [expandedSection, setExpandedSection] = useState<
-    "errors" | "performance" | null
-  >(null);
+  const [expandedSection, setExpandedSection] = useState<"errors" | null>(
+    null,
+  );
 
   // Text content
   const text = {
@@ -45,10 +40,10 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
     unhealthy: { en: "Unhealthy", fr: "En mauvais état" },
     criticalErrors: { en: "Critical Errors", fr: "Erreurs Critiques" },
     warnings: { en: "Warnings", fr: "Avertissements" },
-    performanceIssues: {
-      en: "Performance Issues",
-      fr: "Problèmes de Performance",
-    },
+    error: { en: "Error", fr: "Erreur" },
+    severity: { en: "Severity", fr: "Sévérité" },
+    action: { en: "Action", fr: "Action" },
+    info: { en: "Info", fr: "Info" },
     loading: {
       en: "Loading system health data...",
       fr: "Chargement des données de santé du système...",
@@ -64,14 +59,11 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
     latency: { en: "Latency", fr: "Latence" },
     up: { en: "Up", fr: "En ligne" },
     down: { en: "Down", fr: "Hors ligne" },
-    error: { en: "Error", fr: "Erreur" },
     component: { en: "Component", fr: "Composant" },
     message: { en: "Message", fr: "Message" },
     time: { en: "Time", fr: "Heure" },
     acknowledge: { en: "Acknowledge", fr: "Reconnaître" },
     resolve: { en: "Resolve", fr: "Résoudre" },
-    operation: { en: "Operation", fr: "Opération" },
-    duration: { en: "Duration", fr: "Durée" },
     ms: { en: "ms", fr: "ms" },
     viewAll: { en: "View All", fr: "Voir Tout" },
     attemptRecovery: { en: "Attempt Recovery", fr: "Tenter une Récupération" },
@@ -112,9 +104,6 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
         setRecentErrors(errorsResponse.data.errors);
       }
 
-      // Fetch slow operations
-      const slowOps = await PerformanceMonitor.getSlowOperations(1000, 5);
-      setSlowOperations(slowOps);
     } catch (error) {
       console.error("Error fetching health data:", error);
     } finally {
@@ -228,7 +217,7 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}
       >
-        {t(text[status])}
+        {t(text[status as keyof typeof text])}
       </span>
     );
   };
@@ -236,19 +225,24 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
   // Render severity badge
   const renderSeverityBadge = (severity: ErrorSeverity) => {
     let colorClass = "";
+    let textKey: keyof typeof text | null = null;
 
     switch (severity) {
       case ErrorSeverity.INFO:
         colorClass = "bg-blue-100 text-blue-800";
+        textKey = 'info';
         break;
       case ErrorSeverity.WARNING:
         colorClass = "bg-yellow-100 text-yellow-800";
+        textKey = 'warnings';
         break;
       case ErrorSeverity.ERROR:
         colorClass = "bg-orange-100 text-orange-800";
+        textKey = 'error';
         break;
       case ErrorSeverity.CRITICAL:
         colorClass = "bg-red-100 text-red-800";
+        textKey = 'criticalErrors';
         break;
     }
 
@@ -256,7 +250,7 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}
       >
-        {severity}
+        {textKey && text[textKey] ? t(text[textKey]) : severity.toString()}
       </span>
     );
   };
@@ -408,7 +402,7 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
                     <tr key={service.name}>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                         {t(
-                          text[service.name] || {
+                          text[service.name as keyof typeof text] || {
                             en: service.name,
                             fr: service.name,
                           },
@@ -544,95 +538,6 @@ const SystemHealthMonitor: React.FC<SystemHealthMonitorProps> = ({
                 {recentErrors.length}{" "}
                 {recentErrors.length === 1 ? "issue" : "issues"} detected in the
                 last 24 hours.
-              </div>
-            )}
-          </div>
-
-          {/* Performance section */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-medium text-gray-700">
-                {t(text.performanceIssues)}
-              </h3>
-              <button
-                onClick={() =>
-                  setExpandedSection(
-                    expandedSection === "performance" ? null : "performance",
-                  )
-                }
-                className="text-sm text-indigo-600 hover:text-indigo-800"
-              >
-                {expandedSection === "performance"
-                  ? t(text.hideDetails)
-                  : t(text.viewDetails)}
-              </button>
-            </div>
-
-            {expandedSection === "performance" && (
-              <div className="bg-white border rounded-md overflow-hidden">
-                {slowOperations.length > 0 ? (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {t(text.operation)}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {t(text.component)}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {t(text.duration)}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {t(text.time)}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {slowOperations.map((op, index) => (
-                        <tr key={op.id || index}>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {op.operationName}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {op.component}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {op.duration.toFixed(0)} {t(text.ms)}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                            {formatDateTime(op.timestamp)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="p-4 text-sm text-gray-700 text-center">
-                    {t(text.noIssues)}
-                  </div>
-                )}
-              </div>
-            )}
-            {!expandedSection && slowOperations.length > 0 && (
-              <div className="text-sm text-gray-500">
-                {slowOperations.length}{" "}
-                {slowOperations.length === 1
-                  ? "slow operation"
-                  : "slow operations"}{" "}
-                detected.
               </div>
             )}
           </div>

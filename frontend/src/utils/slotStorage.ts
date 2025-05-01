@@ -1,16 +1,18 @@
 import { supabase } from "../services/supabase";
 import { toast } from "../utils/toast";
-import { DEFAULT_BUCKET } from "../services/fileUpload";
+// Remove DEFAULT_BUCKET import as we're using 'product-images' directly
+// import { DEFAULT_BUCKET } from "../services/fileUpload";
 // Note: ServiceResponse import removed as it was only used by the deleted functions
 
-const PRODUCT_IMAGES_BUCKET = "public";
+// Remove the incorrect constant definition
+// const PRODUCT_IMAGES_BUCKET = "public";
 
-// Helper to get live folder path
+// Helper to get live folder path (within 'product-images' bucket)
 const getLiveSlotPath = (slotNumber: number): string =>
-  `product-images/slot-${slotNumber}`;
+  `product-images/slot-${slotNumber}`; // Path structure within the bucket
 
 /**
- * Initializes all 25 slot folders in Storage
+ * Initializes all 25 slot folders in Storage ('product-images' bucket)
  * Creates a .folder file in each to maintain the folder structure
  */
 export const initializeSlotFolders = async (): Promise<{
@@ -22,12 +24,12 @@ export const initializeSlotFolders = async (): Promise<{
 
     // Create 25 slot folders
     for (let i = 1; i <= 25; i++) {
-      const folderPath = `${getLiveSlotPath(i)}/.folder`; // Use helper
+      const folderPath = `${getLiveSlotPath(i)}/.folder`; // Path within the bucket
 
-      // Add empty file to create the folder
+      // Add empty file to create the folder in the 'product-images' bucket
       promises.push(
         supabase.storage
-          .from(PRODUCT_IMAGES_BUCKET) // Use constant
+          .from('product-images') // Use correct bucket name
           .upload(folderPath, new Blob([""], { type: "text/plain" }), {
             upsert: true, // This will overwrite if it exists
           }),
@@ -65,7 +67,7 @@ export const initializeSlotFolders = async (): Promise<{
 };
 
 /**
- * Clears all images from a slot's folder (product-images/slot-{slotNumber}/)
+ * Clears all images from a slot's folder (within 'product-images' bucket)
  * Retains the folder structure by keeping the .folder file
  */
 export const clearSlotImages = async (
@@ -80,11 +82,11 @@ export const clearSlotImages = async (
       };
     }
 
-    const livePath = getLiveSlotPath(slotNumber); // Use helper
+    const livePath = getLiveSlotPath(slotNumber); // Path within the bucket
 
-    // List all files in the slot folder
+    // List all files in the slot folder within 'product-images' bucket
     const { data: files, error: listError } = await supabase.storage
-      .from(PRODUCT_IMAGES_BUCKET) // Use constant
+      .from('product-images') // Use correct bucket name
       .list(livePath);
 
     if (listError) {
@@ -94,9 +96,9 @@ export const clearSlotImages = async (
         listError.message.includes("Object not found")
       ) {
         console.log(`Slot folder ${livePath} not found, assuming cleared.`);
-        // Optionally recreate the folder with .folder
+        // Optionally recreate the folder with .folder in 'product-images' bucket
         await supabase.storage
-          .from(PRODUCT_IMAGES_BUCKET)
+          .from('product-images') // Use correct bucket name
           .upload(
             `${livePath}/.folder`,
             new Blob([""], { type: "text/plain" }),
@@ -114,9 +116,9 @@ export const clearSlotImages = async (
 
     // If no files found, the folder might be empty but exists
     if (!files || files.length === 0) {
-      // Ensure .folder exists
+      // Ensure .folder exists in 'product-images' bucket
       await supabase.storage
-        .from(PRODUCT_IMAGES_BUCKET)
+        .from('product-images') // Use correct bucket name
         .upload(`${livePath}/.folder`, new Blob([""], { type: "text/plain" }), {
           upsert: true,
         });
@@ -146,7 +148,7 @@ export const clearSlotImages = async (
     for (let i = 0; i < filesToDelete.length; i += BATCH_SIZE) {
       const batch = filesToDelete.slice(i, i + BATCH_SIZE);
       const { error: deleteError } = await supabase.storage
-        .from(PRODUCT_IMAGES_BUCKET) // Use constant
+        .from('product-images') // Use correct bucket name
         .remove(batch);
 
       if (deleteError) {
@@ -156,9 +158,9 @@ export const clearSlotImages = async (
       deleted += batch.length;
     }
 
-    // Ensure .folder exists after clearing
+    // Ensure .folder exists after clearing in 'product-images' bucket
     await supabase.storage
-      .from(PRODUCT_IMAGES_BUCKET) // Use constant
+      .from('product-images') // Use correct bucket name
       .upload(`${livePath}/.folder`, new Blob([""], { type: "text/plain" }), {
         upsert: true,
       });
@@ -201,15 +203,15 @@ export const getSlotImagePath = (
 };
 
 /**
- * Checks if a slot's live storage folder exists (product-images/slot-{slotNumber}/)
+ * Checks if a slot's live storage folder exists (within 'product-images' bucket)
  */
 export const checkSlotFolderExists = async (
   slotNumber: number,
 ): Promise<boolean> => {
   try {
     const { data, error } = await supabase.storage
-      .from(PRODUCT_IMAGES_BUCKET) // Use constant
-      .list(getLiveSlotPath(slotNumber)); // Use helper
+      .from('product-images') // Use correct bucket name
+      .list(getLiveSlotPath(slotNumber)); // Path within the bucket
 
     // If we can list files (even if empty), the folder exists
     return !error && data !== null;
@@ -220,13 +222,13 @@ export const checkSlotFolderExists = async (
 };
 
 /**
- * Gets all image public URLs from a specific slot's live folder (product-images/slot-{slotNumber}/)
+ * Gets all image public URLs from a specific slot's live folder (within 'product-images' bucket)
  */
 export const getSlotImages = async (slotNumber: number): Promise<string[]> => {
   try {
-    const livePath = getLiveSlotPath(slotNumber); // Use helper
+    const livePath = getLiveSlotPath(slotNumber); // Path within the bucket
     const { data, error } = await supabase.storage
-      .from(PRODUCT_IMAGES_BUCKET) // Use constant
+      .from('product-images') // Use correct bucket name
       .list(livePath);
 
     if (error) {
@@ -246,7 +248,7 @@ export const getSlotImages = async (slotNumber: number): Promise<string[]> => {
         ?.filter((file) => file.name !== ".folder")
         .map((file) => {
           const { data: urlData } = supabase.storage
-            .from(PRODUCT_IMAGES_BUCKET) // Use constant
+            .from('product-images') // Use correct bucket name
             .getPublicUrl(`${livePath}/${file.name}`);
 
           return urlData.publicUrl;

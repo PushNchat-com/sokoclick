@@ -6,25 +6,27 @@ import React, {
   ReactNode,
   useRef,
   useMemo,
+  useCallback,
 } from "react";
-import { Session } from "@supabase/supabase-js";
-import { unifiedAuthService } from "../services/auth/UnifiedAuthService";
-import { AuthUserProfile, AuthResponse, AuthState } from "../types/auth";
+import { Session, User } from "@supabase/supabase-js";
+// import { unifiedAuthService } from "../services/auth/UnifiedAuthService"; // Likely unused now
 import { AuthConfig } from "../services/auth/AuthConfig";
 import { useLanguage } from "../store/LanguageContext";
 import { supabase } from "../services/supabase";
 import { userProfileService } from "../services/auth/UserProfileService";
+import { TokenManager } from './auth/TokenManager';
+// Import the standard types
+import { UserRole, AuthUserProfile, UserRoleEnum } from "@/types/auth";
 
-// Define roles explicitly as strings constants
-export const UserRoleEnum = {
-  SUPER_ADMIN: "super_admin",
-  ADMIN: "admin", // Assuming 'admin' is also a possible role string
-  SELLER: "seller",
-  CUSTOMER: "customer",
-} as const;
-
-// Define a type for the role values based on the enum constant
-type UserRole = (typeof UserRoleEnum)[keyof typeof UserRoleEnum];
+// Restore AuthState interface, using imported AuthUserProfile
+export interface AuthState {
+  user: AuthUserProfile | null; // Use imported type
+  session: Session | null;
+  loading: boolean;
+  error: string | null;
+  isAdmin: boolean; 
+  isAuthenticated: boolean;
+}
 
 // Configuration
 const AUTH_CONFIG = {
@@ -68,37 +70,25 @@ interface CachedAuthState {
 
 // Enhanced auth context type definition
 interface UnifiedAuthContextType extends AuthState {
-  isAdmin: boolean;
-  isSuperAdmin: boolean;
-  isSeller: boolean;
-  isCustomer: boolean;
-  isInRole: (role: UserRole) => boolean;
-  hasPermission: (permission: string) => Promise<boolean>;
-
-  signIn: (email: string, password: string) => Promise<AuthResponse>;
-  signUp: (
-    email: string,
-    password: string,
-    userData: {
-      name?: string;
-      whatsapp_number?: string;
-      role?: UserRole;
-    },
-  ) => Promise<AuthResponse>;
-  signOut: () => Promise<{ success: boolean; error: string | null }>;
-  resetPassword: (
-    email: string,
-  ) => Promise<{ success: boolean; error: string | null }>;
-  updateUser: (
-    updates: Partial<AuthUserProfile>,
-  ) => Promise<{ success: boolean; error: string | null }>;
-  clearError: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshSession: () => Promise<{ data: { session: Session | null }; error: Error | null }>;
+  authError: Error | null;
+  signUp: (email: string, password: string, options?: { data?: object; emailRedirectTo?: string }) => Promise<{ data: { user: User | null; session: Session | null; }; error: Error | null; }>;
+  resetPasswordForEmail: (email: string, options?: { redirectTo?: string }) => Promise<{ data: {}; error: Error | null; }>;
+  updateUserPassword: (password: string) => Promise<{ data: { user: User }; error: Error | null }>;
+  clearAuthError: () => void;
 }
 
 // Create the context with a default value
 const UnifiedAuthContext = createContext<UnifiedAuthContextType | undefined>(
   undefined,
 );
+
+// BroadcastChannel for cross-tab synchronization
+const authChannel = typeof window !== 'undefined' 
+  ? new BroadcastChannel('auth_channel') 
+  : null;
 
 // Provider props
 interface UnifiedAuthProviderProps {
@@ -192,13 +182,14 @@ const isTrustedAdmin = (email: string): boolean => {
   return AUTH_CONFIG.trustedAdminEmails.includes(email);
 };
 
-const INIT_TIMEOUT_MS = 15000; // 15 seconds for initial auth check
+// Increase timeout from 15 seconds to 30 seconds
+const INIT_TIMEOUT_MS = 30000; // 30 seconds for initial auth check 
 
 export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
   children,
   timeoutMs = INIT_TIMEOUT_MS, // Use a dedicated init timeout
 }) => {
-  const [authState, setAuthState] = useState<AuthState>({
+  const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
     loading: true, // Start loading
@@ -206,6 +197,11 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
     isAdmin: false,
     isAuthenticated: false,
   });
+
+  const [authError, setAuthError] = useState<Error | null>(null);
+  
+  // Use React.useRef to ensure TokenManager instance persists across renders
+  const tokenManagerRef = React.useRef(new TokenManager());
 
   const mounted = useRef(true);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for init timeout
@@ -221,10 +217,8 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
     }
 
     async function initializeAuth() {
-      if (!mounted.current) return;
       console.log("[UnifiedAuthContext] Initializing auth state...");
-      // Ensure loading is true at the start
-      setAuthState((prev) => ({ ...prev, loading: true, error: null }));
+      setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
         // Set the timeout *before* starting async operations
@@ -235,13 +229,18 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
             timeoutMs,
             "ms.",
           );
-          // Only set error if still loading (i.e., initializeAuth didn't finish)
-          setAuthState((prev) =>
+          // Only set error if still loading and preserve any session data we have
+          setState((prev) =>
             prev.loading
               ? {
                   ...prev,
                   loading: false,
-                  error: AuthConfig.getError("SERVER_ERROR", "en"), // Consider a specific timeout error
+                  error: AuthConfig.getError("SERVER_ERROR", "en"),
+                  // Keep existing session and user data if available
+                  user: prev.user,
+                  session: prev.session,
+                  // Don't change authentication state if we have session
+                  isAuthenticated: prev.isAuthenticated || !!prev.session
                 }
               : prev,
           );
@@ -265,7 +264,7 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
             sessionError,
           );
           // Don't throw, set error state instead
-          setAuthState((prev) => ({
+          setState((prev) => ({
             ...prev,
             loading: false,
             error: AuthConfig.getError("NETWORK_ERROR", "en"), // More specific error?
@@ -277,6 +276,7 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
         }
 
         let userProfile: AuthUserProfile | null = null;
+        let isAdminUser = false; // Initialize isAdminUser
         if (session?.user) {
           console.log(
             "[UnifiedAuthContext] Session found, fetching profile for:",
@@ -288,9 +288,17 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
             "[UnifiedAuthContext] Profile fetch result:",
             userProfile ? `Role: ${userProfile.role}` : "Not found/created",
           );
+
+          // *** Determine admin status directly from profile ***
+          isAdminUser =
+            !!userProfile &&
+            (userProfile.role === UserRoleEnum.ADMIN ||
+             userProfile.role === UserRoleEnum.SUPER_ADMIN);
+          console.log("[UnifiedAuthContext] Admin status determined from profile:", isAdminUser);
+            
           if (!userProfile) {
             console.warn(
-              `[UnifiedAuthContext] Profile not found/created for user ${session.user.id}. User might need setup.`,
+              `[UnifiedAuthContext] Profile not found/created for user ${session.user.id}. User might need setup.`,              
             );
             // Proceed without profile for now, maybe show a setup prompt later?
           }
@@ -300,16 +308,13 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
         console.log(
           "[UnifiedAuthContext] Initialization sequence finished. Setting final state.",
         );
-        const isAdminUser =
-          !!userProfile &&
-          (userProfile.role === UserRoleEnum.ADMIN ||
-            userProfile.role === UserRoleEnum.SUPER_ADMIN);
-        setAuthState({
+        // Use the isAdminUser determined above
+        setState({
           user: userProfile,
           session,
           loading: false, // Set loading false
           error: null,
-          isAdmin: isAdminUser,
+          isAdmin: isAdminUser, 
           isAuthenticated: !!userProfile && !!session, // Require both profile and session? Adjust as needed.
         });
 
@@ -321,7 +326,7 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
           error,
         );
         if (!mounted.current) return;
-        setAuthState((prev) => ({
+        setState((prev) => ({
           ...prev,
           user: null,
           session: null,
@@ -341,35 +346,108 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
     const { data: authListenerData } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted.current) return;
-        console.log(`[UnifiedAuthContext] Auth state changed: ${_event}`);
+        console.log(`[UnifiedAuthContext] Auth state changed: ${_event}`, session ? `User ID: ${session.user.id}` : "No session");
 
-        let userProfile: AuthUserProfile | null = null;
-        if (session?.user) {
-          userProfile = await userProfileService.getProfile(session.user.id);
-          if (!userProfile) {
-            console.warn(
-              `[UnifiedAuthContext] Profile not found/created after auth change for user ${session.user.id}`,
-            );
+        // *** MODIFIED: Handle SIGNED_IN and SIGNED_OUT explicitly ***
+        if (_event === "SIGNED_IN" && session?.user) {
+          setState(prev => ({ ...prev, loading: true, error: null })); // Indicate loading while fetching profile
+          try {
+            console.log("[UnifiedAuthContext Listener] SIGNED_IN detected. User ID:", session.user.id);
+
+            // Proceed with the profile fetch logic
+            console.log("[UnifiedAuthContext Listener] Fetching profile via service for:", session.user.id);
+            const userProfile = await userProfileService.getProfile(session.user.id);
+              
+            if (!mounted.current) return; 
+
+            console.log("[UnifiedAuthContext Listener] Profile fetch result:", userProfile ? `Role: ${userProfile.role}` : "Not found/created");
+
+            const isAdminUser =
+              !!userProfile &&
+              (userProfile.role === UserRoleEnum.ADMIN ||
+               userProfile.role === UserRoleEnum.SUPER_ADMIN);
+            console.log("[UnifiedAuthContext Listener] Admin status determined:", isAdminUser);
+
+            setState({
+              user: userProfile, // Use the fetched profile
+              session: session,
+              loading: false,
+              error: null,
+              isAdmin: isAdminUser,
+              isAuthenticated: true, 
+            });
+
+             // Broadcast authenticated state to other tabs
+            if (authChannel) {
+              authChannel.postMessage({ type: 'AUTH_STATE_CHANGED', state: 'authenticated' });
+            }
+
+          } catch (error) { // Catch errors from service call or isAdmin check
+            console.error("[UnifiedAuthContext Listener] Error during profile processing:", error);
+             if (!mounted.current) return;
+            // Failed to get profile or process it
+            setState(prev => ({
+              ...prev,
+              user: null,
+              session: session, // Keep the session
+              loading: false,
+              error: AuthConfig.getError("PROFILE_LOAD_FAILED", "en"), 
+              isAdmin: false,
+              isAuthenticated: true, // Still authenticated session-wise
+            }));
           }
+        } else if (_event === "SIGNED_OUT") {
+          console.log("[UnifiedAuthContext Listener] SIGNED_OUT detected. Clearing state.");
+          setState({
+            user: null,
+            session: null,
+            loading: false,
+            error: null,
+            isAdmin: false,
+            isAuthenticated: false,
+          });
+          // Broadcast unauthenticated state to other tabs
+          if (authChannel) {
+            authChannel.postMessage({ type: 'AUTH_STATE_CHANGED', state: 'unauthenticated' });
+          }
+        } else if (session) {
+            // Handle other events like TOKEN_REFRESHED, USER_UPDATED if needed
+            // For now, just update the session if it exists but wasn't SIGNED_IN
+            console.log("[UnifiedAuthContext Listener] Updating session for event:", _event);
+            setState(prev => ({
+                ...prev,
+                session: session,
+                // Keep existing user/isAdmin state if session is just refreshed
+                // Only set loading false if it was true
+                loading: prev.loading ? false : prev.loading, 
+            }));
         }
-
-        const isAdminUser =
-          !!userProfile &&
-          (userProfile.role === UserRoleEnum.ADMIN ||
-            userProfile.role === UserRoleEnum.SUPER_ADMIN);
-        setAuthState({
-          user: userProfile,
-          session,
-          loading: false, // Ensure loading is false after update
-          error: null,
-          isAdmin: isAdminUser,
-          isAuthenticated: !!userProfile && !!session, // Adjust as needed
-        });
+        // If session is null and event wasn't SIGNED_OUT, it might be an initial load state?
+        // The initial load is handled by initializeAuth.
       },
     );
 
     authSubscription = authListenerData.subscription;
     console.log("[UnifiedAuthContext] Auth listener setup complete.");
+
+    // Listen for auth events from other tabs
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.data.type === 'AUTH_STATE_CHANGED') {
+        if (event.data.state === 'unauthenticated' && state.isAuthenticated) {
+          // Another tab logged out, sync this tab
+          console.log('Auth state change detected from another tab: signing out.');
+          supabase.auth.signOut(); // Triggers onAuthStateChange locally
+        } else if (event.data.state === 'authenticated' && !state.isAuthenticated) {
+          // Another tab logged in, refresh session here
+          console.log('Auth state change detected from another tab: refreshing session.');
+          supabase.auth.getSession(); // This *might* trigger onAuthStateChange if session is new/different
+        }
+      }
+    };
+    
+    if (authChannel) {
+      authChannel.addEventListener('message', handleAuthMessage);
+    }
 
     return () => {
       mounted.current = false;
@@ -385,32 +463,133 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({
           "[UnifiedAuthContext] Unmounted, no listener to unsubscribe.",
         );
       }
+      if (authChannel) {
+        authChannel.removeEventListener('message', handleAuthMessage);
+        // Do not close the channel here, it might be used by other instances
+      }
     };
-  }, [timeoutMs]);
+  }, [state.isAuthenticated]);
+
+  // Function to clear the auth error state
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+  }, []);
 
   // Computed properties using useMemo for optimization
   const contextValue = useMemo(
     () => ({
-      ...authState,
-      isSuperAdmin:
-        !!authState.user && authState.user.role === UserRoleEnum.SUPER_ADMIN,
-      isSeller: !!authState.user && authState.user.role === UserRoleEnum.SELLER,
-      isCustomer:
-        !!authState.user && authState.user.role === UserRoleEnum.CUSTOMER,
-      isInRole: (role: UserRole) =>
-        !!authState.user && authState.user.role === role,
-      hasPermission: async (permission: string) => {
-        if (!authState.isAdmin) return false;
-        return true;
+      ...state,
+      login: async (email: string, password: string) => {
+        setAuthError(null);
+        setState(prev => ({ ...prev, loading: true })); // Set loading true
+        try {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          // onAuthStateChange handles success state update
+        } catch (error) {
+          console.error('Login failed:', error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          setAuthError(err);
+          setState(prev => ({ ...prev, loading: false })); // Set loading false on error
+          throw err; // Rethrow for component handling
+        }
       },
-      signIn: unifiedAuthService.signIn.bind(unifiedAuthService),
-      signUp: unifiedAuthService.signUp.bind(unifiedAuthService),
-      signOut: unifiedAuthService.signOut.bind(unifiedAuthService),
-      resetPassword: unifiedAuthService.resetPassword.bind(unifiedAuthService),
-      updateUser: unifiedAuthService.updateUser.bind(unifiedAuthService),
-      clearError: () => setAuthState((prev) => ({ ...prev, error: null })),
+      logout: async () => {
+        setAuthError(null);
+        setState(prev => ({ ...prev, loading: true }));
+        try {
+          const { error } = await supabase.auth.signOut();
+          if (error) throw error;
+          // onAuthStateChange handles success state update
+          setState(prev => ({ 
+            user: null, 
+            session: null, 
+            loading: false, 
+            error: null, 
+            isAdmin: false, 
+            isAuthenticated: false 
+          }));
+        } catch (error) {
+          console.error('Logout failed:', error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          setAuthError(err);
+          setState(prev => ({ ...prev, loading: false }));
+          throw err; // Rethrow for component handling
+        }
+      },
+      // Implementation for signUp
+      signUp: async (email: string, password: string, options?: { data?: object; emailRedirectTo?: string }) => {
+        setAuthError(null);
+        setState(prev => ({ ...prev, loading: true }));
+        try {
+          const { data, error } = await supabase.auth.signUp({ email, password, options });
+          if (error) throw error;
+          // Typically profile creation happens separately or via trigger
+          // onAuthStateChange might not fire immediately for signup depending on email verification
+          setState(prev => ({ ...prev, loading: false })); // Might need adjustment based on flow
+          return { data, error: null };
+        } catch (error) {
+          console.error('Signup failed:', error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          setAuthError(err);
+          setState(prev => ({ ...prev, loading: false }));
+          throw err; // Rethrow
+        }
+      },
+      // Implementation for resetPasswordForEmail
+      resetPasswordForEmail: async (email: string, options?: { redirectTo?: string }) => {
+        setAuthError(null);
+        setState(prev => ({ ...prev, loading: true }));
+        try {
+          const { data, error } = await supabase.auth.resetPasswordForEmail(email, options);
+          if (error) throw error;
+          setState(prev => ({ ...prev, loading: false }));
+          return { data, error: null };
+        } catch (error) {
+          console.error('Password reset request failed:', error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          setAuthError(err);
+          setState(prev => ({ ...prev, loading: false }));
+          throw err;
+        }
+      },
+      // Implementation for updateUserPassword
+      updateUserPassword: async (password: string) => {
+        setAuthError(null);
+        setState(prev => ({ ...prev, loading: true }));
+        try {
+          const { data, error } = await supabase.auth.updateUser({ password });
+          if (error) throw error;
+          setState(prev => ({ ...prev, loading: false })); // Password updated, session likely remains
+          return { data, error: null };
+        } catch (error) {
+          console.error('Password update failed:', error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          setAuthError(err);
+          setState(prev => ({ ...prev, loading: false }));
+          throw err;
+        }
+      },
+      clearAuthError, // Provide the clear error function
+      refreshSession: async () => {
+        setAuthError(null);
+        try {
+          const result = await supabase.auth.refreshSession();
+          if (result.error) throw result.error;
+          // onAuthStateChange should handle state updates based on the refreshed session
+          return result;
+        } catch (error) {
+          console.error('Manual Session refresh failed:', error);
+          const err = error instanceof Error ? error : new Error('Session refresh failed');
+          setAuthError(err);
+           // If refresh fails, user is likely logged out
+          await supabase.auth.signOut();
+          throw err;
+        }
+      },
+      authError,
     }),
-    [authState],
+    [state, authError, clearAuthError],
   );
 
   return (

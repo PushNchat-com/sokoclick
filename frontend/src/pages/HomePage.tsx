@@ -282,11 +282,6 @@ const HomePage: React.FC<HomePageProps> = (_props) => {
     return finalGridItems;
   }, [slots, filterCategory, sortCriteria, isAdmin]);
 
-  // Get only products from grid items for display
-  const productItems = useMemo(() => {
-    return gridItems.filter((item) => item.type === "product");
-  }, [gridItems]);
-
   // Website schema for homepage
   const websiteSchema = useMemo(() => {
     return generateWebsiteSchema(["en", "fr"]);
@@ -564,7 +559,7 @@ const HomePage: React.FC<HomePageProps> = (_props) => {
                   {t(text.retryButton)}
                 </button>
               </div>
-            ) : productItems.length > 0 ? (
+            ) : gridItems.some(item => item.type === 'product') ? (
               <div
                 tabIndex={-1}
                 aria-label={t(text.productGridHeading)}
@@ -584,7 +579,12 @@ const HomePage: React.FC<HomePageProps> = (_props) => {
                       key={`empty-${item.slotNumber}`}
                       className="aspect-w-4 aspect-h-5 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200"
                       aria-hidden="true"
-                    ></div>
+                    >
+                      {/* Optionally add slot number for admins in debug mode */}
+                      {isAdmin && debugMode && (
+                        <span className="text-xs text-gray-400">{item.slotNumber}</span>
+                      )}
+                    </div>
                   ),
                 )}
               </div>

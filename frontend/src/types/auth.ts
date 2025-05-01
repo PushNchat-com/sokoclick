@@ -6,23 +6,24 @@ export interface LocalizedMessage {
   fr: string;
 }
 
-export enum UserRole {
-  SUPER_ADMIN = "super_admin",
-  ADMIN = "admin",
-  SELLER = "seller",
-  CUSTOMER = "customer"
-}
+export const UserRoleEnum = {
+  SUPER_ADMIN: "super_admin",
+  ADMIN: "admin",
+  SELLER: "seller",
+  CUSTOMER: "customer",
+} as const;
 
-export type AuthUserProfile = Pick<
-  Tables<"users">,
-  | "id"
-  | "email"
-  | "name"
-  | "whatsapp_number"
-  | "role"
-  | "is_verified"
-  | "verification_level"
->;
+export type UserRole = (typeof UserRoleEnum)[keyof typeof UserRoleEnum];
+
+export interface AuthUserProfile {
+  id: string;
+  email?: string | null;
+  name?: string | null;
+  role: UserRole;
+  whatsapp_number?: string | null;
+  is_verified?: boolean | null;
+  verification_level?: string | null;
+}
 
 export interface UserMetadata {
   name?: string;

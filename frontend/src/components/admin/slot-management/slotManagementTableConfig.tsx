@@ -10,14 +10,17 @@ import {
   SettingsIcon,
 } from "@/components/ui/Icons";
 import { ActionItem } from "@/components/ui/ActionMenu";
-import { SlotStatus, DraftStatus } from "@/types/supabase-types";
+import {
+  SlotStatus,
+  DraftStatus,
+  getSlotStatusVariant,
+  getSlotStatusText,
+  getDraftStatusText,
+} from "@/utils/slotUtils";
 
 // Define types for handler functions to ensure type safety
 // These now represent the CONFIRMATION trigger functions, not the core async logic
-type ApproveDraftHandler = (
-  slotId: number,
-  sellerId: string | undefined,
-) => void;
+type ApproveDraftHandler = (slotId: number) => void;
 type RejectDraftHandler = (slotId: number) => void;
 type RemoveProductHandler = (slotId: number) => void;
 type MaintenanceToggleHandler = (slotId: number, targetState: boolean) => void;
@@ -50,7 +53,7 @@ export const getSlotTableColumns = ({
       width: 60,
     },
     // Only show slot_status column when NOT in approval mode
-    ...(filterDraftStatus !== DraftStatus.ReadyToPublish
+    ...(filterDraftStatus !== "ready_to_publish"
       ? [
           {
             id: "slot_status",
@@ -59,26 +62,16 @@ export const getSlotTableColumns = ({
             cell: (slot: Slot) => {
               const status = slot.slot_status as SlotStatus;
               const variant =
-                status === SlotStatus.Live
+                status === "live"
                   ? "primary"
-                  : status === SlotStatus.Empty
+                  : status === "empty"
                     ? "success"
-                    : status === SlotStatus.Maintenance
+                    : status === "maintenance"
                       ? "error"
                       : "secondary";
               // Use translation for status text if needed
-              const statusText = t({
-                en: status.charAt(0).toUpperCase() + status.slice(1),
-                fr:
-                  status === SlotStatus.Live
-                    ? "En Ligne"
-                    : status === SlotStatus.Empty
-                      ? "Vide"
-                      : status === SlotStatus.Maintenance
-                        ? "Maintenance"
-                        : status,
-              });
-              return <Badge variant={variant}>{statusText}</Badge>;
+              const statusText = getSlotStatusText(status);
+              return <Badge variant={variant}>{language === 'fr' ? statusText.fr : statusText.en}</Badge>;
             },
             enableSorting: true,
             width: 120,
@@ -89,7 +82,7 @@ export const getSlotTableColumns = ({
 
   let modeSpecificColumns: Column<Slot>[] = [];
 
-  if (filterDraftStatus === DraftStatus.ReadyToPublish) {
+  if (filterDraftStatus === "ready_to_publish") {
     // Columns for Approval Mode
     modeSpecificColumns = [
       {
@@ -174,7 +167,7 @@ export const getSlotTableColumns = ({
         id: "live_product_name",
         header: t({ en: "Product Name", fr: "Nom du Produit" }),
         cell: (slot: Slot) => {
-          if (slot.slot_status !== SlotStatus.Live) return "-";
+          if (slot.slot_status !== "live") return "-";
           const productName =
             language === "en"
               ? slot.live_product_name_en
@@ -212,7 +205,7 @@ export const getSlotTableColumns = ({
         header: t({ en: "Price", fr: "Prix" }),
         cell: (slot: Slot) => {
           if (
-            slot.slot_status !== SlotStatus.Live ||
+            slot.slot_status !== "live" ||
             slot.live_product_price == null
           )
             return "-";
@@ -226,7 +219,7 @@ export const getSlotTableColumns = ({
         accessorKey: "end_time",
         header: t({ en: "Ends In", fr: "Finit Dans" }),
         cell: (slot: Slot) => {
-          if (slot.slot_status !== SlotStatus.Live || !slot.end_time)
+          if (slot.slot_status !== "live" || !slot.end_time)
             return "-";
           try {
             const endDate = new Date(slot.end_time);
@@ -258,51 +251,64 @@ export const getSlotRowActions = (
   }: Omit<TableConfigDependencies, "language">,
 ): ActionItem[] => {
   const actions: ActionItem[] = [];
+  const iconClass = "w-4 h-4 mr-2"; // Define common icon class
 
-  if (filterDraftStatus === DraftStatus.ReadyToPublish) {
-    // Actions for Approval Mode
-    actions.push({
+  // --- Actions for Approval Mode ---
+  if (filterDraftStatus === "ready_to_publish") {
+    // Approve Action
+    const approveAction: ActionItem = {
       label: t({ en: "Approve", fr: "Approuver" }),
-      icon: <CheckIcon className="w-4 h-4 mr-2 text-green-600" />,
-      onClick: () => handleApproveDraft(slot.id, slot.draft_seller_id),
-      disabled: !slot.draft_seller_id || isLoading,
-    });
-    actions.push({
-      label: t({ en: "Reject", fr: "Rejeter" }),
-      icon: <XIcon className="w-4 h-4 mr-2 text-red-600" />,
-      onClick: () => handleRejectDraft(slot.id),
-      variant: "destructive",
-      disabled: isLoading,
-    });
-    // TODO: Add View Details action
-  } else {
-    // Actions for General Management Mode
-    const isMaintenance = slot.slot_status === SlotStatus.Maintenance;
-    const isLive = slot.slot_status === SlotStatus.Live;
-
-    if (isLive) {
-      actions.push({
-        label: t({ en: "Remove Product", fr: "Retirer Produit" }),
-        icon: <TrashIcon className="w-4 h-4 mr-2" />,
-        onClick: () => handleRemoveProduct(slot.id),
-        variant: "destructive",
-        disabled: isLoading,
-      });
-    }
-
-    const toggleAction: ActionItem = {
-      label: isMaintenance
-        ? t({ en: "Clear Maintenance", fr: "Terminer Maintenance" })
-        : t({ en: "Set Maintenance", fr: "Mettre en Maintenance" }),
-      icon: isMaintenance ? (
-        <CheckIcon className="w-4 h-4 mr-2" />
-      ) : (
-        <SettingsIcon className="w-4 h-4 mr-2" />
-      ),
-      onClick: () => handleMaintenanceToggle(slot.id, !isMaintenance),
+      icon: <CheckIcon className={`${iconClass} text-green-600`} />,
+      onClick: () => handleApproveDraft(slot.id),
       disabled: isLoading,
     };
-    actions.push(toggleAction);
+    actions.push(approveAction);
+
+    // Reject Action
+    const rejectAction: ActionItem = {
+      label: t({ en: "Reject", fr: "Rejeter" }),
+      icon: <XIcon className={`${iconClass} text-red-600`} />,
+      onClick: () => handleRejectDraft(slot.id),
+      disabled: isLoading,
+    };
+    actions.push(rejectAction);
+  }
+  // --- Actions for General Management Mode ---
+  else {
+    // Edit Draft Action (Example - Add imports for EditIcon/navigate if used)
+    // if (slot.draft_status === "drafting" || slot.draft_status === "empty") {
+    //     const editAction: ActionItem = { label: t({en: "Edit Draft", fr: "Modifier Brouillon"}), icon: <EditIcon className={iconClass} />, onClick: () => navigate(`/admin/slots/${slot.id}/edit`) };
+    //     actions.push(editAction);
+    // }
+    
+    // Remove Product Action (Only for Live slots)
+    if (slot.slot_status === "live") {
+       const removeAction: ActionItem = {
+        label: t({ en: "Remove Product", fr: "Retirer Produit" }),
+        icon: <TrashIcon className={`${iconClass} text-red-600`} />,
+        onClick: () => handleRemoveProduct(slot.id),
+        disabled: isLoading,
+      };
+       actions.push(removeAction);
+    }
+
+    // Toggle Maintenance Action (Not for Live slots)
+     if (slot.slot_status !== "live") {
+        const isCurrentlyMaintenance = slot.slot_status === "maintenance";
+        const toggleMaintenanceAction: ActionItem = {
+          label: isCurrentlyMaintenance
+            ? t({ en: "Clear Maintenance", fr: "Terminer Maintenance" })
+            : t({ en: "Set Maintenance", fr: "Mettre en Maintenance" }),
+          icon: <SettingsIcon className={iconClass} />,
+          onClick: () => handleMaintenanceToggle(slot.id, !isCurrentlyMaintenance),
+          disabled: isLoading,
+        };
+        actions.push(toggleMaintenanceAction);
+     }
+     
+     // View Details Action (Example - Add imports for ViewIcon/navigate if used)
+     // const viewAction: ActionItem = { label: t({en: "View Details", fr: "Voir Détails"}), icon: <ViewIcon className={iconClass} />, onClick: () => navigate(`/admin/slots/${slot.id}`) };
+     // actions.push(viewAction);
   }
 
   return actions;

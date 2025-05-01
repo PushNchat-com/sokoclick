@@ -5,6 +5,7 @@ import { useAdminDashboardData } from "../../../hooks/useAdminDashboardData"; //
 import { Button } from "../../ui/Button"; // Import Button
 import { RefreshIcon } from "../../ui/Icons"; // Import Icon
 import { useLanguage } from "../../../store/LanguageContext"; // Import useLanguage
+import ConfirmDialogProvider from "@/components/ui/ConfirmDialog";
 
 // Define a simple Date Range Picker (can be moved to ui components later)
 // --- Simple Date Range Picker Start ---
@@ -83,27 +84,31 @@ const AnalyticsTab: FC<AnalyticsTabProps> = ({
 }) => {
   const { t } = useLanguage(); // Get t function
   return (
-    <div className="space-y-4">
-      {/* Date Range Picker */}
-      <SimpleDateRangePicker
-        startDate={startDate}
-        endDate={endDate}
-        setDateRange={setDateRange}
-      />
+    <ConfirmDialogProvider>
+      <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Date Range Picker */}
+          <SimpleDateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            setDateRange={setDateRange}
+          />
 
-      {/* Refresh Button */}
-      <div className="text-right">
-        <Button variant="outline" size="sm" onClick={refreshAnalytics}>
-          <RefreshIcon className="w-4 h-4 mr-1.5" />
-          {t({ en: "Refresh Analytics", fr: "Actualiser les Analyses" })}
-        </Button>
+          {/* Refresh Button */}
+          <div className="text-right">
+            <Button variant="outline" size="sm" onClick={refreshAnalytics}>
+              <RefreshIcon className="w-4 h-4 mr-1.5" />
+              {t({ en: "Refresh Analytics", fr: "Actualiser les Analyses" })}
+            </Button>
+          </div>
+
+          {/* Render Analytics Component with data */}
+          <Suspense fallback={<LoadingSpinner />}>
+            <AnalyticsComponent analyticsData={analyticsData} />
+          </Suspense>
+        </div>
       </div>
-
-      {/* Render Analytics Component with data */}
-      <Suspense fallback={<LoadingSpinner />}>
-        <AnalyticsComponent analyticsData={analyticsData} />
-      </Suspense>
-    </div>
+    </ConfirmDialogProvider>
   );
 };
 

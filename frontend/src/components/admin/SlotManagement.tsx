@@ -28,8 +28,9 @@ import { Badge } from "../ui/Badge";
 import { formatDateTime } from "../../utils/formatters";
 import { ActionMenu, ActionItem } from "../ui/ActionMenu";
 import { SlotCard } from "./slot-management/SlotCard";
-import SlotGridConnected from "./SlotGridConnected";
+import SlotGrid from "./SlotGrid";
 import { useConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { supabase } from "@/services/supabase"; // Import supabase client
 
 // Import the new components
 import { SlotManagementToolbar } from "./slot-management/SlotManagementToolbar";
@@ -40,7 +41,7 @@ import {
   getSlotTableColumns,
   getSlotRowActions,
 } from "./slot-management/slotManagementTableConfig.tsx";
-import { SlotStatus, DraftStatus } from "@/types/supabase-types"; // Import enums
+import { SlotStatus, DraftStatus } from "@/utils/slotUtils"; // Corrected: Import from slotUtils
 
 interface SlotState {
   slots: Slot[];
@@ -177,7 +178,7 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
     refresh();
     refreshSlotStatsHook();
     if (
-      filterDraftStatus === DraftStatus.ReadyToPublish &&
+      filterDraftStatus === "ready_to_publish" &&
       refreshPendingCount
     ) {
       refreshPendingCount();
@@ -294,7 +295,7 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
       .filter(
         (slot) =>
           selectedSlots.includes(slot.id) &&
-          slot.slot_status === SlotStatus.Live,
+          slot.slot_status === "live",
       )
       .map((slot) => slot.id);
 
@@ -388,69 +389,120 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
     refreshStatsProp?.();
   };
 
-  // --- CUT START: Move these function definitions before columns/memoizedRowActions ---
   // --- Core Action Handlers ---
-  const handleApproveDraft = async (
-    slotId: number,
-    sellerId: string | undefined,
-  ) => {
+  const handleApproveDraft = async (slotId: number) => {
     setIsLoading(true);
-    if (!sellerId) {
-      toast.error(
-        t({
-          en: "Cannot approve: Seller ID is missing.",
-          fr: "Approbation impossible : ID du vendeur manquant.",
-        }),
-      );
-      setIsLoading(false);
-      return;
+    
+    // 1. Fetch the slot's draft status to double-check just before approving
+    let currentSlotStatus: string | null = null;
+    try {
+      const { data: slotCheckData, error: fetchSlotError } = await supabase
+          .from('auction_slots')
+          .select('draft_status') 
+          .eq('id', slotId)
+          .maybeSingle(); // Use maybeSingle in case the slot was somehow deleted
+      
+      if (fetchSlotError) throw fetchSlotError; // Throw to be caught below
+      currentSlotStatus = slotCheckData?.draft_status || null;
+
+    } catch (fetchSlotError: any) {
+       // Refactored to isolate the t() call
+       // const errorMsg = t({ en: 'Failed to verify slot status before approval.', fr: 'Échec de la vérification du statut avant l\'approbation.' });
+       // toast.error(errorMsg);
+       toast.error('Error occurred'); // Simplified placeholder
+       console.error("Fetch error before approval call:", fetchSlotError);
+       setIsLoading(false);
+       return;
     }
-    const result = await slotService.publishDraftToLive(slotId, 7, sellerId);
-    if (result.success) {
-      toast.success(
-        t({
-          en: `Slot ${slotId} approved successfully`,
-          fr: `Emplacement ${slotId} approuvé avec succès`,
-        }),
-      );
-      refresh();
-      refreshPendingCount?.();
-      refreshSlotStatsHook();
-    } else {
-      toast.error(
-        result.error?.message ||
+    
+    // 2. Validate draft status again
+    if (currentSlotStatus !== 'ready_to_publish') {
+        toast.error(t({ en: 'Draft status is no longer ready for approval.', fr: 'Le statut du brouillon n\est plus prêt pour l\approbation.' }));
+        setIsLoading(false);
+        refresh(); // Refresh list view to show updated status
+        return;
+    }
+
+    // 3. Call the updated service function which calls the RPC
+    // The RPC handles the core logic now
+    try {
+      const result = await slotService.approveDraft(slotId);
+      
+      if (result.success) {
+        toast.success(
           t({
-            en: "Failed to approve slot",
-            fr: "Échec de l'approbation de l'emplacement",
+            en: `Slot ${slotId} approved successfully`,
+            fr: `Emplacement ${slotId} approuvé avec succès`,
           }),
-      );
+        );
+        // Refresh data sources after successful approval
+        refresh(); 
+        refreshPendingCount?.(); // Refresh pending count in parent dashboard
+        refreshSlotStatsHook();  // Refresh local slot stats
+      } else {
+        // Handle logical errors returned by the service/RPC
+        toast.error(
+          result.error?.message ||
+            t({
+              en: "Failed to approve slot",
+              fr: "Échec de l'approbation de l'emplacement",
+            }),
+        );
+        // Optionally refresh even on failure if the status might have changed
+        refresh(); 
+        refreshPendingCount?.();
+      }
+    } catch (rpcError: any) {
+       // Handle errors during the RPC call itself (network, unexpected backend errors)
+       console.error("Error during approveDraft service call:", rpcError);
+       // const errorMsg = t({ en: 'An unexpected error occurred during approval.', fr: 'Une erreur inattendue s\'est produite lors de l\'approbation.' });
+       // toast.error(errorMsg);
+       toast.error('Error occurred'); // Simplified placeholder
+    } finally {
+      setIsLoading(false); // Ensure loading state is always turned off
     }
-    setIsLoading(false);
   };
 
   const handleRejectDraft = async (slotId: number) => {
     setIsLoading(true);
-    const result = await slotService.rejectDraft(slotId);
-    if (result.success) {
-      toast.success(
-        t({
-          en: `Draft for slot ${slotId} rejected successfully`,
-          fr: `Brouillon pour l'emplacement ${slotId} rejeté avec succès`,
-        }),
-      );
-      refresh();
-      refreshPendingCount?.();
-      refreshSlotStatsHook();
-    } else {
-      toast.error(
-        result.error?.message ||
+    try {
+      // Call the updated service function which calls the RPC
+      // Optionally pass a reason if you implement input for it
+      const result = await slotService.rejectDraft(slotId);
+      
+      if (result.success) {
+        toast.success(
           t({
-            en: "Failed to reject draft",
-            fr: "Échec du rejet du brouillon",
+            en: `Draft for slot ${slotId} rejected successfully`,
+            fr: `Brouillon pour l'emplacement ${slotId} rejeté avec succès`,
           }),
-      );
+        );
+        // Refresh data sources after successful rejection
+        refresh();
+        refreshPendingCount?.(); // Refresh pending count in parent dashboard
+        refreshSlotStatsHook();  // Refresh local slot stats
+      } else {
+        // Handle logical errors returned by the service/RPC
+        toast.error(
+          result.error?.message ||
+            t({
+              en: "Failed to reject draft",
+              fr: "Échec du rejet du brouillon",
+            }),
+        );
+        // Optionally refresh even on failure if the status might have changed
+        refresh();
+        refreshPendingCount?.();
+      }
+    } catch (rpcError: any) {
+      // Handle errors during the RPC call itself (network, unexpected backend errors)
+      console.error("Error during rejectDraft service call:", rpcError);
+      // const errorMsg = t({ en: 'An unexpected error occurred during rejection.', fr: 'Une erreur inattendue s\'est produite lors du rejet.' });
+      // toast.error(errorMsg);
+      toast.error('Error occurred'); // Simplified placeholder
+    } finally {
+      setIsLoading(false); // Ensure loading state is always turned off
     }
-    setIsLoading(false);
   };
 
   const handleMaintenanceToggle = async (
@@ -510,10 +562,7 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
   };
 
   // --- Confirmation Dialog Trigger Functions (using useConfirmDialog) ---
-  const confirmApproveDraft = (
-    slotId: number,
-    sellerId: string | undefined,
-  ) => {
+  const confirmApproveDraft = (slotId: number) => {
     openConfirmDialog({
       title: t({ en: "Confirm Approval", fr: "Confirmer l'Approbation" }),
       message: t({
@@ -522,7 +571,7 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
       }),
       confirmText: t({ en: "Approve", fr: "Approuver" }),
       confirmVariant: "primary",
-      onConfirm: () => handleApproveDraft(slotId, sellerId),
+      onConfirm: () => handleApproveDraft(slotId),
     });
   };
 
@@ -580,180 +629,6 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
       onConfirm: () => handleMaintenanceToggle(slotId, targetState),
     });
   };
-  // --- CUT END ---
-
-  // --- Batch Approval/Rejection ---
-  const handleBatchApprove = async () => {
-    if (
-      selectedSlots.length === 0 ||
-      filterDraftStatus !== DraftStatus.ReadyToPublish
-    )
-      return;
-
-    const slotsToApprove = slots.filter(
-      (slot) =>
-        selectedSlots.includes(slot.id) &&
-        slot.draft_status === DraftStatus.ReadyToPublish &&
-        slot.draft_seller_id, // Ensure seller ID exists
-    );
-
-    if (slotsToApprove.length === 0) {
-      toast.info(
-        t({
-          en: "No selected slots are ready for approval or missing seller ID.",
-          fr: "Aucun emplacement sélectionné n'est prêt pour l'approbation ou l'ID du vendeur est manquant.",
-        }),
-      );
-      return;
-    }
-
-    setIsBatchProcessing(true);
-    const initialProgress = {
-      total: slotsToApprove.length,
-      completed: 0,
-      success: 0,
-      failed: 0,
-    };
-    setBatchProgress(initialProgress);
-    let currentProgress = { ...initialProgress };
-    const operationName = "approve drafts";
-
-    for (const slot of slotsToApprove) {
-      let success = false;
-      try {
-        // Assuming publishDraftToLive takes slotId, duration (e.g., 7 days), and sellerId
-        const response = await slotService.publishDraftToLive(
-          slot.id,
-          7,
-          slot.draft_seller_id!,
-        );
-        success = response.success;
-        if (!success)
-          console.error(
-            `Failed to approve slot ${slot.id}:`,
-            response.error?.message,
-          );
-      } catch (error) {
-        console.error(`Error approving slot ${slot.id}:`, error);
-        success = false;
-      } finally {
-        currentProgress = {
-          ...currentProgress,
-          completed: currentProgress.completed + 1,
-          success: success
-            ? currentProgress.success + 1
-            : currentProgress.success,
-          failed: !success
-            ? currentProgress.failed + 1
-            : currentProgress.failed,
-        };
-        setBatchProgress(currentProgress);
-      }
-    }
-
-    toast.info(
-      t({
-        en: `Batch ${operationName}: ${currentProgress.success} succeeded, ${currentProgress.failed} failed.`,
-        fr: `Traitement par lot (${operationName}): ${currentProgress.success} succès, ${currentProgress.failed} échecs.`,
-      }),
-    );
-    setIsBatchProcessing(false);
-    setSelectedSlots([]);
-    setRowSelection({}); // Clear table selection
-    refresh();
-    refreshStatsProp?.();
-    refreshPendingCount?.();
-  };
-
-  const handleBatchReject = async () => {
-    if (
-      selectedSlots.length === 0 ||
-      filterDraftStatus !== DraftStatus.ReadyToPublish
-    )
-      return;
-
-    const slotsToReject = slots.filter(
-      (slot) =>
-        selectedSlots.includes(slot.id) &&
-        slot.draft_status === DraftStatus.ReadyToPublish,
-    );
-
-    if (slotsToReject.length === 0) {
-      toast.info(
-        t({
-          en: "No selected slots are currently awaiting approval.",
-          fr: "Aucun emplacement sélectionné n'est actuellement en attente d'approbation.",
-        }),
-      );
-      setSelectedSlots([]); // Clear selection
-      setRowSelection({});
-      return;
-    }
-
-    // Add confirmation dialog for batch rejection
-    if (
-      !window.confirm(
-        t({
-          en: `Are you sure you want to reject ${slotsToReject.length} selected draft(s)?`,
-          fr: `Êtes-vous sûr de vouloir rejeter ${slotsToReject.length} brouillon(s) sélectionné(s) ?`,
-        }),
-      )
-    ) {
-      return; // Abort if user cancels
-    }
-
-    setIsBatchProcessing(true);
-    const initialProgress = {
-      total: slotsToReject.length,
-      completed: 0,
-      success: 0,
-      failed: 0,
-    };
-    setBatchProgress(initialProgress);
-    let currentProgress = { ...initialProgress };
-    const operationName = "reject drafts";
-
-    for (const slot of slotsToReject) {
-      let success = false;
-      try {
-        const response = await slotService.rejectDraft(slot.id);
-        success = response.success;
-        if (!success)
-          console.error(
-            `Failed to reject slot ${slot.id}:`,
-            response.error?.message,
-          );
-      } catch (error) {
-        console.error(`Error rejecting slot ${slot.id}:`, error);
-        success = false;
-      } finally {
-        currentProgress = {
-          ...currentProgress,
-          completed: currentProgress.completed + 1,
-          success: success
-            ? currentProgress.success + 1
-            : currentProgress.success,
-          failed: !success
-            ? currentProgress.failed + 1
-            : currentProgress.failed,
-        };
-        setBatchProgress(currentProgress);
-      }
-    }
-
-    toast.info(
-      t({
-        en: `Batch ${operationName}: ${currentProgress.success} succeeded, ${currentProgress.failed} failed.`,
-        fr: `Traitement par lot (${operationName}): ${currentProgress.success} succès, ${currentProgress.failed} échecs.`,
-      }),
-    );
-    setIsBatchProcessing(false);
-    setSelectedSlots([]);
-    setRowSelection({}); // Clear table selection
-    refresh();
-    refreshStatsProp?.();
-    refreshPendingCount?.();
-  };
   // --- End Batch Approval/Rejection ---
 
   // Use helper functions for table configuration
@@ -776,16 +651,15 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
           t,
           filterDraftStatus,
           isLoading,
-          // Pass the confirmation trigger functions instead of the core handlers
-          handleApproveDraft: confirmApproveDraft,
+          // Pass the confirmation trigger functions (approve no longer needs sellerId here)
+          handleApproveDraft: confirmApproveDraft, 
           handleRejectDraft: confirmRejectDraft,
           handleRemoveProduct: confirmRemoveProduct,
           handleMaintenanceToggle: confirmMaintenanceToggle,
-          // slot is passed as first argument to getSlotRowActions now
         })}
       />
     ),
-    // Update dependencies to include the confirmation functions
+    // Update dependencies 
     [
       t,
       filterDraftStatus,
@@ -840,7 +714,7 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
 
   // Determine title based on mode
   const pageTitle =
-    filterDraftStatus === DraftStatus.ReadyToPublish
+    filterDraftStatus === "ready_to_publish"
       ? t({ en: "Pending Approvals", fr: "Approbations en Attente" })
       : t({ en: "Slot Management", fr: "Gestion des Emplacements" });
 
@@ -849,6 +723,236 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
     setRowSelection({});
     setSelectedSlots([]);
   };
+
+  // --- Batch Approval/Rejection ---
+  const handleBatchApprove = async () => {
+    if (
+      selectedSlots.length === 0 ||
+      filterDraftStatus !== "ready_to_publish"
+    )
+      return;
+
+    // Fetch details for selected slots first
+    const { data: selectedSlotDetails, error: fetchError } = await supabase
+        .from('auction_slots')
+        .select('id, draft_status, draft_seller_whatsapp_number')
+        .in('id', selectedSlots)
+        .eq('draft_status', "ready_to_publish");
+
+    if (fetchError) {
+        toast.error(t({ en: "Error fetching details for batch approval.", fr: "Erreur lors de la récupération des détails pour l'approbation par lot." }));
+        console.error("Batch approve fetch error:", fetchError);
+        return;
+    }
+
+    // Filter for slots that are still ready and have a WhatsApp number
+    const validSlotsToApprove = (selectedSlotDetails || []).filter(slot => slot.draft_seller_whatsapp_number);
+
+    if (validSlotsToApprove.length === 0) {
+      toast.info(
+        t({
+          en: "No selected slots are ready for approval or are missing seller WhatsApp numbers.",
+          fr: "Aucun emplacement sélectionné n'est prêt pour l'approbation ou les numéros WhatsApp vendeurs sont manquants.",
+        }),
+      );
+       setSelectedSlots([]); // Clear selection as nothing can be approved
+       setRowSelection({});
+      return;
+    }
+    
+    // Optional: Add confirmation dialog here for batch approval?
+    if (!window.confirm(t({ 
+        en: `Are you sure you want to approve ${validSlotsToApprove.length} selected draft(s)?`,
+        fr: `Êtes-vous sûr de vouloir approuver ${validSlotsToApprove.length} brouillon(s) sélectionné(s) ?`
+    }))) {
+        return; // Abort if user cancels
+    }
+
+    setIsBatchProcessing(true);
+    const initialProgress = {
+      total: validSlotsToApprove.length,
+      completed: 0,
+      success: 0,
+      failed: 0,
+    };
+    setBatchProgress(initialProgress);
+    let currentProgress = { ...initialProgress };
+    const operationName = "approve drafts";
+
+    // Process slots one by one
+    for (const slot of validSlotsToApprove) {
+      let success = false;
+      let sellerId: string | undefined = undefined;
+
+      try {
+        // Find seller ID based on WhatsApp number for this slot
+         const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('whatsapp_number', slot.draft_seller_whatsapp_number!)
+            .maybeSingle(); 
+            
+        if (userError || !userData?.id) {
+            console.error(`Batch Approve: Seller not found for slot ${slot.id} (WhatsApp: ${slot.draft_seller_whatsapp_number || 'N/A'}). Skipping.`);
+            // Mark as failed but continue loop
+            currentProgress = { ...currentProgress, completed: currentProgress.completed + 1, failed: currentProgress.failed + 1 };
+            setBatchProgress(currentProgress);
+            continue; // Skip to next slot
+        }
+        
+        sellerId = userData.id;
+
+        // Call approveDraft instead of publishDraftToLive
+        if (sellerId) { // We still need the sellerId check logically before approving
+          // const response = await slotService.publishDraftToLive(
+          //   slot.id,
+          //   7, // Default duration
+          //   sellerId,
+          // );
+          const response = await slotService.approveDraft(slot.id); // Call the correct RPC wrapper
+          success = response.success;
+          if (!success)
+            console.error(
+              `Batch Approve: Failed for slot ${slot.id}:`,
+              response.error?.message,
+            );
+        } else {
+          // This case should logically not be hit due to the check above,
+          // but we handle it for robustness and type safety.
+          console.error(`Batch Approve: Seller ID became undefined unexpectedly for slot ${slot.id}. Skipping.`);
+          success = false; 
+        }
+      } catch (error) {
+        console.error(`Batch Approve: Error processing slot ${slot.id}:`, error);
+        success = false;
+      } finally {
+         // Update progress regardless of lookup/publish success/failure for this item
+        if (sellerId) { // Only update counts if we attempted to publish
+             currentProgress = {
+              ...currentProgress,
+              completed: currentProgress.completed + 1,
+              success: success ? currentProgress.success + 1 : currentProgress.success,
+              failed: !success ? currentProgress.failed + 1 : currentProgress.failed,
+            };
+            setBatchProgress(currentProgress);
+        }
+        // If seller lookup failed, progress was already updated in the try block.
+      }
+    }
+
+    toast.info(
+      t({
+        en: `Batch ${operationName}: ${currentProgress.success} succeeded, ${currentProgress.failed} failed.`,
+        fr: `Traitement par lot (${operationName}): ${currentProgress.success} succès, ${currentProgress.failed} échecs.`,
+      }),
+    );
+    setIsBatchProcessing(false);
+    setSelectedSlots([]);
+    setRowSelection({}); // Clear table selection
+    refresh();
+    refreshStatsProp?.();
+    refreshPendingCount?.();
+  };
+
+  const handleBatchReject = async () => {
+    if (
+      selectedSlots.length === 0 ||
+      filterDraftStatus !== "ready_to_publish"
+    )
+      return;
+
+    // Fetch details first to confirm status
+     const { data: selectedSlotDetails, error: fetchError } = await supabase
+        .from('auction_slots')
+        .select('id, draft_status')
+        .in('id', selectedSlots)
+        .eq('draft_status', "ready_to_publish");
+
+    if (fetchError) {
+        toast.error(t({ en: "Error fetching details for batch rejection.", fr: "Erreur lors de la récupération des détails pour le rejet par lot." }));
+        console.error("Batch reject fetch error:", fetchError);
+        return;
+    }
+
+    const slotsToReject = selectedSlotDetails || [];
+
+    if (slotsToReject.length === 0) {
+      toast.info(
+        t({
+          en: "No selected slots are currently awaiting approval.",
+          fr: "Aucun emplacement sélectionné n'est actuellement en attente d'approbation.",
+        }),
+      );
+      setSelectedSlots([]); // Clear selection
+      setRowSelection({});
+      return;
+    }
+
+    // Add confirmation dialog for batch rejection
+    if (
+      !window.confirm(
+        t({
+          en: `Are you sure you want to reject ${slotsToReject.length} selected draft(s)?`,
+          fr: `Êtes-vous sûr de vouloir rejeter ${slotsToReject.length} brouillon(s) sélectionné(s) ?`,
+        }),
+      )
+    ) {
+      return; // Abort if user cancels
+    }
+
+    setIsBatchProcessing(true);
+    const initialProgress = {
+      total: slotsToReject.length,
+      completed: 0,
+      success: 0,
+      failed: 0,
+    };
+    setBatchProgress(initialProgress);
+    let currentProgress = { ...initialProgress };
+    const operationName = "reject drafts";
+
+    for (const slot of slotsToReject) {
+      let success = false;
+      try {
+        const response = await slotService.rejectDraft(slot.id);
+        success = response.success;
+        if (!success)
+          console.error(
+            `Batch Reject: Failed for slot ${slot.id}:`,
+            response.error?.message,
+          );
+      } catch (error) {
+        console.error(`Batch Reject: Error processing slot ${slot.id}:`, error);
+        success = false;
+      } finally {
+        currentProgress = {
+          ...currentProgress,
+          completed: currentProgress.completed + 1,
+          success: success
+            ? currentProgress.success + 1
+            : currentProgress.success,
+          failed: !success
+            ? currentProgress.failed + 1
+            : currentProgress.failed,
+        };
+        setBatchProgress(currentProgress);
+      }
+    }
+
+    toast.info(
+      t({
+        en: `Batch ${operationName}: ${currentProgress.success} succeeded, ${currentProgress.failed} failed.`,
+        fr: `Traitement par lot (${operationName}): ${currentProgress.success} succès, ${currentProgress.failed} échecs.`,
+      }),
+    );
+    setIsBatchProcessing(false);
+    setSelectedSlots([]);
+    setRowSelection({}); // Clear table selection
+    refresh();
+    refreshStatsProp?.();
+    refreshPendingCount?.();
+  };
+  // --- End Batch Approval/Rejection ---
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -942,7 +1046,7 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
               keyField="id"
               columns={columns}
               data={slots || []}
-              isLoading={loading || isLoading || statsLoading} // Combine loading states
+              isLoading={loading || isLoading || statsLoading} // Pass loading state
               rowActions={memoizedRowActions} // Use the memoized row actions function
               enableRowSelection // Enable selection in DataTable
               rowSelection={rowSelection} // Pass local selection state
@@ -953,11 +1057,22 @@ const SlotManagement: React.FC<SlotManagementProps> = ({
               })}
             />
           ) : (
-            <SlotGridConnected
-              key={activeTab}
-              filterStatus={filterStatus}
-              searchTerm={searchTerm}
-              enableActions={true}
+            <SlotGrid 
+              key={activeTab} // Keep key if needed for re-mount on tab change
+              // Pass props down to the presentational SlotGrid
+              slots={slots || []} 
+              loading={loading || isLoading || statsLoading} // Pass combined loading state
+              // Rename the 'error' prop to 'onError' as suggested by the linter.
+              // Assuming SlotGrid expects a callback function for errors.
+              // Pass undefined as we don't have an error handler callback here.
+              onError={undefined} // Pass undefined to satisfy the expected type: ((error: Error) => void) | undefined
+              filterStatus={filterStatus} // Pass filterStatus if SlotGrid needs it for context/display
+              searchTerm={searchTerm} // Pass searchTerm if SlotGrid needs it for context/display
+              enableActions={true} // Pass enableActions
+              // Pass relevant action handlers if SlotGrid needs them (it uses SlotItem which might)
+              onToggleMaintenance={confirmMaintenanceToggle} // Example: Pass confirmation handlers
+              onRemoveProduct={confirmRemoveProduct}
+              // onSlotSelect={handleSelectSlot} // Pass selection handler if needed
             />
           )}
         </div>

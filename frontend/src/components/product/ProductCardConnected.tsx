@@ -1,9 +1,10 @@
-import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, memo } from "react";
+import { Link } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import ProductCardSkeleton from "./ProductCardSkeleton";
 import ErrorMessage from "../ui/ErrorMessage";
 import { useProduct } from "../../services/products";
+import { Slot } from "../../services/slots";
 
 interface ProductCardConnectedProps {
   productId: string;
@@ -21,9 +22,6 @@ const ProductCardConnected: React.FC<ProductCardConnectedProps> = ({
   isAdmin = false,
   className,
 }) => {
-  const { i18n } = useTranslation();
-  const currentLanguage = i18n.language.startsWith("fr") ? "fr" : "en";
-
   // Fetch product data from the service
   const { product, loading, error, refetch } = useProduct(productId);
 

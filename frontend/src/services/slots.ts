@@ -12,11 +12,11 @@ import {
   createErrorResponse,
   createSuccessResponse,
 } from "./core/ServiceResponse"; // Import helpers and enum
-import { DeliveryOption } from "@/types/delivery"; // Assuming DeliveryOption is defined in types/delivery
-import { Tables } from "@/types/supabase-types"; // Import Tables type
-import { SlotStatus } from "../types/supabase-types";
+import { DeliveryOption } from "@/types/delivery"; // Use alias path
+import { Tables, Json } from "@/types/supabase-types"; // Import only needed types from generated file
+import { SlotStatus } from "@/types/enums"; // Import SlotStatus from the new enum file
 
-// Re-export SlotStatus for components that need it
+// Re-export SlotStatus for components that need it (from the new location)
 export { SlotStatus };
 
 /**
@@ -84,6 +84,7 @@ export type SlotDraftData = Partial<
     | "draft_product_delivery_options"
     | "draft_product_tags"
     | "draft_product_image_urls"
+    | "draft_seller_whatsapp_number"
   >
 >;
 
@@ -113,7 +114,7 @@ export const useSlots = (
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   const refresh = useCallback(() => {
-    setRefreshTrigger((prev) => prev + 1);
+    setRefreshTrigger((prev: number) => prev + 1);
   }, []);
 
   const fetchSlots = useCallback(async () => {
@@ -130,12 +131,7 @@ export const useSlots = (
           *,
           live_product_seller:live_product_seller_id (
             id,
-            email,
-            name,
-            whatsapp_number,
-            role,
-            is_verified,
-            verification_level
+            name
           ),
           draft_seller:users!inner(id)
         `,
@@ -161,7 +157,7 @@ export const useSlots = (
 
       // Apply type assertion for delivery options during transformation
       // Extract draft_seller_id from the joined data
-      const transformedSlots = (slotsData || []).map((slot) => {
+      const transformedSlots = (slotsData || []).map((slot: any) => {
         // Extract the joined draft_seller info
         const draftSeller = (slot as any).draft_seller;
         const draft_seller_id = draftSeller?.id;
@@ -187,7 +183,7 @@ export const useSlots = (
       let filteredSlots = transformedSlots;
       if (searchTerm?.trim()) {
         const term = searchTerm.trim().toLowerCase();
-        filteredSlots = filteredSlots.filter((slot) => {
+        filteredSlots = filteredSlots.filter((slot: Slot) => {
           if (slot.id.toString().includes(term)) return true;
           return (
             slot.live_product_name_en?.toLowerCase().includes(term) ||
@@ -229,7 +225,7 @@ export const useSlotStats = () => {
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   const refresh = useCallback(() => {
-    setRefreshTrigger((prev) => prev + 1);
+    setRefreshTrigger((prev: number) => prev + 1);
   }, []);
 
   const fetchStats = useCallback(async () => {
@@ -290,7 +286,7 @@ export const useSlot = (slotId: number | null) => {
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   const refresh = useCallback(() => {
-    setRefreshTrigger((prev) => prev + 1);
+    setRefreshTrigger((prev: number) => prev + 1);
   }, []);
 
   const fetchSlot = useCallback(async () => {
@@ -411,244 +407,136 @@ export const slotService = {
   },
 
   /**
-   * Sets or clears maintenance mode for a slot.
-   * @param slotId The ID of the slot.
-   * @param maintenance True to set maintenance mode, false to clear it.
-   * @returns ServiceResponse indicating success or failure.
+   * Sets or clears maintenance mode for a specific slot using RPC.
    */
   async setSlotMaintenance(
     slotId: number,
     maintenance: boolean,
   ): Promise<ServiceResponse> {
-    if (!slotId || slotId < 1 || slotId > 25) {
-      return createErrorResponse(
-        ServiceErrorType.VALIDATION_ERROR,
-        "Invalid Slot ID.",
-      );
-    }
     try {
-      // Determine the target status based on current state and maintenance flag
-      const { data: currentSlot, error: fetchError } = await supabase
-        .from("auction_slots")
-        .select("slot_status")
-        .eq("id", slotId)
-        .single();
+      type MaintenanceRpcResponse = { status: 'success' | 'error'; message?: string; new_status?: string };
 
-      if (fetchError) throw fetchError;
-      if (!currentSlot)
-        return createErrorResponse(
-          ServiceErrorType.NOT_FOUND,
-          "Slot not found.",
-        );
+      // Remove 'as any' assertion - types should be correct now
+      const { data, error } = await supabase.rpc("toggle_slot_maintenance", {
+        target_slot_id: slotId,
+      });
+      const typedData = data as MaintenanceRpcResponse | null;
 
-      let newStatus: Slot["slot_status"];
-      if (maintenance) {
-        newStatus = "maintenance";
-      } else {
-        // Revert to 'empty' if clearing maintenance, assuming no live product logic here
-        // A more complex logic might be needed if clearing maintenance should potentially restore 'live' status
-        newStatus = "empty"; // Simple case: revert to empty. Needs review based on exact requirements.
-        // TODO: Revisit this logic. If a product was live before maintenance, should it become live again?
+      if (error) {
+        console.error("RPC toggle_slot_maintenance Error:", error);
+        return createErrorResponse(ServiceErrorType.DATABASE_ERROR, error.message); 
       }
 
-      const { error } = await supabase
-        .from("auction_slots")
-        .update({ slot_status: newStatus })
-        .eq("id", slotId);
+      if (typedData && typedData.status === "error") {
+        console.error("RPC toggle_slot_maintenance Logic Error:", typedData.message);
+        return createErrorResponse(
+          ServiceErrorType.VALIDATION_ERROR, 
+          typedData.message || "Failed to toggle maintenance mode",
+        );
+      }
+      
+      if (typedData && typedData.status === "success") {
+        return createSuccessResponse();
+      }
+      
+      return createErrorResponse(ServiceErrorType.UNKNOWN_ERROR, "Unexpected response from toggle maintenance RPC.");
 
-      if (error) throw error;
-      return createSuccessResponse();
-    } catch (err: unknown) {
-      console.error(`Error setting maintenance for slot ${slotId}:`, err);
-      const message = isPostgrestError(err)
-        ? err.message
-        : `Failed to update maintenance mode for slot ${slotId}.`;
-      const errorType = isPostgrestError(err)
-        ? ServiceErrorType.DATABASE_ERROR
-        : ServiceErrorType.UNKNOWN_ERROR;
-      return createErrorResponse(errorType, message, err);
+    } catch (err) {
+      console.error("Unexpected error toggling maintenance:", err);
+      const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+      return createErrorResponse(ServiceErrorType.UNKNOWN_ERROR, message);
     }
   },
 
   /**
-   * Removes the currently live product from a slot, resetting it to 'empty'.
-   * Also clears associated images from storage.
-   * @param slotId The ID of the slot to clear.
-   * @returns ServiceResponse indicating success or failure.
+   * Clears the live product details and sets status to 'empty' for a specific slot using RPC.
    */
   async removeProductFromSlot(slotId: number): Promise<ServiceResponse> {
-    if (!slotId || slotId < 1 || slotId > 25) {
-      return createErrorResponse(
-        ServiceErrorType.VALIDATION_ERROR,
-        "Invalid Slot ID.",
-      );
-    }
     try {
-      // Clear live product fields and reset status
-      const updates = {
-        live_product_seller_id: null,
-        live_product_name_en: null,
-        live_product_name_fr: null,
-        live_product_description_en: null,
-        live_product_description_fr: null,
-        live_product_price: null,
-        live_product_currency: null,
-        live_product_categories: null,
-        live_product_delivery_options: null,
-        live_product_tags: null,
-        live_product_image_urls: null,
-        slot_status: "empty" as const,
-        start_time: null,
-        end_time: null,
-        featured: false, // Reset featured status as well
-        view_count: 0, // Reset view count
-      };
+      type RemoveProductRpcResponse = { status: 'success' | 'error'; message?: string };
+      
+      // Remove 'as any' assertion
+      const { data, error } = await supabase.rpc("remove_live_product", {
+        target_slot_id: slotId,
+      });
+      const typedData = data as RemoveProductRpcResponse | null;
 
-      const { error } = await supabase
-        .from("auction_slots")
-        .update(updates)
-        .eq("id", slotId);
+      if (error) {
+        console.error("RPC remove_live_product Error:", error);
+        return createErrorResponse(ServiceErrorType.DATABASE_ERROR, error.message);
+      }
 
-      if (error) throw error;
-
-      // After successful DB update, clear images from storage path slot-X
-      const storageResult = await clearSlotImages(slotId);
-      if (!storageResult.success) {
-        // Log warning but don't necessarily fail the whole operation
-        console.warn(
-          `DB updated but failed to clear images for slot ${slotId}: ${storageResult.message}`,
+      if (typedData && typedData.status === "error") {
+        console.error("RPC remove_live_product Logic Error:", typedData.message);
+        return createErrorResponse(
+          ServiceErrorType.VALIDATION_ERROR,
+          typedData.message || "Failed to remove product.",
         );
       }
 
-      return createSuccessResponse();
-    } catch (err: unknown) {
-      console.error(`Error removing product from slot ${slotId}:`, err);
-      const message = isPostgrestError(err)
-        ? err.message
-        : `Failed to remove product from slot ${slotId}.`;
-      const errorType = isPostgrestError(err)
-        ? ServiceErrorType.DATABASE_ERROR
-        : ServiceErrorType.UNKNOWN_ERROR;
-      return createErrorResponse(errorType, message, err);
+      if (typedData && typedData.status === "success") {
+        return createSuccessResponse();
+      }
+
+      return createErrorResponse(ServiceErrorType.UNKNOWN_ERROR, "Unexpected response from remove product RPC.");
+
+    } catch (err) {
+      console.error("Unexpected error removing product:", err);
+      const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+      return createErrorResponse(ServiceErrorType.UNKNOWN_ERROR, message);
     }
   },
 
   /**
-   * Publishes the prepared draft content to the live slot.
-   * Copies draft fields to live fields, sets start/end times, updates statuses,
-   * clears draft fields, and potentially clears old images from slot-X path.
-   * @param slotId The ID of the slot to publish.
-   * @param durationDays The duration in days the product should be live. Defaults to 7.
-   * @param sellerId The ID of the seller associated with this product.
-   * @returns ServiceResponse indicating success or failure.
+   * Calls the backend RPC function to approve a draft.
+   * Assumes validation (status check, seller lookup) is done *before* calling this.
+   * @param slotId The ID of the slot to approve.
+   * @returns ServiceResponse indicating success or failure based on RPC result.
    */
-  async publishDraftToLive(
-    slotId: number,
-    durationDays: number = 7,
-    sellerId: string,
-  ): Promise<ServiceResponse> {
+  async approveDraft(slotId: number): Promise<ServiceResponse> {
     if (!slotId || slotId < 1 || slotId > 25) {
       return createErrorResponse(
         ServiceErrorType.VALIDATION_ERROR,
-        "Invalid Slot ID.",
-      );
-    }
-    if (!sellerId) {
-      return createErrorResponse(
-        ServiceErrorType.VALIDATION_ERROR,
-        "Seller ID is required to publish.",
+        "Invalid Slot ID."
       );
     }
 
     try {
-      // 1. Fetch the current draft data
-      const { data: slotData, error: fetchError } = await supabase
-        .from("auction_slots")
-        .select("*")
-        .eq("id", slotId)
-        .single(); // Use single() as we expect the slot to exist
+      type RpcResponse = { status: 'success' | 'error'; message?: string; slot_id?: number };
+      
+      // Remove 'as any' assertion
+      const { data: rawData, error: rpcError } = await supabase.rpc("approve_slot", {
+        slot_id_to_approve: slotId,
+      });
 
-      if (fetchError) {
-        if (fetchError.code === "PGRST116") {
-          return createErrorResponse(
-            ServiceErrorType.NOT_FOUND,
-            "Slot not found.",
-          );
+      if (rpcError) {
+        console.error(`RPC approve_slot error for slot ${slotId}:`, rpcError);
+        throw rpcError;
+      }
+
+      // Explicit Type Guard for the response data
+      if (typeof rawData === 'object' && rawData !== null && 'status' in rawData) {
+        // Now TypeScript knows rawData has at least a 'status' property
+        const data = rawData as RpcResponse; // Can safely assert type here
+        
+        if (data.status === "success") {
+          return createSuccessResponse();
+        } else {
+          // RPC executed but returned a logical error (e.g., permission denied, slot not ready)
+          const errorMessage = data.message || "Approval failed due to backend validation.";
+          console.warn(`RPC approve_slot logic error for slot ${slotId}: ${errorMessage}`);
+          return createErrorResponse(ServiceErrorType.VALIDATION_ERROR, errorMessage);
         }
-        throw fetchError;
+      } else {
+        // Handle unexpected response format (e.g., null, boolean, or wrong object structure)
+        console.error(`RPC approve_slot unexpected response format for slot ${slotId}:`, rawData);
+        return createErrorResponse(ServiceErrorType.UNKNOWN_ERROR, "Received unexpected response from approval function.");
       }
-      if (slotData.draft_status !== "ready_to_publish") {
-        return createErrorResponse(
-          ServiceErrorType.VALIDATION_ERROR,
-          "Draft is not ready to publish.",
-        );
-      }
-      if (slotData.slot_status === "maintenance") {
-        return createErrorResponse(
-          ServiceErrorType.VALIDATION_ERROR,
-          "Cannot publish to a slot under maintenance.",
-        );
-      }
-
-      // 2. Prepare updates: Copy draft to live, set times, update status, clear draft
-      const startTime = new Date();
-      const endTime = new Date(startTime);
-      endTime.setDate(startTime.getDate() + durationDays);
-
-      // Prepare update object using correct fields
-      const updates = {
-        live_product_seller_id: sellerId,
-        live_product_name_en: slotData.draft_product_name_en,
-        live_product_name_fr: slotData.draft_product_name_fr,
-        live_product_description_en: slotData.draft_product_description_en,
-        live_product_description_fr: slotData.draft_product_description_fr,
-        live_product_price: slotData.draft_product_price,
-        live_product_currency: slotData.draft_product_currency,
-        live_product_categories: slotData.draft_product_categories,
-        // Ensure delivery options are included (already correct type via slotData)
-        live_product_delivery_options: slotData.draft_product_delivery_options,
-        live_product_tags: slotData.draft_product_tags,
-        live_product_image_urls: slotData.draft_product_image_urls,
-
-        slot_status: "live" as const,
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        featured: false,
-        view_count: 0,
-
-        draft_seller_whatsapp_number: null,
-        draft_product_name_en: null,
-        draft_product_name_fr: null,
-        draft_product_description_en: null,
-        draft_product_description_fr: null,
-        draft_product_price: null,
-        draft_product_currency: null,
-        draft_product_categories: null,
-        draft_product_delivery_options: null,
-        draft_product_tags: null,
-        draft_product_image_urls: null,
-        draft_status: "empty" as const,
-      };
-
-      // Cast updates to satisfy Supabase client type for JSON field
-      // Alternatively, cast specific field: { ...updates, live_product_delivery_options: updates.live_product_delivery_options as Json }
-      const { error: updateError } = await supabase
-        .from("auction_slots")
-        .update(updates as any)
-        .eq("id", slotId);
-
-      if (updateError) throw updateError;
-
-      // Potential next step: Clear old images from storage if needed?
-      // This might be complex if draft images are reused for live.
-      // Assuming for now that draft_product_image_urls were finalized before publish.
-
-      return createSuccessResponse();
     } catch (err: unknown) {
-      console.error(`Error publishing draft for slot ${slotId}:`, err);
+      console.error(`Error calling approve_slot RPC for slot ${slotId}:`, err);
       const message = isPostgrestError(err)
         ? err.message
-        : `Failed to publish draft for slot ${slotId}.`;
+        : `Failed to approve draft for slot ${slotId}.`;
       const errorType = isPostgrestError(err)
         ? ServiceErrorType.DATABASE_ERROR
         : ServiceErrorType.UNKNOWN_ERROR;
@@ -695,38 +583,109 @@ export const slotService = {
     }
   },
 
-  // TODO: Implement Reject Draft Logic
-  async rejectDraft(slotId: number): Promise<ServiceResponse<void>> {
-    console.warn(`rejectDraft(${slotId}) - Implementation pending.`);
-    // Placeholder implementation:
-    // 1. Fetch the slot to ensure it exists and draft_status is ready_to_publish
-    // 2. Update the slot:
-    //    - Set draft_* fields to null/defaults
-    //    - Set draft_status to 'empty' or 'drafting' (TBD)
-    //    - Potentially clear associated draft images in storage
-    // 3. Return success/error
-    // Example (needs refinement):
-    /*
+  /**
+   * Calls the backend RPC to reject a draft, clearing draft fields and resetting draft_status.
+   * @param slotId The ID of the slot whose draft is to be rejected.
+   * @param rejectionReason Optional reason for rejection (passed to RPC but not stored by default).
+   * @returns ServiceResponse indicating success or failure.
+   */
+  async rejectDraft(slotId: number, rejectionReason?: string): Promise<ServiceResponse<void>> {
+    if (!slotId || slotId < 1 || slotId > 25) {
+      return createErrorResponse(
+        ServiceErrorType.VALIDATION_ERROR,
+        "Invalid Slot ID."
+      );
+    }
+
+    try {
+      type RpcResponse = { status: 'success' | 'error'; message?: string; slot_id?: number };
+      
+      // Remove 'as any' assertion
+      const { data: rawData, error: rpcError } = await supabase.rpc("reject_slot", {
+        slot_id_to_reject: slotId,
+        rejection_reason: rejectionReason || undefined,
+      });
+
+      if (rpcError) {
+         console.error(`RPC reject_slot error for slot ${slotId}:`, rpcError);
+        throw rpcError;
+      }
+
+      // Explicit Type Guard for the response data
+      if (typeof rawData === 'object' && rawData !== null && 'status' in rawData) {
+        const data = rawData as RpcResponse;
+        
+        if (data.status === "success") {
+          return createSuccessResponse(); // Return void for success
+        } else {
+          const errorMessage = data.message || "Rejection failed due to backend validation.";
+          console.warn(`RPC reject_slot logic error for slot ${slotId}: ${errorMessage}`);
+          return createErrorResponse(ServiceErrorType.VALIDATION_ERROR, errorMessage);
+        }
+      } else {
+        console.error(`RPC reject_slot unexpected response format for slot ${slotId}:`, rawData);
+        return createErrorResponse(ServiceErrorType.UNKNOWN_ERROR, "Received unexpected response from rejection function.");
+      }
+
+    } catch (err: unknown) {
+      console.error(`Error calling reject_slot RPC for slot ${slotId}:`, err);
+      const message = isPostgrestError(err)
+        ? err.message
+        : `Failed to reject draft for slot ${slotId}.`;
+      const errorType = isPostgrestError(err)
+        ? ServiceErrorType.DATABASE_ERROR
+        : ServiceErrorType.UNKNOWN_ERROR;
+      return createErrorResponse(errorType, message, err);
+    }
+  },
+
+  /**
+   * Saves draft product details to a specific slot.
+   * If the slot doesn't exist or fails, returns an error response.
+   */
+  async saveProductDraft(
+    slotId: number,
+    draftData: SlotDraftData,
+  ): Promise<ServiceResponse> {
+    if (!slotId) {
+      return createErrorResponse(
+        ServiceErrorType.VALIDATION_ERROR,
+        "Slot ID is required to save a draft.",
+      );
+    }
+
+    // Prepare data for update, including setting draft_status and casting delivery options
+    const updateData = {
+      ...draftData,
+      draft_product_delivery_options: draftData.draft_product_delivery_options as unknown as Json, // Correct casing
+      draft_status: "drafting", 
+    };
+
+    try {
       const { error } = await supabase
-        .from('auction_slots')
-        .update({
-          draft_status: 'empty', // Or 'drafting'?
-          draft_product_name_en: null,
-          draft_product_name_fr: null,
-          draft_product_description_en: null,
-          // ... other draft fields ...
-          draft_product_image_urls: null,
-          draft_updated_at: new Date().toISOString(),
-        })
-        .eq('id', slotId)
-        .eq('draft_status', 'ready_to_publish');
+        .from("auction_slots")
+        .update(updateData) // Use the data with casted type
+        .eq("id", slotId);
 
       if (error) {
-        return createErrorResponse(ServiceErrorType.DatabaseError, 'Failed to reject draft', error);
+        console.error("Error saving product draft:", error);
+        // Map Supabase error to a ServiceErrorType
+        if (error.code === "PGRST116") { // Not found potentially
+           return createErrorResponse(ServiceErrorType.NOT_FOUND, `Slot with ID ${slotId} not found.`);
+        }
+        return createErrorResponse(
+          ServiceErrorType.DATABASE_ERROR,
+          error.message || "Failed to save draft.",
+        );
       }
-      // TODO: Add image cleanup logic if needed
-      */
-    return createSuccessResponse(); // Return void for success
+
+      console.log(`Draft saved successfully for slot ${slotId}`);
+      return createSuccessResponse(); // Correct return for void signature
+    } catch (err) {
+      console.error("Unexpected error saving draft:", err);
+      const message = err instanceof Error ? err.message : "An unexpected error occurred while saving the draft.";
+      return createErrorResponse(ServiceErrorType.UNKNOWN_ERROR, message); // Use UNKNOWN_ERROR
+    }
   },
 };
 
@@ -738,15 +697,16 @@ export const slotService = {
 export async function getAvailableSlotsForProductForm(): Promise<number[]> {
   try {
     const { data, error } = await supabase
-      .from("auction_slots")
-      .select("id")
-      .eq("slot_status", "empty");
-    
+      .from('auction_slots')
+      .select('id')
+      .eq('slot_status', 'empty')
+      .order('id');
+
     if (error) throw error;
     
-    return data.map(slot => slot.id);
+    return data.map((slot: { id: number }) => slot.id);
   } catch (err) {
     console.error("Error fetching available slots:", err);
-    return []; // Return empty array on error
+    throw err; // Re-throw the error to be handled by the caller
   }
 }

@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "./config";
+import { Json } from "../../types/supabase-types";
 
 /**
  * Connection Status object returned by connection tests
@@ -38,11 +39,38 @@ export async function testConnection(): Promise<ConnectionStatus> {
   const startTime = performance.now();
 
   try {
-    // Ping a lightweight RPC function
-    const { data, error } = await supabase.rpc("ping");
-
-    if (error) {
-      throw error;
+    // Try to ping using the RPC function first
+    let data: { timestamp?: string; status?: string; message?: string } = {};
+    let pingSuccess = false;
+    
+    try {
+      const { data: pingData, error: pingError } = await supabase.rpc("ping");
+      
+      if (!pingError && pingData) {
+        // The ping was successful
+        data = typeof pingData === 'object' ? pingData as any : {};
+        pingSuccess = true;
+      }
+    } catch (pingErr) {
+      console.info("Ping RPC function error:", pingErr);
+      // Will fall through to the fallback method
+    }
+    
+    // If ping wasn't successful, use the fallback method
+    if (!pingSuccess) {
+      console.info("Using fallback connection test");
+      const { error: countError } = await supabase
+        .from("auction_slots")
+        .select("*", { count: "exact", head: true });
+      
+      if (countError) throw countError;
+      
+      // Create a simple data object similar to what ping would return
+      data = {
+        timestamp: new Date().toISOString(),
+        status: "ok",
+        message: "Connection successful (fallback)",
+      };
     }
 
     const endTime = performance.now();
@@ -54,8 +82,9 @@ export async function testConnection(): Promise<ConnectionStatus> {
       error: null,
       timestamp: new Date(),
       details: {
-        serverTimestamp: data?.timestamp,
+        serverTimestamp: data.timestamp,
         clientTimestamp: new Date().toISOString(),
+        connectionMethod: data.message?.includes("fallback") ? "fallback" : "rpc",
       },
     };
   } catch (error) {

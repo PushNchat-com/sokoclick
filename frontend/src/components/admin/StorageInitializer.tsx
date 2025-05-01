@@ -22,7 +22,7 @@ import { useLanguage } from "../../store/LanguageContext";
  * - Shows status of storage operations
  */
 const StorageInitializer: React.FC = () => {
-  const { isAdmin, isSuperAdmin } = useUnifiedAuth();
+  const { user, isAdmin } = useUnifiedAuth();
   const { t } = useLanguage();
   const [isInitializing, setIsInitializing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -38,8 +38,8 @@ const StorageInitializer: React.FC = () => {
   // Check which slots are already initialized
   useEffect(() => {
     const checkSlots = async () => {
-      // Only proceed with checks if user is a super admin
-      if (!isSuperAdmin) return;
+      // Only proceed with checks if user is an admin
+      if (!isAdmin) return;
 
       const checks: Record<number, boolean> = {};
 
@@ -52,10 +52,10 @@ const StorageInitializer: React.FC = () => {
     };
 
     checkSlots();
-  }, [isSuperAdmin]);
+  }, [isAdmin]);
 
-  // Only super admins should access this component
-  if (!isSuperAdmin) {
+  // Only admins should access this component
+  if (!isAdmin) {
     return (
       <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
         <h3 className="text-lg font-medium text-red-600 mb-2">
@@ -63,8 +63,8 @@ const StorageInitializer: React.FC = () => {
         </h3>
         <p className="text-sm text-red-500">
           {t({
-            en: "Only super administrators can access storage management functions.",
-            fr: "Seuls les super administrateurs peuvent accéder aux fonctions de gestion du stockage.",
+            en: "Only administrators can access storage management functions.",
+            fr: "Seuls les administrateurs peuvent accéder aux fonctions de gestion du stockage.",
           })}
         </p>
       </div>

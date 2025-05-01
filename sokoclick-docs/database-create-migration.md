@@ -49,3 +49,13 @@ Write Postgres-compatible SQL code for Supabase migration files that:
   - Include comments explaining the rationale and intended behavior of each security policy
 
 The generated SQL code should be production-ready, well-documented, and aligned with Supabase's best practices.
+
+-- Allow anon/public to see basic seller info? (Optional - Needed if showing seller name on cards)
+DROP POLICY IF EXISTS "Allow public view of seller info" ON public.users;
+CREATE POLICY "Allow public view of seller info"
+ON public.users FOR SELECT
+TO anon, authenticated
+USING (role = 'seller'); -- SELECT policies only use USING
+
+-- Note: Column-level visibility is handled by the specific SELECT statement in the frontend query (`useSlots`),
+-- which only requests permitted columns (e.g., 'id', 'name') for the joined seller.
